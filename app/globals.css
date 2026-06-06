@@ -1,26 +1,86 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #0d1624;
+  --foreground: #ffffff;
+}
+
+@theme {
+  /* Base / Background */
+  --penny-bg-base: #0F1624;
+  --penny-bg-mid: #151d2d;
+  --penny-bg-surface: #1d2639;
+
+  /* Surface & Elevation */
+  --penny-surface-1: #151d2d;
+  --penny-surface-2: #1d2639;
+  --penny-surface-3: #252f45;
+  --penny-surface-light: #e8eaed;
+
+  /* Text */
+  --penny-text-primary: #ffffff;
+  --penny-text-secondary: #c8d0dc;
+  --penny-text-muted: #9aa3b0;
+  --penny-text-disabled: #6b7785;
+
+  /* Borders & Dividers */
+  --penny-border-subtle: #1d2639;
+  --penny-border-default: #252f45;
+  --penny-border-strong: #2d3a52;
+
+  /* Accent */
+  --penny-accent: #00d4a1;
+  --penny-accent-hover: #00b893;
+
+  /* Status */
+  --penny-success: #4CAF50;
+  --penny-warning: #F5C518;
+  --penny-error: #F44336;
+
+  /* Tailwind color utilities */
+  --color-penny-bg-base: #0d1624;
+  --color-penny-bg-mid: #151d2d;
+  --color-penny-bg-surface: #1d2639;
+
+  --color-penny-surface-1: #151d2d;
+  --color-penny-surface-2: #1d2639;
+  --color-penny-surface-3: #252f45;
+  --color-penny-surface-light: #e8eaed;
+
+  --color-penny-text-primary: #ffffff;
+  --color-penny-text-secondary: #c8d0dc;
+  --color-penny-text-muted: #9aa3b0;
+  --color-penny-text-disabled: #6b7785;
+
+  --color-penny-border-subtle: #1d2639;
+  --color-penny-border-default: #252f45;
+  --color-penny-border-strong: #2d3a52;
+
+  --color-penny-accent: #00d4a1;
+  --color-penny-accent-hover: #00b893;
+
+  --color-penny-success: #4CAF50;
+  --color-penny-warning: #F5C518;
+  --color-penny-error: #F44336;
+
+  --font-monserrat: var(--font-montserrat);
+  --font-britti-sans-trial: var(--font-britti-sans-trial);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-monserrat: var(--font-montserrat);
+  --font-britti-sans-trial: var(--font-britti-sans-trial);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background-color: var(--penny-bg-base);
+  color: var(--penny-text-primary);
   font-family: Arial, Helvetica, sans-serif;
+  overflow-x: hidden;
+  width: 100%;
+}
+
+html {
+  overflow-x: hidden;
+  width: 100%;
 }
