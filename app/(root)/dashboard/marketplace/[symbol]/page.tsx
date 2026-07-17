@@ -10,11 +10,28 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import StockPriceChart from "./StockPriceChart";
 import BuyModal from "@/components/modals/BuyModal";
+import { useStockRequests } from "@/context/StockRequestContext";
 
 export default function MarketplaceStockDetail() {
   const params = useParams<{ symbol: string }>();
   const decodedSymbol = decodeURIComponent(params.symbol).toUpperCase();
-  const stock = marketAssets.find((a) => a.symbol === decodedSymbol);
+  const { stockRequests } = useStockRequests();
+
+  const approvedStocks: Stock[] = stockRequests
+    .filter((r) => r.status === "approved")
+    .map((r) => ({
+      symbol: r.ticker,
+      name: r.name,
+      price: `$${r.initialPrice.toFixed(2)}`,
+      change: "0.00",
+      pct: "+0.00%",
+      up: true,
+      bgColor: "rgba(0, 212, 161, 0.1)",
+      description: r.description,
+    }));
+
+  const allMarketAssets = [...marketAssets, ...approvedStocks];
+  const stock = allMarketAssets.find((a) => a.symbol === decodedSymbol);
 
   const [buyOpen, setBuyOpen] = useState(false);
 

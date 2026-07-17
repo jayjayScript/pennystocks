@@ -1,0 +1,5 @@
+{
+  "maxTradeSize": 1000,
+  "feePercentage": 0.2,
+  "enabled": true
+}

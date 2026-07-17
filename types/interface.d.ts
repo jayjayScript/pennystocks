@@ -4,7 +4,7 @@
 
 interface Order {
   id: string;
-  type: "buy" | "sell";
+  type: "buy" | "sell" | "deposit" | "withdraw";
   symbol: string;
   name: string;
   icon?: string;
@@ -17,7 +17,25 @@ interface Order {
   netReceive: number;  // sell: grossValue - fee
   status: "pending" | "approved" | "rejected";
   createdAt: string;   // ISO string
+  proofImageUrl?: string; // base64 payment/withdrawal proof
+  note?: string; // reference note for deposit/withdraw
 }
+
+// ─── Stock Requests ────────────────────────────────────────────────────────────
+
+interface StockRequest {
+  id: string;
+  ticker: string;
+  name: string;
+  type: string;
+  exchange: string;
+  initialPrice: number;
+  description: string;
+  status: "pending" | "approved" | "rejected";
+  createdAt: string;
+  submittedBy: "user" | "admin";
+}
+
 
 interface ProfitEntry {
   amount: string;
@@ -101,6 +119,46 @@ interface StockPriceChartProps {
 
 // ─── Copy Trading ─────────────────────────────────────────────────────────────
 
+interface CopyTradeSetup {
+  id: string;
+  traderId: string;
+  traderNickname: string;
+  countryFlag: string;
+  country: string;
+  leverage: number;
+  coin: {
+    symbol: string;
+    name: string;
+    icon?: string;
+    bgColor?: string;
+  };
+  price: number; // Copy trade price in USD
+  traderWinRate: number;
+}
+
+interface CopyTradeTransaction {
+  id: string;
+  copyTradeId: string;
+  type: "buy" | "sell";
+  coinSymbol: string;
+  amount: number;
+  price: number;
+  profitLoss: number;
+  leverage: number;
+  date: string;
+}
+
+interface ActiveCopyTrade {
+  id: string;
+  setup: CopyTradeSetup;
+  startDate: string;
+  pnl: number;
+  pnlPercent: number;
+  lastTrades: CopyTradeTransaction[];
+  status: "active" | "paused" | "closed";
+}
+
+// Legacy support
 interface CopyTrader {
   id: string;
   name: string;
@@ -113,4 +171,9 @@ interface CopyTrader {
   avgDailyProfit: string;
   copies: string;
   totalAssets: number;
+}
+
+interface CopyTradeResult {
+  success: boolean;
+  message: string;
 }

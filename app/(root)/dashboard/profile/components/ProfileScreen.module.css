@@ -1,0 +1,23 @@
+.glassCard {
+  background: rgba(21, 29, 45, 0.6);
+  border: 1px solid rgba(37, 47, 69, 0.5);
+  border-radius: 16px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  padding: 1rem;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+}
+
+.editButton {
+  transition: all 0.2s ease;
+}
+.editButton.active {
+  background: #00d4a1;
+  color: #0d1624;
+}
+
+.editButton:not(.active) {
+  background: #151d2d;
+  color: #9aa3b0;
+  border: 1px solid #252f45;
+}

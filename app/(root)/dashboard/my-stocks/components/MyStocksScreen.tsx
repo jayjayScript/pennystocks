@@ -1,146 +1,178 @@
 "use client";
 
+import React, { useState } from "react";
 import { Icon } from "@iconify/react";
-
-const holdings = [
-  { symbol: "BTC", name: "Bitcoin",  qty: "0.24 BTC",  value: "$1,892.25",  pnl: "+$240.50",  pct: "+14.6%", up: true  },
-  { symbol: "ETH", name: "Ethereum", qty: "1.80 ETH",  value: "$387.47",    pnl: "-$42.10",   pct: "-9.8%",  up: false },
-  { symbol: "BNB", name: "BNB",      qty: "3.10 BNB",  value: "$571.28",    pnl: "+$88.00",   pct: "+18.2%", up: true  },
-  { symbol: "LTC", name: "Litecoin", qty: "12.5 LTC",  value: "$1,892.25",  pnl: "+$120.00",  pct: "+6.7%",  up: true  },
-  { symbol: "NGN", name: "Naira",    qty: "50,000 NGN", value: "$33.80",    pnl: "-$2.10",    pct: "-5.8%",  up: false },
-];
-
-const symbolColors: Record<string, string> = {
-  BTC: "#F7931A", ETH: "#627EEA", BNB: "#F0B90B",
-  NGN: "#008751", LTC: "#BFBBBB",
-};
-
-const totalValue = "$4,776.05";
+import { useStockRequests } from "@/context/StockRequestContext";
+import ProposeStockModal from "@/components/modals/ProposeStockModal";
+import Link from "next/link";
 
 export default function MyStocksScreen() {
+  const { stockRequests } = useStockRequests();
+  const [proposeOpen, setProposeOpen] = useState(false);
+
+  const totalProposed = stockRequests.length;
+  const approvedCount = stockRequests.filter((r) => r.status === "approved").length;
+  const pendingCount = stockRequests.filter((r) => r.status === "pending").length;
+  const rejectedCount = stockRequests.filter((r) => r.status === "rejected").length;
+
   return (
-    <div className="p-4 md:p-8 space-y-6">
+    <div className="p-4 md:p-8 space-y-6 max-w-5xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm" style={{ color: "#9aa3b0" }}>Your holdings</p>
-          <h1 className="text-2xl font-bold text-white mt-0.5">My Stocks</h1>
-        </div>
-        <div
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold"
-          style={{ background: "rgba(0,212,161,0.12)", color: "#00d4a1" }}
+        {/* <div>
+          <p className="text-sm" style={{ color: "#9aa3b0" }}>Your proposals</p>
+          <h1 className="text-2xl font-bold text-white mt-0.5">My Proposed Stocks</h1>
+        </div> */}
+        <button
+          onClick={() => setProposeOpen(true)}
+          className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-[#00d4a1] text-[#0d1624] hover:opacity-90 active:scale-95 transition-all cursor-pointer"
         >
-          <Icon icon="mdi:trending-up" width={14} />
-          Portfolio Up
+          <Icon icon="mdi:plus" width={16} />
+          Propose Stock
+        </button>
+      </div>
+
+      {/* Stats Cards Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="rounded-xl p-4 bg-[#151d2d] border border-[#252f45]">
+          <p className="text-xs mb-1" style={{ color: "#6b7785" }}>Total Proposed</p>
+          <p className="text-xl font-bold text-white">{totalProposed}</p>
+        </div>
+        <div className="rounded-xl p-4 bg-[#151d2d] border border-[#252f45]">
+          <p className="text-xs mb-1" style={{ color: "#6b7785" }}>Approved</p>
+          <p className="text-xl font-bold text-[#00d4a1]">{approvedCount}</p>
+        </div>
+        <div className="rounded-xl p-4 bg-[#151d2d] border border-[#252f45]">
+          <p className="text-xs mb-1" style={{ color: "#6b7785" }}>Pending</p>
+          <p className="text-xl font-bold text-[#FFC107]">{pendingCount}</p>
+        </div>
+        <div className="rounded-xl p-4 bg-[#151d2d] border border-[#252f45]">
+          <p className="text-xs mb-1" style={{ color: "#6b7785" }}>Rejected</p>
+          <p className="text-xl font-bold text-[#F44336]">{rejectedCount}</p>
         </div>
       </div>
 
-      {/* Portfolio total */}
-      <div
-        className="rounded-2xl p-6 relative overflow-hidden"
-        style={{ background: "linear-gradient(135deg, #151d2d 0%, #1b2a40 100%)", border: "1px solid #252f45" }}
-      >
-        <div
-          className="absolute inset-0 opacity-10"
-          style={{ background: "radial-gradient(circle at 80% 50%, #00d4a1, transparent 60%)" }}
-        />
-        <p className="text-sm mb-1 relative z-10" style={{ color: "#9aa3b0" }}>Total Portfolio Value</p>
-        <p className="text-4xl font-extrabold text-white mb-1 relative z-10">{totalValue}</p>
-        <div className="flex items-center gap-2 relative z-10">
-          <Icon icon="mdi:trending-up" width={14} style={{ color: "#4CAF50" }} />
-          <span className="text-sm font-semibold" style={{ color: "#4CAF50" }}>+$446.40 (9.3%) all time</span>
-        </div>
-      </div>
-
-      {/* Donut chart placeholder */}
-      <div
-        className="rounded-2xl p-5 flex items-center gap-6"
-        style={{ background: "#151d2d", border: "1px solid #1d2639" }}
-      >
-        {/* Simple donut */}
-        <svg viewBox="0 0 80 80" className="w-20 h-20 shrink-0">
-          <circle cx="40" cy="40" r="30" fill="none" stroke="#1d2639" strokeWidth="12" />
-          <circle cx="40" cy="40" r="30" fill="none" stroke="#00d4a1" strokeWidth="12"
-            strokeDasharray="94 100" strokeDashoffset="25" strokeLinecap="round" />
-          <circle cx="40" cy="40" r="30" fill="none" stroke="#F7931A" strokeWidth="12"
-            strokeDasharray="40 100" strokeDashoffset="-69" strokeLinecap="round" />
-          <text x="40" y="44" textAnchor="middle" fontSize="10" fill="white" fontWeight="bold">100%</text>
-        </svg>
-        <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
-          {holdings.slice(0, 4).map((h) => (
-            <div key={h.symbol} className="flex items-center gap-2">
-              <div
-                className="w-2 h-2 rounded-full shrink-0"
-                style={{ background: symbolColors[h.symbol] || "#00d4a1" }}
-              />
-              <span className="text-xs" style={{ color: "#9aa3b0" }}>{h.symbol}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Desktop table header */}
-      <div
-        className="hidden md:grid grid-cols-[2fr_1fr_1fr_1fr] px-4 py-2 rounded-xl text-xs font-semibold"
-        style={{ color: "#6b7785", background: "#151d2d" }}
-      >
-        <span>Asset</span>
-        <span className="text-right">Value</span>
-        <span className="text-right">P&amp;L</span>
-        <span className="text-right">Change</span>
-      </div>
-
-      {/* Holdings list */}
-      <div className="space-y-2">
-        {holdings.map((h, i) => (
-          <div
-            key={i}
-            className="flex items-center justify-between px-4 py-4 rounded-xl
-              md:grid md:grid-cols-[2fr_1fr_1fr_1fr]"
-            style={{ background: "#151d2d", border: "1px solid #1d2639" }}
+      {/* Main List */}
+      {stockRequests.length === 0 ? (
+        <div className="text-center py-16 rounded-2xl bg-[#151d2d] border border-dashed border-[#252f45]">
+          <Icon icon="mdi:bank-outline" width={48} className="mx-auto mb-3" style={{ color: "#6b7785" }} />
+          <p className="text-white font-semibold mb-1">No Stock Proposals Yet</p>
+          <p className="text-sm mb-5 max-w-sm mx-auto" style={{ color: "#6b7785" }}>
+            Every stock listing must be proposed and approved by the admin. Submit your first proposal now!
+          </p>
+          <button
+            onClick={() => setProposeOpen(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-[#00d4a1] text-[#0d1624] hover:opacity-90 transition-all"
           >
-            {/* Asset */}
-            <div className="flex items-center gap-3">
-              <div
-                className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
-                style={{
-                  background: `${symbolColors[h.symbol] || "#00d4a1"}22`,
-                  color: symbolColors[h.symbol] || "#00d4a1",
-                }}
-              >
-                {h.symbol[0]}
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-white">{h.symbol}</p>
-                <p className="text-xs" style={{ color: "#9aa3b0" }}>{h.qty}</p>
-              </div>
-            </div>
-
-            {/* Value */}
-            <div className="text-right">
-              <p className="text-sm font-semibold text-white">{h.value}</p>
-            </div>
-
-            {/* PnL — desktop */}
-            <div className="hidden md:block text-right">
-              <p className="text-sm font-semibold" style={{ color: h.up ? "#4CAF50" : "#F44336" }}>{h.pnl}</p>
-            </div>
-
-            {/* Change */}
-            <div className="text-right">
-              <span
-                className="text-xs font-bold px-2 py-1 rounded-full"
-                style={{
-                  background: h.up ? "rgba(76,175,80,0.12)" : "rgba(244,67,54,0.12)",
-                  color: h.up ? "#4CAF50" : "#F44336",
-                }}
-              >
-                {h.pct}
-              </span>
-            </div>
+            <Icon icon="mdi:plus" width={16} />
+            Propose a Stock
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {/* Desktop Table Header */}
+          <div
+            className="hidden md:grid grid-cols-[2.5fr_1.2fr_1.2fr_1.2fr_1.5fr] px-5 py-3 rounded-xl text-xs font-semibold tracking-wide"
+            style={{ color: "#6b7785", background: "#151d2d" }}
+          >
+            <span>Asset</span>
+            <span className="text-right">Exchange</span>
+            <span className="text-right">Init. Price</span>
+            <span className="text-right">Status</span>
+            <span className="text-right">Proposed Date</span>
           </div>
-        ))}
-      </div>
+
+          {/* List items */}
+          <div className="space-y-2.5">
+            {stockRequests.map((req) => {
+              const content = (
+                <div
+                  className="flex flex-col gap-3 md:flex-row md:items-center
+                    md:grid md:grid-cols-[2.5fr_1.2fr_1.2fr_1.2fr_1.5fr]
+                    px-4 py-4 md:px-5 md:py-3.5 rounded-2xl border transition-all duration-150"
+                  style={{ background: "#151d2d", borderColor: "#1d2639" }}
+                >
+                  {/* Asset Info */}
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-10 h-10 shrink-0 rounded-xl flex items-center justify-center text-sm font-extrabold bg-white/5 text-[#00d4a1]"
+                    >
+                      {req.ticker[0]}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-white leading-tight truncate">
+                        {req.ticker}
+                      </p>
+                      <p className="text-xs text-penny-text-muted mt-0.5 truncate">
+                        {req.name} • <span className="text-[10px] uppercase font-bold">{req.type}</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Exchange */}
+                  <div className="flex justify-between md:block md:text-right">
+                    <span className="text-xs text-penny-text-muted md:hidden">Exchange:</span>
+                    <span className="text-xs font-semibold text-white px-2 py-0.5 rounded bg-white/5 uppercase">
+                      {req.exchange}
+                    </span>
+                  </div>
+
+                  {/* Initial Price */}
+                  <div className="flex justify-between md:block md:text-right">
+                    <span className="text-xs text-penny-text-muted md:hidden">Initial Price:</span>
+                    <p className="text-sm font-bold text-white">${req.initialPrice.toFixed(2)}</p>
+                  </div>
+
+                  {/* Status */}
+                  <div className="flex justify-between md:block md:text-right">
+                    <span className="text-xs text-penny-text-muted md:hidden">Status:</span>
+                    <span
+                      className="text-xs font-bold px-2.5 py-0.5 rounded-full inline-block"
+                      style={{
+                        background:
+                          req.status === "approved"
+                            ? "rgba(0, 212, 161, 0.12)"
+                            : req.status === "rejected"
+                            ? "rgba(244, 67, 54, 0.12)"
+                            : "rgba(255, 193, 7, 0.12)",
+                        color:
+                          req.status === "approved"
+                            ? "#00d4a1"
+                            : req.status === "rejected"
+                            ? "#F44336"
+                            : "#FFC107",
+                      }}
+                    >
+                      {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
+                    </span>
+                  </div>
+
+                  {/* Proposed Date */}
+                  <div className="flex justify-between md:block md:text-right">
+                    <span className="text-xs text-penny-text-muted md:hidden">Requested:</span>
+                    <p className="text-xs text-penny-text-muted">
+                      {new Date(req.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+              );
+
+              if (req.status === "approved") {
+                return (
+                  <Link key={req.id} href={`/dashboard/marketplace/${req.ticker}`} className="block group">
+                    {content}
+                  </Link>
+                );
+              }
+
+              return <div key={req.id}>{content}</div>;
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Propose Stock Modal */}
+      <ProposeStockModal isOpen={proposeOpen} onClose={() => setProposeOpen(false)} />
     </div>
   );
 }

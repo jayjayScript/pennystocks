@@ -53,23 +53,18 @@ export const entries: ProfitEntry[] = [
 ];
 
 export const stockData: Record<string, Stock> = {
-  BTC: { symbol: "BTC", name: "Bitcoin", price: "$57,207.00", change: "2,540", pct: "+2.40%", up: true, icon: "logos:bitcoin", bgColor: "rgba(247, 147, 26, 0.1)", description: "Bitcoin is a decentralized digital currency, without a central bank or single administrator, that can be sent from user to user on the peer-to-peer bitcoin network without the need for intermediaries." },
-  ETH: { symbol: "ETH", name: "Ethereum", price: "$3,129.00", change: "1,320", pct: "+1.32%", up: true, icon: "logos:ethereum", bgColor: "rgba(98, 126, 234, 0.1)", description: "Ethereum is a decentralized, open-source blockchain with smart contract functionality. Ether is the native cryptocurrency of the platform." },
-  BNB: { symbol: "BNB", name: "BNB", price: "$571.00", change: "557", pct: "+2.30%", up: true, icon: "logos:binance", bgColor: "rgba(243, 186, 47, 0.1)", description: "BNB is the cryptocurrency coin that powers the BNB Chain ecosystem. BNB is one of the world's most popular utility tokens." },
-  SOL: { symbol: "SOL", name: "Solana", price: "$150.00", change: "12", pct: "+5.00%", up: true, icon: "logos:solana", bgColor: "rgba(20, 241, 149, 0.1)", description: "Solana is a public blockchain platform. It is open-source and decentralized, with consensus achieved using proof of stake and proof of history." },
-  LTC: { symbol: "LTC", name: "Litecoin", price: "$89.50", change: "2", pct: "+2.14%", up: true, icon: "logos:litecoin", bgColor: "rgba(191, 187, 187, 0.1)", description: "Litecoin is a peer-to-peer cryptocurrency and open-source software project released under the MIT/X11 license." },
-  NGN: { symbol: "NGN", name: "Naira", price: "$0.00065", change: "0", pct: "+0.00%", up: true, icon: "circle-flags:ng", bgColor: "rgba(0, 135, 81, 0.1)", description: "The naira is the currency of Nigeria." },
-  USD: { symbol: "USD", name: "United States Dollar", price: "$1.00", change: "0", pct: "+0.00%", up: true, icon: "circle-flags:us", bgColor: "rgba(29, 164, 98, 0.1)", description: "The United States dollar is the official currency of the United States and its territories." }
+  AAPL: { symbol: "AAPL", name: "Apple Inc.", price: "$180.50", change: "2.45", pct: "+1.38%", up: true, icon: "logos:apple", bgColor: "rgba(255, 255, 255, 0.1)", description: "Apple Inc. is an American multinational technology company headquartered in Cupertino, California." },
+  TSLA: { symbol: "TSLA", name: "Tesla Inc.", price: "$220.30", change: "-5.10", pct: "-2.26%", up: false, icon: "logos:tesla", bgColor: "rgba(230, 26, 36, 0.1)", description: "Tesla, Inc. is an American multinational automotive and clean energy company." },
+  NVDA: { symbol: "NVDA", name: "NVIDIA Corp.", price: "$875.12", change: "18.50", pct: "+2.16%", up: true, icon: "logos:nvidia", bgColor: "rgba(118, 185, 0, 0.1)", description: "NVIDIA Corporation is an American multinational technology company." },
+  MSFT: { symbol: "MSFT", name: "Microsoft Corp.", price: "$415.60", change: "1.20", pct: "+0.29%", up: true, icon: "logos:microsoft-icon", bgColor: "rgba(0, 164, 239, 0.1)", description: "Microsoft Corporation is an American multinational technology corporation." },
+  AMZN: { symbol: "AMZN", name: "Amazon.com Inc.", price: "$178.15", change: "-0.85", pct: "-0.47%", up: false, icon: "logos:amazon-icon", bgColor: "rgba(255, 153, 0, 0.1)", description: "Amazon.com, Inc. is an American multinational technology company focusing on e-commerce, cloud computing, and digital streaming." },
+  GOOGL: { symbol: "GOOGL", name: "Alphabet Inc.", price: "$152.50", change: "0.90", pct: "+0.59%", up: true, icon: "logos:google-icon", bgColor: "rgba(66, 133, 244, 0.1)", description: "Alphabet Inc. is an American multinational technology conglomerate holding company." }
 };
 
 export const marketAssets: Stock[] = Object.values(stockData);
 
-export const portfolioAssetsList: PortfolioAsset[] = [
-  { ...stockData.BTC, amount: "0.14", value: "$8,008.98" },
-  { ...stockData.ETH, amount: "4.65", value: "$14,549.85" },
-  { ...stockData.SOL, amount: "12.50", value: "$1,875.00" },
-  { ...stockData.BNB, amount: "5.0", value: "$2,855.00" },
-];
+export const portfolioAssetsList: PortfolioAsset[] = [];
+
 
 export const copyTraders: CopyTrader[] = [
   {
@@ -125,3 +120,42 @@ export const copyTraders: CopyTrader[] = [
     totalAssets: 4,
   },
 ];
+
+export const copyTradeSetups: CopyTradeSetup[] = [
+  {
+    id: "setup-001",
+    traderId: "george-nathan",
+    traderNickname: "George",
+    countryFlag: "🇺🇸",
+    country: "USA",
+    leverage: 10,
+    coin: { symbol: "BTC", name: "Bitcoin", icon: "logos:bitcoin", bgColor: "rgba(247, 147, 26, 0.1)" },
+    price: 250,
+    traderWinRate: 78,
+  },
+  {
+    id: "setup-002",
+    traderId: "sara-malik",
+    traderNickname: "SarahM",
+    countryFlag: "🇬🇧",
+    country: "UK",
+    leverage: 5,
+    coin: { symbol: "ETH", name: "Ethereum", icon: "logos:ethereum", bgColor: "rgba(98, 126, 234, 0.1)" },
+    price: 180,
+    traderWinRate: 72,
+  },
+  {
+    id: "setup-003",
+    traderId: "alex-troy",
+    traderNickname: "CryptoKing",
+    countryFlag: "🇯🇵",
+    country: "Japan",
+    leverage: 3,
+    coin: { symbol: "SOL", name: "Solana", icon: "logos:solana", bgColor: "rgba(20, 241, 149, 0.1)" },
+    price: 120,
+    traderWinRate: 85,
+  },
+];
+
+export const sampleLastTrades: CopyTradeTransaction[] = [];
+

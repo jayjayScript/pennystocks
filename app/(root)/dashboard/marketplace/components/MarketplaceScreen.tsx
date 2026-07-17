@@ -7,13 +7,30 @@ import Link from "next/link";
 import { marketAssets } from "@/constants/data";
 import CopyTradingCarousel from "./CopyTradingCarousel";
 import BuyModal from "@/components/modals/BuyModal";
+import { useStockRequests } from "@/context/StockRequestContext";
 
 export default function MarketplaceScreen() {
   const [search, setSearch] = useState("");
   const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
   const [buyOpen, setBuyOpen] = useState(false);
+  const { stockRequests } = useStockRequests();
 
-  const filtered = marketAssets.filter(
+  const approvedStocks: Stock[] = stockRequests
+    .filter((r) => r.status === "approved")
+    .map((r) => ({
+      symbol: r.ticker,
+      name: r.name,
+      price: `$${r.initialPrice.toFixed(2)}`,
+      change: "0.00",
+      pct: "+0.00%",
+      up: true,
+      bgColor: "rgba(0, 212, 161, 0.1)",
+      description: r.description,
+    }));
+
+  const allMarketAssets = [...marketAssets, ...approvedStocks];
+
+  const filtered = allMarketAssets.filter(
     (a) =>
       a.name.toLowerCase().includes(search.toLowerCase()) ||
       a.symbol.toLowerCase().includes(search.toLowerCase()),

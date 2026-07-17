@@ -17,8 +17,10 @@ interface PortfolioContextValue {
   pendingOrders: Order[];
 
   // User-facing — creates a pending order, does NOT mutate portfolio/balance
-  submitBuyOrder: (stock: Stock, usdAmount: number) => TradeResult;
-  submitSellOrder: (asset: PortfolioAsset, units: number) => TradeResult;
+  submitBuyOrder: (stock: Stock, usdAmount: number, proofImageUrl?: string) => TradeResult;
+  submitSellOrder: (asset: PortfolioAsset, units: number, proofImageUrl?: string) => TradeResult;
+  submitDepositOrder: (usdAmount: number, note?: string, proofImageUrl?: string) => TradeResult;
+  submitWithdrawOrder: (usdAmount: number, note?: string, proofImageUrl?: string) => TradeResult;
 
   // Admin-facing — executes the trade
   approveOrder: (orderId: string) => TradeResult;
@@ -61,7 +63,7 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
 
   // ── Submit Buy Order ──────────────────────────────────────────────────────
 
-  const submitBuyOrder = (stock: Stock, usdAmount: number): TradeResult => {
+  const submitBuyOrder = (stock: Stock, usdAmount: number, proofImageUrl?: string): TradeResult => {
     const stockPrice = parsePrice(stock.price);
     if (stockPrice === 0) return { success: false, message: "Invalid stock price." };
     if (usdAmount <= 0)   return { success: false, message: "Enter a valid amount." };
@@ -82,9 +84,10 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
       usdAmount,
       fee,
       totalCost,
-      netReceive: usdAmount, // will receive the assets worth this
+      netReceive: usdAmount,
       status:     "pending",
       createdAt:  new Date().toISOString(),
+      proofImageUrl,
     };
 
     setPendingOrders((prev) => [order, ...prev]);
@@ -96,7 +99,7 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
 
   // ── Submit Sell Order ─────────────────────────────────────────────────────
 
-  const submitSellOrder = (asset: PortfolioAsset, units: number): TradeResult => {
+  const submitSellOrder = (asset: PortfolioAsset, units: number, proofImageUrl?: string): TradeResult => {
     const ownedUnits = parseFloat(asset.amount);
     if (units <= 0)                   return { success: false, message: "Enter a valid amount." };
     if (units > ownedUnits + 0.000001) return { success: false, message: "You don't own that many units." };
@@ -121,6 +124,7 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
       netReceive,
       status:     "pending",
       createdAt:  new Date().toISOString(),
+      proofImageUrl,
     };
 
     setPendingOrders((prev) => [order, ...prev]);
@@ -130,12 +134,80 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
     };
   };
 
+  // ── Submit Deposit Order ──────────────────────────────────────────────────
+
+  const submitDepositOrder = (usdAmount: number, note?: string, proofImageUrl?: string): TradeResult => {
+    if (usdAmount <= 0) return { success: false, message: "Enter a valid deposit amount." };
+    const order: Order = {
+      id:         generateId(),
+      type:       "deposit",
+      symbol:     "USD",
+      name:       "Deposit",
+      stockPrice: 1,
+      units:      usdAmount,
+      usdAmount,
+      fee:        0,
+      totalCost:  usdAmount,
+      netReceive: usdAmount,
+      status:     "pending",
+      createdAt:  new Date().toISOString(),
+      proofImageUrl,
+      note,
+    };
+    setPendingOrders((prev) => [order, ...prev]);
+    return { success: true, message: `Deposit of $${usdAmount.toFixed(2)} submitted — awaiting admin approval.` };
+  };
+
+  // ── Submit Withdraw Order ─────────────────────────────────────────────────
+
+  const submitWithdrawOrder = (usdAmount: number, note?: string, proofImageUrl?: string): TradeResult => {
+    if (usdAmount <= 0)              return { success: false, message: "Enter a valid withdrawal amount." };
+    if (usdAmount > accountBalance)  return { success: false, message: "Insufficient balance." };
+    const order: Order = {
+      id:         generateId(),
+      type:       "withdraw",
+      symbol:     "USD",
+      name:       "Withdrawal",
+      stockPrice: 1,
+      units:      usdAmount,
+      usdAmount,
+      fee:        0,
+      totalCost:  usdAmount,
+      netReceive: usdAmount,
+      status:     "pending",
+      createdAt:  new Date().toISOString(),
+      proofImageUrl,
+      note,
+    };
+    setPendingOrders((prev) => [order, ...prev]);
+    return { success: true, message: `Withdrawal of $${usdAmount.toFixed(2)} submitted — awaiting admin approval.` };
+  };
+
   // ── Approve Order (Admin) ─────────────────────────────────────────────────
 
   const approveOrder = (orderId: string): TradeResult => {
     const order = pendingOrders.find((o) => o.id === orderId);
     if (!order) return { success: false, message: "Order not found." };
     if (order.status !== "pending") return { success: false, message: "Order already processed." };
+
+    if (order.type === "deposit") {
+      setAccountBalance((prev) => parseFloat((prev + order.usdAmount).toFixed(2)));
+      setPendingOrders((prev) =>
+        prev.map((o) => (o.id === orderId ? { ...o, status: "approved" } : o))
+      );
+      return { success: true, message: "Deposit approved and credited." };
+    }
+
+    if (order.type === "withdraw") {
+      if (order.usdAmount > accountBalance) {
+        return { success: false, message: "User has insufficient balance." };
+      }
+      setAccountBalance((prev) => parseFloat((prev - order.usdAmount).toFixed(2)));
+      setPendingOrders((prev) =>
+        prev.map((o) => (o.id === orderId ? { ...o, status: "approved" } : o))
+      );
+      return { success: true, message: "Withdrawal approved and processed." };
+    }
 
     if (order.type === "buy") {
       // Validate balance at time of approval
@@ -219,6 +291,8 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
         pendingOrders,
         submitBuyOrder,
         submitSellOrder,
+        submitDepositOrder,
+        submitWithdrawOrder,
         approveOrder,
         rejectOrder,
         getHolding,

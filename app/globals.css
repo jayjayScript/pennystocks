@@ -6,6 +6,8 @@
 }
 
 @theme {
+  --breakpoint-xs: 475px;
+
   /* Base / Background */
   --penny-bg-base: #0F1624;
   --penny-bg-mid: #151d2d;
