@@ -1,6 +1,8 @@
 export type RiskLevel = "low" | "medium" | "high";
 export type TransactionType = "deposit" | "withdraw" | "profit" | "loss" | "buy" | "sell" | "copy_trade";
-export type TransactionStatus = "pending" | "completed" | "rejected";
+export type TransactionStatus = "pending" | "completed" | "rejected" | "failed";
+export type PaymentMethod = "crypto" | "Cash App" | "PayPal" | "Venmo" | "Zelle" | "Wire Transfer" | "Bank Transfer";
+export type PaymentOrderStatus = "pending" | "awaiting_payment" | "awaiting_confirmation" | "completed" | "rejected" | "expired";
 
 export interface ApiUser {
   _id: string;
@@ -105,8 +107,32 @@ export interface Transaction {
   currency: string;
   reference?: string;
   note?: string;
+  proofPaymentDocument?: string;
+  orderId?: string;
   createdAt: string;
   updatedAt: string;
 }
+
+export interface PaymentOrder {
+  _id: string;
+  orderID: string;
+  userId: string;
+  email: string;
+  type: "deposit" | "withdraw";
+  amount: number;
+  method: PaymentMethod;
+  suggestedMethod?: string;
+  methodDetails?: string;
+  isMethodIncluded: boolean;
+  status: PaymentOrderStatus;
+  proofPaymentDocument?: string;
+  transactionId?: string;
+  expiresAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateDepositOrderPayload { amount: number; method: PaymentMethod; suggestedMethod?: string; }
+export interface CreateWithdrawOrderPayload { amount: number; method: PaymentMethod; methodDetails: string; }
 
 export interface Paginated<T> { data: T[]; pagination: { page: number; limit: number; total: number; totalPages: number }; }
