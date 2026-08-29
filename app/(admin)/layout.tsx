@@ -7,13 +7,14 @@ import { Icon } from "@iconify/react";
 import { adminNavLinks } from "@/constants/admin-data";
 import Logo from "@/components/logo/Logo";
 import { CopyTradingProvider } from "@/context/CopyTradingContext";
+import RequireAdmin from "@/lib/requireAdmin";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen" style={{ background: "#0d1624" }}>
+    <RequireAdmin><div className="flex min-h-screen" style={{ background: "#0d1624" }}>
       {/* Mobile Header */}
       <header className="md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-3" style={{ background: "#151d2d", borderBottom: "1px solid #1d2639" }}>
         <button
@@ -184,6 +185,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           {children}
         </CopyTradingProvider>
       </main>
-    </div>
+    </div></RequireAdmin>
   );
 }

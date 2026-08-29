@@ -1,6 +1,7 @@
 // app/(root)/layout.tsx  — server component, just re-exports metadata
 import { DashboardLayout } from "@/components/DashboardLayout";
 import type { Metadata } from "next";
+import RequireAuth from "@/lib/requireAuth";
 
 
 export const metadata: Metadata = {
@@ -9,5 +10,5 @@ export const metadata: Metadata = {
 };
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  return <DashboardLayout>{children}</DashboardLayout>;
+  return <RequireAuth><DashboardLayout>{children}</DashboardLayout></RequireAuth>;
 }

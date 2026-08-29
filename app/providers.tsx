@@ -5,10 +5,12 @@ import theme from "@/constants/theme";
 import { PortfolioProvider } from "@/context/PortfolioContext";
 import { StockRequestProvider } from "@/context/StockRequestContext";
 import { CopyTradingProvider } from "@/context/CopyTradingContext";
+import { AuthProvider } from "@/context/AuthContext";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <MantineProvider defaultColorScheme="dark" theme={theme}>
+      <AuthProvider>
       <CopyTradingProvider>
         <PortfolioProvider>
           <StockRequestProvider>
@@ -16,6 +18,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
           </StockRequestProvider>
         </PortfolioProvider>
       </CopyTradingProvider>
+      </AuthProvider>
     </MantineProvider>
   );
 }

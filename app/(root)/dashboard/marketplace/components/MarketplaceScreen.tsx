@@ -1,10 +1,10 @@
 "use client";
 
 import { Icon } from "@iconify/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 
-import { marketAssets } from "@/constants/data";
+import { stocksApi } from "@/lib/api/backend";
 import CopyTradingCarousel from "./CopyTradingCarousel";
 import BuyModal from "@/components/modals/BuyModal";
 import { useStockRequests } from "@/context/StockRequestContext";
@@ -14,6 +14,9 @@ export default function MarketplaceScreen() {
   const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
   const [buyOpen, setBuyOpen] = useState(false);
   const { stockRequests } = useStockRequests();
+  const [marketStocks, setMarketStocks] = useState<Stock[]>([]);
+  const [loadError, setLoadError] = useState("");
+  useEffect(() => { stocksApi.list().then((stocks) => setMarketStocks(stocks.map((stock) => ({ id: stock._id, symbol: stock.acronym, name: stock.name, price: new Intl.NumberFormat("en-US", { style: "currency", currency: stock.currency }).format(stock.lastPrice), change: stock.change24h.toFixed(2), pct: `${stock.rateOfChange >= 0 ? "+" : ""}${stock.rateOfChange.toFixed(2)}%`, up: stock.rateOfChange >= 0, bgColor: "rgba(0, 212, 161, 0.1)" })))).catch((error: Error) => setLoadError(error.message)); }, []);
 
   const approvedStocks: Stock[] = stockRequests
     .filter((r) => r.status === "approved")
@@ -28,7 +31,7 @@ export default function MarketplaceScreen() {
       description: r.description,
     }));
 
-  const allMarketAssets = [...marketAssets, ...approvedStocks];
+  const allMarketAssets = [...marketStocks, ...approvedStocks];
 
   const filtered = allMarketAssets.filter(
     (a) =>
@@ -85,6 +88,7 @@ export default function MarketplaceScreen() {
 
       {/* ── Asset list ── */}
       <div className="px-4 sm:px-6 md:px-8 mt-3 space-y-3 max-w-7xl mx-auto w-full">
+        {loadError && <p className="text-sm text-red-400">{loadError}</p>}
         {filtered.map((asset, i) => (
           <div
             key={i}
