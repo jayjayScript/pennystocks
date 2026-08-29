@@ -426,7 +426,7 @@ export default function UserDetailPage() {
       <div className="p-4 sm:p-8 flex flex-col items-center justify-center min-h-[60vh]">
         <Icon icon="mdi:account-off" width={48} className="sm:w-16 sm:h-16 mb-4" style={{ color: "#6b7785" }} />
         <h2 className="text-lg sm:text-xl font-bold text-white mb-2">User Not Found</h2>
-        <p className="text-xs sm:text-sm mb-6" style={{ color: "#6b7785" }}>The user ID "{userId}" does not exist.</p>
+        <p className="text-xs sm:text-sm mb-6" style={{ color: "#6b7785" }}>The user ID &quot;{userId}&quot; does not exist.</p>
         <button
           onClick={() => router.back()}
           className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors"

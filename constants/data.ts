@@ -58,12 +58,29 @@ export const stockData: Record<string, Stock> = {
   NVDA: { symbol: "NVDA", name: "NVIDIA Corp.", price: "$875.12", change: "18.50", pct: "+2.16%", up: true, icon: "logos:nvidia", bgColor: "rgba(118, 185, 0, 0.1)", description: "NVIDIA Corporation is an American multinational technology company." },
   MSFT: { symbol: "MSFT", name: "Microsoft Corp.", price: "$415.60", change: "1.20", pct: "+0.29%", up: true, icon: "logos:microsoft-icon", bgColor: "rgba(0, 164, 239, 0.1)", description: "Microsoft Corporation is an American multinational technology corporation." },
   AMZN: { symbol: "AMZN", name: "Amazon.com Inc.", price: "$178.15", change: "-0.85", pct: "-0.47%", up: false, icon: "logos:amazon-icon", bgColor: "rgba(255, 153, 0, 0.1)", description: "Amazon.com, Inc. is an American multinational technology company focusing on e-commerce, cloud computing, and digital streaming." },
-  GOOGL: { symbol: "GOOGL", name: "Alphabet Inc.", price: "$152.50", change: "0.90", pct: "+0.59%", up: true, icon: "logos:google-icon", bgColor: "rgba(66, 133, 244, 0.1)", description: "Alphabet Inc. is an American multinational technology conglomerate holding company." }
+  GOOGL: { symbol: "GOOGL", name: "Alphabet Inc.", price: "$152.50", change: "0.90", pct: "+0.59%", up: true, icon: "logos:google-icon", bgColor: "rgba(66, 133, 244, 0.1)", description: "Alphabet Inc. is an American multinational technology conglomerate holding company." },
+  // ── Dummy stock added for backend integration reference ──
+  PYPL: { symbol: "PYPL", name: "PayPal Holdings Inc.", price: "$62.35", change: "1.85", pct: "+3.06%", up: true, icon: "logos:paypal", bgColor: "rgba(0, 112, 186, 0.1)", description: "PayPal Holdings, Inc. operates a technology platform that enables digital payments and simplifies commerce experiences on behalf of merchants and consumers worldwide." },
 };
 
 export const marketAssets: Stock[] = Object.values(stockData);
 
-export const portfolioAssetsList: PortfolioAsset[] = [];
+// ── Dummy portfolio asset — pre-seeded for backend integration reference ──
+export const portfolioAssetsList: PortfolioAsset[] = [
+  {
+    symbol:      "PYPL",
+    name:        "PayPal Holdings Inc.",
+    price:       "$62.35",
+    change:      "1.85",
+    pct:         "+3.06%",
+    up:          true,
+    icon:        "logos:paypal",
+    bgColor:     "rgba(0, 112, 186, 0.1)",
+    description: "PayPal Holdings, Inc. operates a technology platform that enables digital payments.",
+    amount:      "8.02726700",  // units held
+    value:       "$500.00",     // usdAmount at purchase
+  },
+];
 
 
 export const copyTraders: CopyTrader[] = [

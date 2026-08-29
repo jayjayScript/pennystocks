@@ -49,7 +49,6 @@ export default function SellModal({
       setMode("units");
       setStatus("idle");
       setStatusMessage("");
-      setProofImage(null);
     }
   }, [isOpen]);
 
@@ -70,7 +69,7 @@ export default function SellModal({
   const netReceive    = grossValue - fee;
   const positionPct   = ownedUnits > 0 ? Math.min((unitsToSell / ownedUnits) * 100, 100) : 0;
   const isSellAll     = positionPct >= 99.9999;
-  const isInvalid     = numericInput <= 0 || unitsToSell > ownedUnits + 0.000001 || !proofImage;
+  const isInvalid     = numericInput <= 0 || unitsToSell > ownedUnits + 0.000001;
 
   // ── Handlers ─────────────────────────────────────────────────────────────
 
