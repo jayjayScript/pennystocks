@@ -9,9 +9,38 @@ function formatCurrency(amount: number): string {
 }
 
 export default function OrdersPage() {
-  const { pendingOrders, approveOrder, rejectOrder } = usePortfolio();
+  const { pendingOrders, approveOrder, rejectOrder, adminProvideDepositDetails } = usePortfolio();
   const [feedback, setFeedback] = useState<Record<string, string>>({});
   const [expandedProofs, setExpandedProofs] = useState<Record<string, boolean>>({});
+  const [depositInputs, setDepositInputs] = useState<Record<string, string>>({});
+
+  const getDefaultPaymentDetails = (method?: string) => {
+    switch (method?.toLowerCase()) {
+      case "crypto (btc / usdt)":
+      case "crypto":
+        return "USDT TRC20 Wallet: 0x71C7656EC7ab88b098defB751B7401B5f6d8976F";
+      case "cash app":
+        return "Cash App $Cashtag: $PennyStocksGlobal";
+      case "paypal":
+        return "PayPal Email: payments@pennystocks.com";
+      case "venmo":
+        return "Venmo Handle: @PennyStocks-Pay";
+      case "zelle":
+        return "Zelle: zelle@pennystocks.com";
+      case "wire transfer":
+        return "Bank: JPMorgan Chase | Swift: CHASUS33 | Acct: 9876543210";
+      case "bank transfer":
+        return "Bank of America | Acct: 4400-8812-9901 | Name: PennyStocks LLC";
+      default:
+        return "Account Details: 0x71C7656EC7ab88b098defB751B7401B5f6d8976F";
+    }
+  };
+
+  const handleSendDetails = (id: string, defaultMethod?: string) => {
+    const details = depositInputs[id] || getDefaultPaymentDetails(defaultMethod);
+    const result = adminProvideDepositDetails(id, details);
+    setFeedback((prev) => ({ ...prev, [id]: result.message }));
+  };
 
   const handleApprove = (id: string) => {
     const result = approveOrder(id);
@@ -80,6 +109,20 @@ export default function OrdersPage() {
                         <span className="text-[10px] sm:text-xs font-bold px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full" style={{ background: styles.bg, color: styles.color }}>{styles.label}</span>
                         <span className="text-sm sm:text-base text-white font-bold">{order.symbol}</span>
                         <span className="text-xs sm:text-sm hidden sm:inline" style={{ color: "#9aa3b0" }}>{order.name}</span>
+                        {order.paymentMethod && (
+                          <span className="text-[10px] sm:text-xs font-semibold px-2 py-0.5 rounded-md bg-[#00d4a1]/15 text-[#00d4a1]">
+                            {order.paymentMethod}
+                          </span>
+                        )}
+                        {order.type === "deposit" && order.depositStep && (
+                          <span className="text-[10px] sm:text-xs font-semibold px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-400">
+                            {order.depositStep === "awaiting_admin_details" && "Step 1: Awaiting Admin Details"}
+                            {order.depositStep === "awaiting_user_proof" && "Step 2: Details Sent (Awaiting User Proof)"}
+                            {order.depositStep === "pending_approval" && "Step 3: Proof Uploaded (Ready for Approval)"}
+                            {order.depositStep === "completed" && "Completed"}
+                            {order.depositStep === "rejected" && "Rejected"}
+                          </span>
+                        )}
                       </div>
                       <p className="text-[10px] sm:text-xs mt-1" style={{ color: "#6b7785" }}>{new Date(order.createdAt).toLocaleString()}</p>
                     </div>
@@ -119,8 +162,91 @@ export default function OrdersPage() {
                   </div>
                 )}
 
-                {/* Proof Image expander */}
-                {order.proofImageUrl && (
+                {/* Admin Provided Payment Details */}
+                {order.adminPaymentDetails && (
+                  <div className="mt-3 p-3 rounded-xl bg-[#00d4a1]/10 border border-[#00d4a1]/30 text-xs">
+                    <span className="font-semibold text-[#00d4a1]">Payment Details Sent to User: </span>
+                    <span className="text-white font-mono">{order.adminPaymentDetails}</span>
+                  </div>
+                )}
+
+                {/* Payment Details Response Section (Admin sends account details for Deposit or Buy orders) */}
+                {((order.type === "deposit" && order.depositStep === "awaiting_admin_details") || order.type === "buy") && order.status === "pending" && (
+                  <div className="mt-4 p-3.5 rounded-xl bg-[#0d1624] border border-[#252f45] space-y-2">
+                    <label className="block text-xs font-semibold text-white">
+                      {order.adminPaymentDetails ? `Update Payment Details for User (${order.paymentMethod || order.symbol})` : `Provide Payment / Account Details for User (${order.paymentMethod || order.symbol})`}
+                    </label>
+                    <input
+                      type="text"
+                      value={depositInputs[order.id] !== undefined ? depositInputs[order.id] : (order.adminPaymentDetails || getDefaultPaymentDetails(order.paymentMethod))}
+                      onChange={(e) => setDepositInputs((prev) => ({ ...prev, [order.id]: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-lg text-xs bg-[#141e30] border border-[#252f45] text-white focus:outline-none focus:border-[#00d4a1]"
+                      placeholder="e.g. Wallet address, $Cashtag, Bank Account #"
+                    />
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        onClick={() => handleSendDetails(order.id, order.paymentMethod)}
+                        className="px-4 py-2 rounded-lg font-bold text-xs bg-[#00d4a1] text-[#0d1624] hover:opacity-90 transition-all flex items-center gap-1.5"
+                      >
+                        <Icon icon="mdi:send" width={14} />
+                        {order.adminPaymentDetails ? "Update Payment Details" : "Send Payment Details to User"}
+                      </button>
+                      {order.type === "deposit" && (
+                        <button
+                          onClick={() => handleReject(order.id)}
+                          className="px-3 py-2 rounded-lg font-semibold text-xs bg-red-500/15 border border-red-500/30 text-red-400 hover:bg-red-500/25 transition-all"
+                        >
+                          Reject Request
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* STEP 2 (Deposit): Admin waiting for user to upload proof */}
+                {order.type === "deposit" && order.status === "pending" && order.depositStep === "awaiting_user_proof" && (
+                  <div className="mt-4 p-3.5 rounded-xl border border-amber-500/30 space-y-2" style={{ background: "rgba(245,197,24,0.07)" }}>
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ background: "rgba(245,197,24,0.2)" }}>
+                        <Icon icon="mdi:clock-outline" width={16} style={{ color: "#F5C518" }} />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-amber-400">Payment Details Sent — Awaiting User Proof</p>
+                        <p className="text-[11px] mt-0.5 leading-relaxed" style={{ color: "#9aa3b0" }}>
+                          Waiting for the user to make their payment and upload a screenshot as proof.
+                        </p>
+                      </div>
+                    </div>
+                    {order.adminPaymentDetails && (
+                      <p className="text-[11px] font-mono text-white px-2.5 py-2 rounded-lg border border-white/10 break-all" style={{ background: "rgba(0,0,0,0.3)" }}>
+                        <span className="text-amber-400 font-semibold not-font-mono">Details sent: </span>{order.adminPaymentDetails}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* STEP 3 (Deposit): Proof uploaded — show image prominently and prompt admin to review */}
+                {order.type === "deposit" && order.status === "pending" && order.depositStep === "pending_approval" && (
+                  <div className="mt-4 p-3.5 rounded-xl border border-[#00d4a1]/30 space-y-3" style={{ background: "rgba(0,212,161,0.07)" }}>
+                    <div className="flex items-center gap-2">
+                      <Icon icon="mdi:file-image-outline" width={16} style={{ color: "#00d4a1" }} />
+                      <p className="text-xs font-bold text-[#00d4a1]">User Uploaded Proof — Review & Approve Below</p>
+                    </div>
+                    {order.proofImageUrl && (
+                      <div className="rounded-xl overflow-hidden border border-[#252f45] bg-[#0d1624] max-w-xs">
+                        <img src={order.proofImageUrl} alt="Transaction Proof" className="w-full h-auto max-h-64 object-contain mx-auto" />
+                      </div>
+                    )}
+                    {order.note && (
+                      <p className="text-[11px]" style={{ color: "#9aa3b0" }}>
+                        <span className="text-white font-semibold">User note: </span>{order.note}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Proof Image expander (for non-deposit orders only, e.g. sell orders) */}
+                {order.proofImageUrl && order.type !== "deposit" && (
                   <div className="mt-3">
                     <button
                       onClick={() => toggleProof(order.id)}
@@ -139,11 +265,11 @@ export default function OrdersPage() {
 
                 {/* Feedback */}
                 {feedback[order.id] && (
-                  <p className="text-xs sm:text-sm mt-3" style={{ color: order.status === "approved" ? "#4CAF50" : "#F44336" }}>{feedback[order.id]}</p>
+                  <p className="text-xs sm:text-sm mt-3" style={{ color: feedback[order.id]?.toLowerCase().includes("sent") || feedback[order.id]?.toLowerCase().includes("approv") || feedback[order.id]?.toLowerCase().includes("credit") ? "#4CAF50" : "#F44336" }}>{feedback[order.id]}</p>
                 )}
 
-                {/* Actions */}
-                {order.status === "pending" && (
+                {/* Standard Actions (Approve / Reject) for Buy, Sell, Withdraw or Deposit step 2/3 */}
+                {order.status === "pending" && (order.type !== "deposit" || order.depositStep !== "awaiting_admin_details") && (
                   <div className="flex gap-3 mt-4">
                     <button
                       onClick={() => handleApprove(order.id)}

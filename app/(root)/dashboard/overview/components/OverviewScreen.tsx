@@ -9,10 +9,27 @@ import WithdrawModal from "@/components/modals/WithdrawModal";
 
 export default function OverviewScreen() {
   const [depositOpen, setDepositOpen] = useState(false);
+  const [depositKey, setDepositKey] = useState(0);
+
   const [withdrawOpen, setWithdrawOpen] = useState(false);
+  const [withdrawKey, setWithdrawKey] = useState(0);
+
+  const openDepositModal = () => {
+    setDepositKey((k) => k + 1);
+    setDepositOpen(true);
+  };
+
+  const openWithdrawModal = () => {
+    setWithdrawKey((k) => k + 1);
+    setWithdrawOpen(true);
+  };
 
   return (
-    <Card variant="glass-gradient" padding="lg" className="h-full flex flex-col justify-between">
+    <Card
+      variant="glass-gradient"
+      padding="lg"
+      className="h-full flex flex-col justify-between"
+    >
       <div className="flex items-center justify-between">
         <p className="text-sm text-penny-text-muted">Total Assets</p>
         <Badge variant="accent" icon="mdi:trending-up">
@@ -30,7 +47,7 @@ export default function OverviewScreen() {
           variant="secondary"
           fullWidth
           icon="mdi:arrow-down"
-          onClick={() => setDepositOpen(true)}
+          onClick={openDepositModal}
         >
           Deposit
         </Button>
@@ -39,14 +56,26 @@ export default function OverviewScreen() {
           className="bg-[#0b121d]"
           fullWidth
           icon="mdi:arrow-up"
-          onClick={() => setWithdrawOpen(true)}
+          onClick={openWithdrawModal}
         >
           Withdraw
         </Button>
       </div>
 
-      <DepositModal isOpen={depositOpen} onClose={() => setDepositOpen(false)} />
-      <WithdrawModal isOpen={withdrawOpen} onClose={() => setWithdrawOpen(false)} />
+      {depositOpen && (
+        <DepositModal
+          key={depositKey}
+          isOpen={depositOpen}
+          onClose={() => setDepositOpen(false)}
+        />
+      )}
+      {withdrawOpen && (
+        <WithdrawModal
+          key={withdrawKey}
+          isOpen={withdrawOpen}
+          onClose={() => setWithdrawOpen(false)}
+        />
+      )}
     </Card>
   );
 }

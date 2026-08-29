@@ -29,7 +29,6 @@ export default function BuyModal({ stock, isOpen, onClose }: BuyModalProps) {
   const [inputValue, setInputValue] = useState("");
   const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
   const [statusMessage, setStatusMessage] = useState("");
-  const [proofImage, setProofImage] = useState<string | null>(null);
 
   const stockPrice = parsePrice(stock.price);
 
@@ -40,7 +39,6 @@ export default function BuyModal({ stock, isOpen, onClose }: BuyModalProps) {
       setMode("usd");
       setStatus("idle");
       setStatusMessage("");
-      setProofImage(null);
     }
   }, [isOpen]);
 
@@ -59,24 +57,13 @@ export default function BuyModal({ stock, isOpen, onClose }: BuyModalProps) {
   const fee         = usdAmount * FEE_RATE;
   const totalCost   = usdAmount + fee;
   const balancePct  = Math.min((totalCost / accountBalance) * 100, 100);
-  const isInvalid   = numericInput <= 0 || totalCost > accountBalance || !proofImage;
+  const isInvalid   = numericInput <= 0 || totalCost > accountBalance;
 
   // ── Handlers ─────────────────────────────────────────────────────────────
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setProofImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
   const handleConfirm = () => {
     if (isInvalid) return;
-    const result = submitBuyOrder(stock, usdAmount, proofImage || undefined);
+    const result = submitBuyOrder(stock, usdAmount);
     setStatus(result.success ? "success" : "error");
     setStatusMessage(result.message);
     if (result.success) setTimeout(onClose, 3000);
@@ -327,31 +314,6 @@ export default function BuyModal({ stock, isOpen, onClose }: BuyModalProps) {
                   You need {formatUSD(totalCost - accountBalance)} more to complete this purchase.
                 </p>
               )}
-
-              {/* Payment Proof Upload */}
-              {numericInput > 0 && totalCost <= accountBalance && (
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-[#9aa3b0]">Payment Proof Receipt</label>
-                  {proofImage ? (
-                    <div className="relative w-full h-32 rounded-xl overflow-hidden border border-[#252f45] bg-[#0b121d] group">
-                      <img src={proofImage} alt="Payment Proof" className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <label className="cursor-pointer px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-semibold transition-all">
-                          Change Image
-                          <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
-                        </label>
-                      </div>
-                    </div>
-                  ) : (
-                    <label className="flex flex-col items-center justify-center w-full h-24 rounded-xl border border-dashed border-[#252f45] bg-[#0b121d] hover:bg-white/[0.02] cursor-pointer transition-colors p-3">
-                      <Icon icon="mdi:image-plus" width={22} className="text-[#6b7785] mb-1" />
-                      <span className="text-[11px] text-penny-text-muted text-center font-medium">Click to upload payment screenshot / receipt</span>
-                      <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
-                    </label>
-                  )}
-                </div>
-              )}
-
 
               {/* ── CTA ── */}
               <button

@@ -10,12 +10,14 @@ interface WithdrawModalProps {
 }
 
 export default function WithdrawModal({ isOpen, onClose }: WithdrawModalProps) {
-  const { accountBalance, submitWithdrawOrder } = usePortfolio();
+  const { accountBalance, submitWithdrawOrder, withdrawalPassword, setWithdrawalPassword } = usePortfolio();
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
-  const [proofImage, setProofImage] = useState<string | null>(null);
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [status, setStatus] = useState<"idle" | "success">("idle");
+
+  const passwordNotSet = withdrawalPassword === "";
 
 
   useEffect(() => {
@@ -23,17 +25,6 @@ export default function WithdrawModal({ isOpen, onClose }: WithdrawModalProps) {
     else document.body.style.overflow = "";
     return () => { document.body.style.overflow = ""; };
   }, [isOpen]);
-
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setProofImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,12 +37,25 @@ export default function WithdrawModal({ isOpen, onClose }: WithdrawModalProps) {
       setError("Insufficient funds in account balance.");
       return;
     }
-    if (!proofImage) {
-      setError("Please upload a verification image / ID card proof.");
-      return;
+
+    // Handle withdrawal password logic
+    if (passwordNotSet) {
+      // If password hasn't been set yet, set it now and allow withdrawal
+      if (password.trim() === "") {
+        setError("Please enter a withdrawal password.");
+        return;
+      }
+      setWithdrawalPassword(password);
+      // Proceed with withdrawal
+    } else {
+      // Password is set, verify it matches
+      if (password !== withdrawalPassword) {
+        setError("Incorrect withdrawal password.");
+        return;
+      }
     }
 
-    submitWithdrawOrder(parsedAmount, note, proofImage);
+    submitWithdrawOrder(parsedAmount, note);
     setStatus("success");
   };
 
@@ -142,24 +146,16 @@ export default function WithdrawModal({ isOpen, onClose }: WithdrawModalProps) {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold mb-1.5 text-penny-text-muted">Proof of Identity / Withdrawal Screenshot</label>
-              {proofImage ? (
-                <div className="relative w-full h-40 rounded-xl overflow-hidden border border-[#252f45] bg-[#0d1624] group">
-                  <img src={proofImage} alt="Withdrawal Proof" className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <label className="cursor-pointer px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-semibold transition-all">
-                      Change Image
-                      <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
-                    </label>
-                  </div>
-                </div>
-              ) : (
-                <label className="flex flex-col items-center justify-center w-full h-32 rounded-xl border border-dashed border-[#252f45] bg-[#0d1624] hover:bg-white/[0.02] cursor-pointer transition-colors p-4">
-                  <Icon icon="mdi:image-plus" width={28} className="text-[#6b7785] mb-2" />
-                  <span className="text-xs text-penny-text-muted text-center font-medium">Click to upload identity card / withdrawal verification image</span>
-                  <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
-                </label>
-              )}
+              <label className="block text-xs font-semibold mb-1.5 text-penny-text-muted">
+                {passwordNotSet ? "Create Withdrawal Password" : "Withdrawal Password"}
+              </label>
+              <input
+                type="password"
+                placeholder={passwordNotSet ? "Set your withdrawal password" : "Enter your withdrawal password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl text-sm bg-[#0d1624] border border-[#252f45] text-white focus:outline-none focus:border-[#F44336]"
+              />
             </div>
 
             {error && (

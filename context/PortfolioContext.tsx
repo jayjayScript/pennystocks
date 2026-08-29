@@ -17,14 +17,25 @@ interface PortfolioContextValue {
   pendingOrders: Order[];
 
   // User-facing — creates a pending order, does NOT mutate portfolio/balance
-  submitBuyOrder: (stock: Stock, usdAmount: number, proofImageUrl?: string) => TradeResult;
+  submitBuyOrder: (stock: Stock, usdAmount: number) => TradeResult;
   submitSellOrder: (asset: PortfolioAsset, units: number, proofImageUrl?: string) => TradeResult;
-  submitDepositOrder: (usdAmount: number, note?: string, proofImageUrl?: string) => TradeResult;
-  submitWithdrawOrder: (usdAmount: number, note?: string, proofImageUrl?: string) => TradeResult;
+  submitDepositOrder: (usdAmount: number, paymentMethod?: string, note?: string) => TradeResult;
+  submitDepositProof: (orderId: string, proofImageUrl: string, note?: string) => TradeResult;
+  submitWithdrawOrder: (usdAmount: number, note?: string) => TradeResult;
 
   // Admin-facing — executes the trade
+  adminProvideDepositDetails: (orderId: string, paymentDetails: string) => TradeResult;
   approveOrder: (orderId: string) => TradeResult;
   rejectOrder: (orderId: string) => void;
+
+  // Notifications
+  notifications: AppNotification[];
+  markNotificationRead: (id: string) => void;
+  markAllNotificationsRead: () => void;
+
+  // Withdrawal password management
+  withdrawalPassword: string;
+  setWithdrawalPassword: (pw: string) => void;
 
   getHolding: (symbol: string) => PortfolioAsset | undefined;
   isHolding: (symbol: string) => boolean;
@@ -57,13 +68,68 @@ function generateId(): string {
 const PortfolioContext = createContext<PortfolioContextValue | null>(null);
 
 export function PortfolioProvider({ children }: { children: React.ReactNode }) {
-  const [accountBalance, setAccountBalance] = useState(INITIAL_BALANCE);
+  const [accountBalance, setAccountBalance] = useState(INITIAL_BALANCE - 500.50); // deducted for dummy PYPL buy order
   const [portfolio, setPortfolio]           = useState<PortfolioAsset[]>([...portfolioAssetsList]);
-  const [pendingOrders, setPendingOrders]   = useState<Order[]>([]);
+  const [notifications, setNotifications]   = useState<AppNotification[]>([]);
+
+  const addNotification = (n: Omit<AppNotification, "id" | "createdAt" | "read">) => {
+    setNotifications((prev) => [{
+      ...n,
+      id: generateId(),
+      read: false,
+      createdAt: new Date().toISOString(),
+    }, ...prev]);
+  };
+
+  const markNotificationRead = (id: string) => {
+    setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n));
+  };
+
+  const markAllNotificationsRead = () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  };
+  // ── Dummy pending order — pre-seeded so admin orders queue is visible on first load ──
+  const [pendingOrders, setPendingOrders]   = useState<Order[]>([
+    {
+      id:           "dummy-deposit-001",
+      type:         "deposit",
+      symbol:       "USD",
+      name:         "Deposit (Crypto (BTC / USDT))",
+      stockPrice:   1,
+      units:        250.00,
+      usdAmount:    250.00,
+      fee:          0,
+      totalCost:    250.00,
+      netReceive:   250.00,
+      status:       "pending",
+      depositStep:  "awaiting_admin_details",
+      paymentMethod: "Crypto (BTC / USDT)",
+      createdAt:    "2026-07-17T18:00:00.000Z",
+      note:         "Prefer TRC-20 USDT",
+    },
+    {
+      id:         "dummy-order-001",
+      type:       "buy",
+      symbol:     "PYPL",
+      name:       "PayPal Holdings Inc.",
+      icon:       "logos:paypal",
+      bgColor:    "rgba(0, 112, 186, 0.1)",
+      stockPrice: 62.35,
+      units:      8.02726700,
+      usdAmount:  500.00,
+      fee:        0.50,
+      totalCost:  500.50,
+      netReceive: 500.00,
+      status:     "pending",
+      createdAt:  "2026-07-17T17:30:00.000Z",
+      note:       "Dummy seed order — for backend integration reference",
+    },
+  ]);
+  const [withdrawalPassword, setWithdrawalPassword] = useState<string>('');
 
   // ── Submit Buy Order ──────────────────────────────────────────────────────
 
-  const submitBuyOrder = (stock: Stock, usdAmount: number, proofImageUrl?: string): TradeResult => {
+  const submitBuyOrder = (stock: Stock, usdAmount: number): TradeResult => {
     const stockPrice = parsePrice(stock.price);
     if (stockPrice === 0) return { success: false, message: "Invalid stock price." };
     if (usdAmount <= 0)   return { success: false, message: "Enter a valid amount." };
@@ -87,7 +153,6 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
       netReceive: usdAmount,
       status:     "pending",
       createdAt:  new Date().toISOString(),
-      proofImageUrl,
     };
 
     setPendingOrders((prev) => [order, ...prev]);
@@ -136,31 +201,87 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
 
   // ── Submit Deposit Order ──────────────────────────────────────────────────
 
-  const submitDepositOrder = (usdAmount: number, note?: string, proofImageUrl?: string): TradeResult => {
+  const submitDepositOrder = (
+    usdAmount: number,
+    paymentMethod?: string,
+    note?: string
+  ): TradeResult => {
+    if (usdAmount < 0.01) return { success: false, message: "Minimum deposit amount is $0.01." };
     if (usdAmount <= 0) return { success: false, message: "Enter a valid deposit amount." };
     const order: Order = {
-      id:         generateId(),
-      type:       "deposit",
-      symbol:     "USD",
-      name:       "Deposit",
-      stockPrice: 1,
-      units:      usdAmount,
+      id:            generateId(),
+      type:          "deposit",
+      symbol:        "USD",
+      name:          paymentMethod ? `Deposit (${paymentMethod})` : "Deposit",
+      stockPrice:    1,
+      units:         usdAmount,
       usdAmount,
-      fee:        0,
-      totalCost:  usdAmount,
-      netReceive: usdAmount,
-      status:     "pending",
-      createdAt:  new Date().toISOString(),
-      proofImageUrl,
+      fee:           0,
+      totalCost:     usdAmount,
+      netReceive:    usdAmount,
+      status:        "pending",
+      depositStep:   "awaiting_admin_details",
+      createdAt:     new Date().toISOString(),
+      paymentMethod: paymentMethod || "Crypto",
       note,
     };
     setPendingOrders((prev) => [order, ...prev]);
-    return { success: true, message: `Deposit of $${usdAmount.toFixed(2)} submitted — awaiting admin approval.` };
+    return { success: true, message: `Deposit request for $${usdAmount.toFixed(2)} via ${paymentMethod || "deposit"} submitted. Admin will provide payment details.` };
+  };
+
+  // ── Admin Provide Deposit Details ───────────────────────────────────────
+
+  const adminProvideDepositDetails = (orderId: string, paymentDetails: string): TradeResult => {
+    const order = pendingOrders.find((o) => o.id === orderId);
+    if (!order) return { success: false, message: "Order not found." };
+    setPendingOrders((prev) =>
+      prev.map((o) =>
+        o.id === orderId
+          ? {
+              ...o,
+              adminPaymentDetails: paymentDetails,
+              ...(o.type === "deposit" ? { depositStep: "awaiting_user_proof" } : {}),
+            }
+          : o
+      )
+    );
+    addNotification({
+      type: "deposit_details",
+      title: order.type === "buy" ? `Payment Details for ${order.symbol}` : "Payment Details Ready",
+      message:
+        order.type === "buy"
+          ? `Admin has sent payment details for your ${order.symbol} buy order ($${order.totalCost.toFixed(2)}): ${paymentDetails}`
+          : `Admin has sent the ${order.paymentMethod || "payment"} account details for your $${order.usdAmount.toFixed(2)} deposit. Tap to view & complete payment.`,
+      icon: "mdi:bank-check",
+      orderId,
+      adminPaymentDetails: paymentDetails,
+    });
+    return { success: true, message: "Payment details sent to user." };
+  };
+
+  // ── User Submit Deposit Proof ─────────────────────────────────────────────
+
+  const submitDepositProof = (orderId: string, proofImageUrl: string, note?: string): TradeResult => {
+    const order = pendingOrders.find((o) => o.id === orderId);
+    if (!order) return { success: false, message: "Order not found." };
+    setPendingOrders((prev) =>
+      prev.map((o) =>
+        o.id === orderId
+          ? {
+              ...o,
+              proofImageUrl,
+              note: note || o.note,
+              depositStep: "pending_approval",
+            }
+          : o
+      )
+    );
+    return { success: true, message: "Payment proof submitted. Awaiting admin approval." };
   };
 
   // ── Submit Withdraw Order ─────────────────────────────────────────────────
 
-  const submitWithdrawOrder = (usdAmount: number, note?: string, proofImageUrl?: string): TradeResult => {
+  const submitWithdrawOrder = (usdAmount: number, note?: string): TradeResult => {
     if (usdAmount <= 0)              return { success: false, message: "Enter a valid withdrawal amount." };
     if (usdAmount > accountBalance)  return { success: false, message: "Insufficient balance." };
     const order: Order = {
@@ -176,7 +297,6 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
       netReceive: usdAmount,
       status:     "pending",
       createdAt:  new Date().toISOString(),
-      proofImageUrl,
       note,
     };
     setPendingOrders((prev) => [order, ...prev]);
@@ -193,8 +313,15 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
     if (order.type === "deposit") {
       setAccountBalance((prev) => parseFloat((prev + order.usdAmount).toFixed(2)));
       setPendingOrders((prev) =>
-        prev.map((o) => (o.id === orderId ? { ...o, status: "approved" } : o))
+        prev.map((o) => (o.id === orderId ? { ...o, status: "approved", depositStep: "completed" } : o))
       );
+      addNotification({
+        type: "success",
+        title: "Deposit Approved!",
+        message: `Your deposit of $${order.usdAmount.toFixed(2)} via ${order.paymentMethod || "deposit"} has been verified and credited to your account.`,
+        icon: "mdi:check-circle",
+        orderId,
+      });
       return { success: true, message: "Deposit approved and credited." };
     }
 
@@ -273,9 +400,21 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
   // ── Reject Order (Admin) ──────────────────────────────────────────────────
 
   const rejectOrder = (orderId: string): void => {
+    const order = pendingOrders.find((o) => o.id === orderId);
     setPendingOrders((prev) =>
-      prev.map((o) => (o.id === orderId ? { ...o, status: "rejected" } : o))
+      prev.map((o) => (o.id === orderId ? { ...o, status: "rejected", depositStep: "rejected" } : o))
     );
+    if (order) {
+      addNotification({
+        type: "error",
+        title: "Order Rejected",
+        message: order.type === "deposit"
+          ? `Your deposit request of $${order.usdAmount.toFixed(2)} via ${order.paymentMethod || "deposit"} has been rejected. Please contact support for assistance.`
+          : `Your ${order.type} order for ${order.symbol} has been rejected.`,
+        icon: "mdi:close-circle",
+        orderId,
+      });
+    }
   };
 
   // ── Helpers ───────────────────────────────────────────────────────────────
@@ -292,11 +431,18 @@ export function PortfolioProvider({ children }: { children: React.ReactNode }) {
         submitBuyOrder,
         submitSellOrder,
         submitDepositOrder,
+        submitDepositProof,
         submitWithdrawOrder,
+        adminProvideDepositDetails,
         approveOrder,
         rejectOrder,
+        notifications,
+        markNotificationRead,
+        markAllNotificationsRead,
         getHolding,
         isHolding,
+        withdrawalPassword,
+        setWithdrawalPassword,
       }}
     >
       {children}

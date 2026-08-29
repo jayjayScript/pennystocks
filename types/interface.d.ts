@@ -17,8 +17,25 @@ interface Order {
   netReceive: number;  // sell: grossValue - fee
   status: "pending" | "approved" | "rejected";
   createdAt: string;   // ISO string
-  proofImageUrl?: string; // base64 payment/withdrawal proof
   note?: string; // reference note for deposit/withdraw
+  paymentMethod?: string;
+  proofImageUrl?: string;
+  depositStep?: "awaiting_admin_details" | "awaiting_user_proof" | "pending_approval" | "completed" | "rejected";
+  adminPaymentDetails?: string;
+}
+
+// ─── Notifications ─────────────────────────────────────────────────────────────
+
+interface AppNotification {
+  id: string;
+  type: "success" | "info" | "warning" | "error" | "deposit_details";
+  title: string;
+  message: string;
+  icon: string;
+  read: boolean;
+  createdAt: string;  // ISO string
+  orderId?: string;   // link back to an order for deposit detail notifications
+  adminPaymentDetails?: string;
 }
 
 // ─── Stock Requests ────────────────────────────────────────────────────────────
