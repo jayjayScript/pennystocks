@@ -11,6 +11,7 @@ import {
   QueryClientProvider,
 } from "@tanstack/react-query";
 import { useState } from "react";
+import { GoogleOAuthProvider } from "@react-oauth/google";
 
 export function Providers({ children }: { children: React.ReactNode }) {
 
@@ -25,7 +26,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       })
   );
 
-  return (
+  const content = (
     <MantineProvider defaultColorScheme="dark" theme={theme}>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
@@ -40,4 +41,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
       </QueryClientProvider>
     </MantineProvider>
   );
+
+  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+  return googleClientId ? (
+    <GoogleOAuthProvider clientId={googleClientId}>{content}</GoogleOAuthProvider>
+  ) : content;
 }
