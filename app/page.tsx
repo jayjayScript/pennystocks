@@ -3,17 +3,18 @@ import React from "react";
 import { Button, Paper, Text, Title, Box, Stack } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import Apple from "@/components/global/Apple";
-import Google from "@/components/global/Google";
 import Logo from "@/components/logo/Logo";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
+import { GoogleLogin } from "@react-oauth/google";
 
 export default function Login() {
   const { signInWithGoogle, signInWithApple } = useAuth();
   const router = useRouter();
   const [error, setError] = React.useState("");
   const [provider, setProvider] = React.useState<"google" | "apple" | null>(null);
-  const signIn = async (kind: "google" | "apple") => { setError(""); setProvider(kind); try { await (kind === "google" ? signInWithGoogle() : signInWithApple()); router.replace("/dashboard/overview"); } catch (err) { setError(err instanceof Error ? err.message : "Sign-in failed"); } finally { setProvider(null); } };
+  const signInWithGoogleCredential = async (credential?: string) => { setError(""); setProvider("google"); try { await signInWithGoogle(credential ?? ""); router.replace("/dashboard/overview"); } catch (err) { setError(err instanceof Error ? err.message : "Sign-in failed"); } finally { setProvider(null); } };
+  const signInWithAppleProvider = async () => { setError(""); setProvider("apple"); try { await signInWithApple(); router.replace("/dashboard/overview"); } catch (err) { setError(err instanceof Error ? err.message : "Sign-in failed"); } finally { setProvider(null); } };
   const isMd = useMediaQuery('(min-width: 768px)');
   const isLg = useMediaQuery('(min-width: 1024px)');
 
@@ -70,24 +71,24 @@ export default function Login() {
             </Stack>
 
             <Stack w="100%" gap={10} mt={isMd ? 70 : 32}>
-              <Button
-                onClick={() => signIn("google")}
-                loading={provider === "google"}
-                fullWidth
-                leftSection={<Google />}
-                bg="white"
-                c="black"
-                radius={54.81}
-                py={15.96}
-                px={17.54}
-                h="auto"
-                styles={{ inner: { fontWeight: 400 } }}
-              >
-                Continue with Google
-              </Button>
+              {process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ? (
+                <Box style={{ opacity: provider === "google" ? 0.6 : 1, pointerEvents: provider === "google" ? "none" : "auto" }}>
+                  <GoogleLogin
+                    onSuccess={(response) => void signInWithGoogleCredential(response.credential)}
+                    onError={() => setError("Google sign-in was cancelled or could not be completed")}
+                    text="continue_with"
+                    theme="outline"
+                    shape="pill"
+                    size="large"
+                    width="100%"
+                  />
+                </Box>
+              ) : (
+                <Text c="red" size="sm" ta="center">Google sign-in is not configured</Text>
+              )}
 
               <Button
-                onClick={() => signIn("apple")}
+                onClick={signInWithAppleProvider}
                 loading={provider === "apple"}
                 fullWidth
                 leftSection={<Apple />}

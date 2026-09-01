@@ -3,7 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useState } from "rea
 import { adminApi, authApi } from "@/lib/api/backend";
 import type { ApiUser, AuthResponse } from "@/types/api";
 
-type AuthContextValue = { user: ApiUser | null; loading: boolean; login: (email: string, password: string, admin?: boolean) => Promise<void>; signInWithGoogle: () => Promise<void>; signInWithApple: () => Promise<void>; logout: () => Promise<void>; refreshProfile: () => Promise<void> };
+type AuthContextValue = { user: ApiUser | null; loading: boolean; login: (email: string, password: string, admin?: boolean) => Promise<void>; signInWithGoogle: (idToken: string) => Promise<void>; signInWithApple: () => Promise<void>; logout: () => Promise<void>; refreshProfile: () => Promise<void> };
 const AuthContext = createContext<AuthContextValue | null>(null);
 const persist = (result: AuthResponse) => { localStorage.setItem("accessToken", result.accessToken); localStorage.setItem("refreshToken", result.refreshToken); };
 
@@ -14,26 +14,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string, password: string, admin = false) => { const result = await (admin ? adminApi.adminLogin({ email, password }) : authApi.login({ email, password })); persist(result); localStorage.setItem("isAdmin", String(admin)); await refreshProfile(); };
   const completeProviderSignIn = async (result: AuthResponse) => { persist(result); localStorage.setItem("isAdmin", "false"); await refreshProfile(); };
   const loadScript = (src: string, id: string) => new Promise<void>((resolve, reject) => { if (document.getElementById(id)) return resolve(); const script = document.createElement("script"); script.id = id; script.src = src; script.async = true; script.onload = () => resolve(); script.onerror = () => reject(new Error("Could not load the identity provider")); document.head.appendChild(script); });
-  const signInWithGoogle = async () => {
-    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-    if (!clientId) throw new Error("Google sign-in is not configured");
-    await loadScript("https://accounts.google.com/gsi/client", "google-identity-services");
-    const credential = await new Promise<string>((resolve, reject) => {
-      const google = (window as Window & {
-        google?: {
-          accounts: {
-            id: {
-              initialize: (options: { client_id: string; callback: (response: { credential?: string }) => void }) => void;
-              prompt: () => void;
-            };
-          };
-        };
-      }).google;
-      if (!google) return reject(new Error("Google sign-in is unavailable"));
-      google.accounts.id.initialize({ client_id: clientId, callback: (response) => response.credential ? resolve(response.credential) : reject(new Error("Google did not return an ID token")) });
-      google.accounts.id.prompt();
-    });
-    await completeProviderSignIn(await authApi.google({ idToken: credential }));
+  const signInWithGoogle = async (idToken: string) => {
+    if (!idToken) throw new Error("Google did not return an ID token");
+    await completeProviderSignIn(await authApi.google({ idToken }));
   };
   const signInWithApple = async () => {
     const clientId = process.env.NEXT_PUBLIC_APPLE_CLIENT_ID;
