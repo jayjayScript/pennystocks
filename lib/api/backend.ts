@@ -15,7 +15,7 @@ export const authApi = {
   deleteAccount: () => api<{ message: string }>("/user/account", { method: "DELETE" }),
 };
 export const stocksApi = {
-  list: () => api<Stock[]>("/stocks"),  //accessable to both user and admin
+  list: (page = 1, limit = 20) => api<Paginated<Stock>>(`/stocks?page=${page}&limit=${limit}`),  //accessable to both user and admin
   get: (id: string) => api<Stock>(`/stocks/${id}`),  //accessable to both user and admin
   create: (data: CreateStockPayload) => api<Stock>("/stocks", { method: "POST", body: JSON.stringify(data) }),  // accessable to admin only
   update: (id: string, data: UpdateStockPayload) => api<Stock>(`/stocks/${id}`, { method: "PATCH", body: JSON.stringify(data) }),  // accessable to admin only

@@ -6,8 +6,9 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import DepositModal from "@/components/modals/DepositModal";
 import WithdrawModal from "@/components/modals/WithdrawModal";
+import { ApiUser } from "@/types/api";
 
-export default function OverviewScreen() {
+export default function OverviewScreen({ user }: { user: ApiUser }) {
   const [depositOpen, setDepositOpen] = useState(false);
   const [depositKey, setDepositKey] = useState(0);
 

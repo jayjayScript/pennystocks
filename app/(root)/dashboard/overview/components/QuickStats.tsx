@@ -2,8 +2,9 @@
 
 import { Icon } from "@iconify/react";
 import { stats } from "@/constants/data";
+import { ApiUser } from "@/types/api";
 
-export default function QuickStats() {
+export default function QuickStats({ user }: { user: ApiUser }) {
   return (
     <div
       className="rounded-2xl p-6 h-full border border-[#252f45] flex flex-col"

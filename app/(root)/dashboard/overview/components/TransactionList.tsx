@@ -1,9 +1,10 @@
 "use client";
 
 import { usePortfolio, formatUSD } from "@/context/PortfolioContext";
+import { Transaction } from "@/types/api";
 import { Icon } from "@iconify/react";
 
-export default function TransactionList() {
+export default function TransactionList({ txts }: { txts: Transaction[] }) {
   const { pendingOrders } = usePortfolio();
 
   // Get all transactions from pending orders, filter to completed ones + recent
