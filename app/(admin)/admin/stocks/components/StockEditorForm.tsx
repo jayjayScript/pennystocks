@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { Icon } from "@iconify/react";
-import { createStock } from "@/lib/api/stocks";
+import { stocksApi } from "@/lib/api/backend";
 
 const initialValues = {
   ticker: "",
@@ -55,25 +55,25 @@ export default function StockEditorForm() {
 
     if (!validateForm()) return;
 
-    setSubmitted(true);
-    setTimeout(() => {
-      setSubmitted(false);
-      setForm(initialValues);
-      setErrors({});
-    }, 500);
-
-    // Future integration: When backend is available
-    // console.log("Form submitted, calling API...");
-    // try {
-    //   const result = await createStock(form);
-    //   if (!result.success) {
-    //     console.error("Failed to create stock:", result.message);
-    //   } else {
-    //     // Refresh stocks list or update local state
-    //   }
-    // } catch (error) {
-    //   console.error("Error creating stock:", error);
-    // }
+    try {
+      await stocksApi.create({
+        name: form.name,
+        acronym: form.ticker,
+        lastPrice: parseFloat(form.price),
+        change24h: 0,
+        rateOfChange: 0,
+        currency: "USD",
+      });
+      setSubmitted(true);
+      setTimeout(() => {
+        setSubmitted(false);
+        setForm(initialValues);
+        setErrors({});
+      }, 2000);
+    } catch (error) {
+      console.error("Failed to create stock:", error);
+      setErrors({ form: error instanceof Error ? error.message : "Failed to create stock" });
+    }
   };
 
   const inputStyles = {

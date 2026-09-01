@@ -5,8 +5,9 @@ import { Icon } from "@iconify/react";
 import { useStockRequests } from "@/context/StockRequestContext";
 import Link from "next/link";
 import ProposeStockModal from "@/components/modals/ProposeStockModal";
+import {  Stock } from "@/types/api";
 
-const MyStocks = () => {
+const MyStocks = ({ stocks }: { stocks: Stock[] }) => {
   const { stockRequests } = useStockRequests();
   const [proposeOpen, setProposeOpen] = useState(false);
 

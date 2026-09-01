@@ -3,8 +3,9 @@
 import { Icon } from "@iconify/react";
 import { usePortfolio } from "@/context/PortfolioContext";
 import Link from "next/link";
+import { Stock } from "@/types/api";
 
-export default function AssetPortfolio() {
+export default function AssetPortfolio({ stocks }: { stocks: Stock[] }) {
   const { portfolio } = usePortfolio();
 
   return (

@@ -305,9 +305,9 @@ export default function CopyTradingPage() {
     setShowConfirm(true);
   };
 
-  const confirmBuy = () => {
+  const confirmBuy = async () => {
     if (!selectedSetup) return;
-    const result = buyCopyTrade(selectedSetup.id);
+    const result = await buyCopyTrade(selectedSetup.id);
     showNotification(result.success ? "success" : "error", result.message);
     setShowConfirm(false);
     setSelectedSetup(null);

@@ -2,15 +2,8 @@
 
 import React from "react";
 import { Icon } from "@iconify/react";
-import { adminStats, recentAdminTransactions } from "@/constants/admin-data";
-
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-  }).format(amount);
-}
+import { useAdminUsers, useAdminTransactions, useStocks } from "@/hooks/queries";
+import { formatUSD } from "@/context/PortfolioContext";
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US", {
@@ -22,6 +15,16 @@ function formatDate(iso: string): string {
 }
 
 export default function AdminOverviewPage() {
+  const { data: usersData, isLoading: usersLoading } = useAdminUsers(1, 1);
+  const { data: txData, isLoading: txLoading } = useAdminTransactions(1, 10);
+  const { data: stocksData, isLoading: stocksLoading } = useStocks(1, 1);
+
+  const users = usersData?.data ?? [];
+  const totalUsers = usersData?.pagination?.total ?? users.length;
+  const totalStocks = stocksData?.pagination?.total ?? stocksData?.data?.length ?? 0;
+  const totalTransactions = txData?.pagination?.total ?? 0;
+  const recentTx = txData?.data ?? [];
+
   return (
     <div className="space-y-6">
       <div>
@@ -38,11 +41,10 @@ export default function AdminOverviewPage() {
             <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-lg sm:rounded-xl flex items-center justify-center" style={{ background: "rgba(0,212,161,0.12)" }}>
               <Icon icon="mdi:users-outline" width={18} className="sm:w-[22px] sm:h-[22px]" style={{ color: "#00d4a1" }} />
             </div>
-            <span className="text-[10px] sm:text-xs font-bold px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-full" style={{ background: "rgba(0,212,161,0.1)", color: "#00d4a1" }}>
-              {adminStats.usersChange}
-            </span>
           </div>
-          <p className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-white">{adminStats.totalUsers.toLocaleString()}</p>
+          <p className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-white">
+            {usersLoading ? "—" : totalUsers.toLocaleString()}
+          </p>
           <p className="text-[10px] sm:text-sm mt-1" style={{ color: "#9aa3b0" }}>Total Users</p>
         </div>
 
@@ -51,11 +53,10 @@ export default function AdminOverviewPage() {
             <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-lg sm:rounded-xl flex items-center justify-center" style={{ background: "rgba(0,212,161,0.12)" }}>
               <Icon icon="mdi:chart-line-variant" width={18} className="sm:w-[22px] sm:h-[22px]" style={{ color: "#00d4a1" }} />
             </div>
-            <span className="text-[10px] sm:text-xs font-bold px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-full" style={{ background: "rgba(0,212,161,0.1)", color: "#00d4a1" }}>
-              +{adminStats.stocksChange}
-            </span>
           </div>
-          <p className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-white">{adminStats.stocksCreated}</p>
+          <p className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-white">
+            {stocksLoading ? "—" : totalStocks.toLocaleString()}
+          </p>
           <p className="text-[10px] sm:text-sm mt-1" style={{ color: "#9aa3b0" }}>Stocks Created</p>
         </div>
 
@@ -64,11 +65,10 @@ export default function AdminOverviewPage() {
             <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-lg sm:rounded-xl flex items-center justify-center" style={{ background: "rgba(0,212,161,0.12)" }}>
               <Icon icon="mdi:shopping-outline" width={18} className="sm:w-[22px] sm:h-[22px]" style={{ color: "#00d4a1" }} />
             </div>
-            <span className="text-[10px] sm:text-xs font-bold px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-full" style={{ background: "rgba(0,212,161,0.1)", color: "#00d4a1" }}>
-              {adminStats.stocksSoldChange}
-            </span>
           </div>
-          <p className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-white">{adminStats.stocksSold.toLocaleString()}</p>
+          <p className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-white">
+            {txLoading ? "—" : recentTx.filter((t) => t.type === "sell").length.toLocaleString()}
+          </p>
           <p className="text-[10px] sm:text-sm mt-1" style={{ color: "#9aa3b0" }}>Stocks Sold</p>
         </div>
 
@@ -77,11 +77,10 @@ export default function AdminOverviewPage() {
             <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-lg sm:rounded-xl flex items-center justify-center" style={{ background: "rgba(0,212,161,0.12)" }}>
               <Icon icon="mdi:swap-horizontal" width={18} className="sm:w-[22px] sm:h-[22px]" style={{ color: "#00d4a1" }} />
             </div>
-            <span className="text-[10px] sm:text-xs font-bold px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-full" style={{ background: "rgba(0,212,161,0.1)", color: "#00d4a1" }}>
-              {adminStats.transactionsChange}
-            </span>
           </div>
-          <p className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-white">{adminStats.totalTransactions.toLocaleString()}</p>
+          <p className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-white">
+            {txLoading ? "—" : totalTransactions.toLocaleString()}
+          </p>
           <p className="text-[10px] sm:text-sm mt-1" style={{ color: "#9aa3b0" }}>Transactions</p>
         </div>
       </div>
@@ -102,68 +101,72 @@ export default function AdminOverviewPage() {
         {/* Desktop Table Header */}
         <div className="hidden lg:grid grid-cols-[1.5fr_1.5fr_1fr_1fr_1.5fr_1fr] px-6 py-3 text-xs font-semibold" style={{ background: "#0d1624", color: "#6b7785" }}>
           <span>User</span>
-          <span>Stock</span>
+          <span>Reference</span>
           <span>Type</span>
-          <span className="text-right">Qty</span>
           <span className="text-right">Amount</span>
+          <span>Status</span>
           <span className="text-right">Date</span>
         </div>
 
         <div className="divide-y" style={{ borderColor: "#1d2639" }}>
-          {recentAdminTransactions.map((tx) => (
-            <div key={tx.id} className="lg:grid lg:grid-cols-[1.5fr_1.5fr_1fr_1fr_1.5fr_1fr] px-4 sm:px-6 py-4 flex flex-col gap-3 hover:bg-opacity-50 transition-colors" style={{ borderColor: "#1d2639" }}>
-              {/* User Info */}
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center shrink-0 text-[10px] sm:text-xs font-bold" style={{ background: "rgba(0,212,161,0.1)", color: "#00d4a1" }}>
-                  {tx.user.split(" ").map((n) => n[0]).join("")}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs sm:text-sm font-semibold text-white truncate">{tx.user}</p>
-                  <p className="text-[10px] sm:text-xs" style={{ color: "#6b7785" }}>{tx.userId}</p>
-                </div>
-              </div>
-
-              {/* Stock Info */}
-              <div className="flex items-center gap-2">
-                <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center shrink-0 text-[10px] sm:text-xs font-bold" style={{ background: "rgba(255,255,255,0.05)" }}>{tx.stock[0]}</div>
-                <div className="min-w-0">
-                  <p className="text-xs sm:text-sm font-semibold text-white">{tx.stock}</p>
-                  <p className="text-[10px] sm:text-xs truncate hidden sm:block" style={{ color: "#6b7785" }}>{tx.stockName}</p>
-                </div>
-              </div>
-
-              {/* Type */}
-              <div className="flex items-center lg:block">
-                <span className="text-[10px] sm:text-xs font-bold px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full" style={{ background: tx.type === "buy" ? "rgba(0,212,161,0.12)" : "rgba(244,67,54,0.12)", color: tx.type === "buy" ? "#00d4a1" : "#F44336" }}>
-                  {tx.type.toUpperCase()}
-                </span>
-              </div>
-
-              {/* Quantity */}
-              <div className="lg:text-right">
-                <p className="text-xs sm:text-sm font-semibold text-white">{tx.quantity}</p>
-                <p className="text-[10px] sm:text-xs lg:hidden" style={{ color: "#6b7785" }}>Quantity</p>
-              </div>
-
-              {/* Amount */}
-              <div className="lg:text-right">
-                <p className="text-xs sm:text-sm font-semibold text-white">{formatCurrency(tx.total)}</p>
-                <p className="text-[10px] sm:text-xs" style={{ color: "#F5C518" }}>Fee: {(tx.fee).toFixed(2)}</p>
-                <p className="text-[10px] sm:text-xs lg:hidden" style={{ color: "#6b7785" }}>{tx.type === "buy" ? "Total" : "Net"}</p>
-              </div>
-
-              {/* Date & Status */}
-              <div className="flex items-center justify-between lg:justify-end gap-3 lg:text-right">
-                <div>
-                  <p className="text-xs sm:text-sm font-semibold text-white lg:hidden">{formatDate(tx.date)}</p>
-                  <span className="text-[10px] sm:text-xs font-medium px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full" style={{ background: tx.status === "completed" ? "rgba(76,175,80,0.12)" : "rgba(245,197,24,0.12)", color: tx.status === "completed" ? "#4CAF50" : "#F5C518" }}>
-                    {tx.status === "completed" ? "Done" : "Pending"}
-                  </span>
-                </div>
-                <span className="text-[10px] sm:text-xs hidden lg:block" style={{ color: "#6b7785" }}>{formatDate(tx.date)}</span>
-              </div>
+          {txLoading ? (
+            <div className="py-16 text-center" style={{ color: "#6b7785" }}>Loading...</div>
+          ) : recentTx.length === 0 ? (
+            <div className="py-16 text-center" style={{ color: "#6b7785" }}>
+              <Icon icon="mdi:inbox-outline" width={48} className="mx-auto" />
+              <p className="text-sm font-medium mt-3">No transactions yet</p>
             </div>
-          ))}
+          ) : (
+            recentTx.map((tx) => {
+              const isBuy = tx.type === "buy";
+              const isSell = tx.type === "sell";
+              const userName = tx.email ?? "User";
+              const initials = userName.substring(0, 2).toUpperCase();
+              return (
+                <div key={tx._id} className="lg:grid lg:grid-cols-[1.5fr_1.5fr_1fr_1fr_1.5fr_1fr] px-4 sm:px-6 py-4 flex flex-col gap-3 hover:bg-opacity-50 transition-colors" style={{ borderColor: "#1d2639" }}>
+                  {/* User Info */}
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center shrink-0 text-[10px] sm:text-xs font-bold" style={{ background: "rgba(0,212,161,0.1)", color: "#00d4a1" }}>
+                      {initials}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs sm:text-sm font-semibold text-white truncate">{userName}</p>
+                      <p className="text-[10px] sm:text-xs truncate" style={{ color: "#6b7785" }}>{tx.transactionID ?? tx._id}</p>
+                    </div>
+                  </div>
+
+                  {/* Reference */}
+                  <div className="flex items-center gap-2 min-w-0">
+                    <p className="text-xs sm:text-sm text-white truncate">{tx.reference ?? "—"}</p>
+                  </div>
+
+                  {/* Type */}
+                  <div className="flex items-center lg:block">
+                    <span className="text-[10px] sm:text-xs font-bold px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full" style={{ background: isBuy ? "rgba(0,212,161,0.12)" : isSell ? "rgba(244,67,54,0.12)" : "rgba(245,197,24,0.12)", color: isBuy ? "#00d4a1" : isSell ? "#F44336" : "#F5C518" }}>
+                      {tx.type.toUpperCase()}
+                    </span>
+                  </div>
+
+                  {/* Amount */}
+                  <div className="lg:text-right">
+                    <p className="text-xs sm:text-sm font-semibold text-white">{formatUSD(tx.amount)}</p>
+                  </div>
+
+                  {/* Status */}
+                  <div className="flex items-center">
+                    <span className="text-[10px] sm:text-xs font-medium px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full" style={{ background: tx.status === "completed" ? "rgba(76,175,80,0.12)" : tx.status === "rejected" || tx.status === "failed" ? "rgba(244,67,54,0.12)" : "rgba(245,197,24,0.12)", color: tx.status === "completed" ? "#4CAF50" : tx.status === "rejected" || tx.status === "failed" ? "#F44336" : "#F5C518" }}>
+                      {tx.status}
+                    </span>
+                  </div>
+
+                  {/* Date */}
+                  <div className="lg:text-right">
+                    <span className="text-[10px] sm:text-xs" style={{ color: "#6b7785" }}>{formatDate(tx.createdAt)}</span>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
 
         <div className="px-4 sm:px-6 py-4 text-center" style={{ borderTop: "1px solid #1d2639" }}>

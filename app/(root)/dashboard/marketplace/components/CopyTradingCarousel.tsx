@@ -5,15 +5,24 @@ import Link from "next/link";
 import { Icon } from "@iconify/react";
 import useEmblaCarousel from "embla-carousel-react";
 import type { EmblaCarouselType } from "embla-carousel";
-import { copyTraders } from "@/constants/data";
+import { useCopyTrading } from "@/hooks/queries";
+import { formatUSD } from "@/context/PortfolioContext";
 
 const riskColors: Record<string, string> = {
-  Low: "text-sky-400 bg-sky-400/10 border-sky-400/30",
-  Medium: "text-amber-400 bg-amber-400/10 border-amber-400/30",
-  High: "text-penny-error bg-red-500/10 border-red-500/30",
+  low: "text-sky-400 bg-sky-400/10 border-sky-400/30",
+  medium: "text-amber-400 bg-amber-400/10 border-amber-400/30",
+  high: "text-penny-error bg-red-500/10 border-red-500/30",
+};
+
+const riskDot: Record<string, Record<string, string>> = {
+  Low:    { Low: "bg-sky-400",   Medium: "bg-sky-400/30",   High: "bg-sky-400/30" },
+  Medium: { Low: "bg-amber-400/30", Medium: "bg-amber-400",  High: "bg-amber-400/30" },
+  High:   { Low: "bg-red-500/30",   Medium: "bg-red-500/30", High: "bg-red-500" },
 };
 
 export default function CopyTradingCarousel() {
+  const { data: setups, isLoading } = useCopyTrading();
+
   const [emblaRef, emblaApi] = useEmblaCarousel({
     align: "start",
     containScroll: "trimSnaps",
@@ -71,7 +80,6 @@ export default function CopyTradingCarousel() {
 
   return (
     <div className="space-y-4 w-full relative px-4">
-      {/* Section header */}
       <div className="flex items-center justify-between px-1">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-xl bg-penny-surface-2 border border-penny-border-subtle flex items-center justify-center shadow-inner">
@@ -87,7 +95,6 @@ export default function CopyTradingCarousel() {
         </div>
 
         <div className="flex items-center gap-4">
-          {/* Dot indicators */}
           <div className="hidden sm:flex items-center gap-2">
             {scrollSnaps.map((_, index) => (
               <button
@@ -103,7 +110,6 @@ export default function CopyTradingCarousel() {
             ))}
           </div>
 
-          {/* Navigation Buttons */}
           <div className="flex items-center gap-1.5">
             <button
               onClick={scrollPrev}
@@ -133,110 +139,110 @@ export default function CopyTradingCarousel() {
         </div>
       </div>
 
-      {/* Carousel Container with Bleed */}
       <div className="-mx-4 sm:-mx-6 md:-mx-8">
         <div className="overflow-hidden px-4 sm:px-6 md:px-8" ref={emblaRef}>
           <div className="flex">
-            {copyTraders.map((trader) => (
-              <div
-                key={trader.id}
-                className="flex-[0_0_85%] min-w-0 pr-4 sm:flex-[0_0_46%] lg:flex-[0_0_31%]"
-              >
-                <div className="h-full rounded-2xl border border-penny-border-default bg-penny-bg-mid p-6 flex flex-col gap-4 relative overflow-hidden group hover:border-penny-accent/30 transition-colors duration-300">
-                  {/* Subtle gradient glow */}
-                  <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-penny-accent opacity-[0.03] blur-3xl pointer-events-none group-hover:opacity-10 transition-opacity" />
+            {isLoading ? (
+              <div className="px-4 py-12 text-sm text-penny-text-muted">
+                Loading copy trading setups...
+              </div>
+            ) : (setups ?? []).length === 0 ? (
+              <div className="px-4 py-12 text-sm text-penny-text-muted">
+                No copy trading setups available right now.
+              </div>
+            ) : (
+              (setups ?? []).map((trader) => {
+                const riskKey = trader.riskLevel.charAt(0).toUpperCase() + trader.riskLevel.slice(1);
+                const dots = riskDot[riskKey] || riskDot["Low"];
+                return (
+                  <div
+                    key={trader._id}
+                    className="flex-[0_0_85%] min-w-0 pr-4 sm:flex-[0_0_46%] lg:flex-[0_0_31%]"
+                  >
+                    <div className="h-full rounded-2xl border border-penny-border-default bg-penny-bg-mid p-6 flex flex-col gap-4 relative overflow-hidden group hover:border-penny-accent/30 transition-colors duration-300">
+                      <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-penny-accent opacity-[0.03] blur-3xl pointer-events-none group-hover:opacity-10 transition-opacity" />
 
-                  {/* Trader header */}
-                  <div className="flex items-center justify-between relative z-10">
-                    <div className="flex items-center gap-3">
-                      <div className="w-11 h-11 rounded-full bg-penny-surface-3 border border-penny-border-subtle flex items-center justify-center text-sm font-bold text-white shadow-sm ring-2 ring-transparent group-hover:ring-penny-accent/20 transition-all">
-                        {trader.avatarInitials}
-                      </div>
-                      <div>
-                        <p className="text-white font-bold text-base leading-tight">
-                          {trader.name}
-                        </p>
-                        <div className="flex items-center gap-1.5 mt-1">
-                          <span
-                            className={`text-[10px] uppercase tracking-wider font-black px-2 py-0.5 rounded-md border ${riskColors[trader.riskLevel]}`}
-                          >
-                            {trader.riskLevel}
-                          </span>
+                      <div className="flex items-center justify-between relative z-10">
+                        <div className="flex items-center gap-3">
+                          <div className="w-11 h-11 rounded-full bg-penny-surface-3 border border-penny-border-subtle flex items-center justify-center text-sm font-bold text-white shadow-sm ring-2 ring-transparent group-hover:ring-penny-accent/20 transition-all">
+                            {trader.traderName.substring(0, 2).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="text-white font-bold text-base leading-tight">
+                              {trader.traderName}
+                            </p>
+                            <div className="flex items-center gap-1.5 mt-1">
+                              <span
+                                className={`text-[10px] uppercase tracking-wider font-black px-2 py-0.5 rounded-md border ${riskColors[trader.riskLevel] || riskColors["low"]}`}
+                              >
+                                {riskKey}
+                              </span>
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    {trader.verified && (
-                      <Icon
-                        icon="mdi:check-decagram"
-                        width={22}
-                        className="text-amber-400 drop-shadow-sm"
-                      />
-                    )}
-                  </div>
 
-                  {/* Growth Stats */}
-                  <div className="space-y-1 relative z-10">
-                    <p className="text-penny-text-muted text-[10px] uppercase font-bold tracking-widest">
-                      Performance Stats
-                    </p>
-                    <p
-                      className="text-4xl font-black tracking-tighter"
-                      style={{
-                        color: trader.gainPositive
-                          ? "var(--penny-accent)"
-                          : "var(--penny-error)",
-                      }}
-                    >
-                      {trader.gainPct}
-                    </p>
-                  </div>
+                      <div className="space-y-1 relative z-10">
+                        <p className="text-penny-text-muted text-[10px] uppercase font-bold tracking-widest">
+                          Performance Stats
+                        </p>
+                        <p
+                          className="text-4xl font-black tracking-tighter"
+                          style={{
+                            color: trader.rateOfChange >= 0
+                              ? "var(--penny-accent)"
+                              : "var(--penny-error)",
+                          }}
+                        >
+                          {trader.rateOfChange >= 0 ? "+" : ""}{trader.rateOfChange.toFixed(2)}%
+                        </p>
+                      </div>
 
-                  {/* Period & Risk Controls (Visual decoration) */}
-                  <div className="flex items-center justify-between relative z-10">
-                    <span className="text-[11px] font-bold px-3 py-1 rounded-lg bg-penny-surface-2 border border-penny-border-subtle text-penny-text-muted">
-                      {trader.period}
-                    </span>
+                      <div className="flex items-center justify-between relative z-10">
+                        <span className="text-[11px] font-bold px-3 py-1 rounded-lg bg-penny-surface-2 border border-penny-border-subtle text-penny-text-muted">
+                          {trader.duration}
+                        </span>
 
-                    <div className="flex gap-1">
-                      {(["Low", "Medium", "High"] as const).map((lvl) => (
-                        <div
-                          key={lvl}
-                          className={`w-1.5 h-1.5 rounded-full ${trader.riskLevel === lvl ? (lvl === "High" ? "bg-red-500" : lvl === "Medium" ? "bg-amber-400" : "bg-sky-400") : "bg-penny-surface-3"}`}
-                        />
-                      ))}
-                    </div>
-                  </div>
+                        <div className="flex gap-1">
+                          {(["Low", "Medium", "High"] as const).map((lvl) => (
+                            <div
+                              key={lvl}
+                              className={`w-1.5 h-1.5 rounded-full ${dots[lvl]}`}
+                            />
+                          ))}
+                        </div>
+                      </div>
 
-                  {/* Stats divider */}
-                  <div className="grid grid-cols-2 gap-4 items-center pt-4 border-t border-penny-border-subtle relative z-10 mt-auto">
-                    <div className="space-y-0.5">
-                      <p className="text-penny-text-disabled text-[10px] font-medium leading-none">
-                        Avg daily profit
-                      </p>
-                      <p className="text-white font-bold text-sm">
-                        {trader.avgDailyProfit}
-                      </p>
-                    </div>
-                    <div className="space-y-0.5 text-right">
-                      <p className="text-penny-text-disabled text-[10px] font-medium leading-none">
-                        Purchases
-                      </p>
-                      <p className="text-white font-bold text-sm">
-                        {trader.copies}
-                      </p>
+                      <div className="grid grid-cols-2 gap-4 items-center pt-4 border-t border-penny-border-subtle relative z-10 mt-auto">
+                        <div className="space-y-0.5">
+                          <p className="text-penny-text-disabled text-[10px] font-medium leading-none">
+                            Avg daily profit
+                          </p>
+                          <p className="text-white font-bold text-sm">
+                            {formatUSD(trader.averageDailyProfit)}
+                          </p>
+                        </div>
+                        <div className="space-y-0.5 text-right">
+                          <p className="text-penny-text-disabled text-[10px] font-medium leading-none">
+                            Purchases
+                          </p>
+                          <p className="text-white font-bold text-sm">
+                            {trader.purchases}
+                          </p>
+                        </div>
+                      </div>
+
+                      <Link
+                        href={`/dashboard/marketplace/copy-trading`}
+                        className="w-full py-3 rounded-xl bg-penny-accent text-penny-bg-base text-sm font-black uppercase tracking-wider text-center transition-all hover:scale-[1.02] hover:shadow-[0_4px_12px_rgba(0,212,161,0.3)] active:scale-[0.98] relative z-10"
+                      >
+                        Copy Trade
+                      </Link>
                     </div>
                   </div>
-
-                  {/* Action Button */}
-                  <Link
-                    href={`/dashboard/marketplace/copy-trading`}
-                    className="w-full py-3 rounded-xl bg-penny-accent text-penny-bg-base text-sm font-black uppercase tracking-wider text-center transition-all hover:scale-[1.02] hover:shadow-[0_4px_12px_rgba(0,212,161,0.3)] active:scale-[0.98] relative z-10"
-                  >
-                    Copy Trade
-                  </Link>
-                </div>
-              </div>
-            ))}
+                );
+              })
+            )}
           </div>
         </div>
       </div>

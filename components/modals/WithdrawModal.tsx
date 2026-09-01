@@ -26,7 +26,7 @@ export default function WithdrawModal({ isOpen, onClose }: WithdrawModalProps) {
     return () => { document.body.style.overflow = ""; };
   }, [isOpen]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const parsedAmount = parseFloat(amount);
     if (isNaN(parsedAmount) || parsedAmount <= 0) {
@@ -38,25 +38,26 @@ export default function WithdrawModal({ isOpen, onClose }: WithdrawModalProps) {
       return;
     }
 
-    // Handle withdrawal password logic
     if (passwordNotSet) {
-      // If password hasn't been set yet, set it now and allow withdrawal
       if (password.trim() === "") {
         setError("Please enter a withdrawal password.");
         return;
       }
-      setWithdrawalPassword(password);
-      // Proceed with withdrawal
+      // Save password to backend, then submit withdrawal
+      await setWithdrawalPassword(password);
     } else {
-      // Password is set, verify it matches
       if (password !== withdrawalPassword) {
         setError("Incorrect withdrawal password.");
         return;
       }
     }
 
-    submitWithdrawOrder(parsedAmount, note);
-    setStatus("success");
+    const result = await submitWithdrawOrder(parsedAmount, note);
+    if (result.success) {
+      setStatus("success");
+    } else {
+      setError(result.message);
+    }
   };
 
   const handleBackdrop = (e: React.MouseEvent<HTMLDivElement>) => {

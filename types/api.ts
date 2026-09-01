@@ -40,6 +40,7 @@ export interface Stock {
   change24h: number;
   rateOfChange: number;
   currency: string;
+  totalVolume?: number;
   createdAt: string;
   updatedAt: string;
 }

@@ -92,15 +92,14 @@ export default function SellModal({
     }
   };
 
-  const handleSell = () => {
+  const handleSell = async () => {
     if (isInvalid) return;
-    const result = submitSellOrder(asset, unitsToSell, proofImage || undefined);
+    setStatus("idle");
+    const result = await submitSellOrder(asset, unitsToSell, proofImage || undefined);
     setStatus(result.success ? "success" : "error");
     setStatusMessage(result.message);
     if (result.success) {
-      setTimeout(() => {
-        onClose();
-      }, 3000);
+      setTimeout(() => { onClose(); }, 3000);
     }
   };
 

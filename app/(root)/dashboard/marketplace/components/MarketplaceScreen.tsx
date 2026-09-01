@@ -16,11 +16,12 @@ export default function MarketplaceScreen() {
   const { stockRequests } = useStockRequests();
   const [marketStocks, setMarketStocks] = useState<Stock[]>([]);
   const [loadError, setLoadError] = useState("");
-  useEffect(() => { stocksApi.list().then((stocks) => setMarketStocks(stocks.map((stock) => ({ id: stock._id, symbol: stock.acronym, name: stock.name, price: new Intl.NumberFormat("en-US", { style: "currency", currency: stock.currency }).format(stock.lastPrice), change: stock.change24h.toFixed(2), pct: `${stock.rateOfChange >= 0 ? "+" : ""}${stock.rateOfChange.toFixed(2)}%`, up: stock.rateOfChange >= 0, bgColor: "rgba(0, 212, 161, 0.1)" })))).catch((error: Error) => setLoadError(error.message)); }, []);
+  useEffect(() => { stocksApi.list().then((res) => setMarketStocks(res.data.map((stock: import("@/types/api").Stock) => ({ id: stock._id, symbol: stock.acronym, name: stock.name, price: new Intl.NumberFormat("en-US", { style: "currency", currency: stock.currency }).format(stock.lastPrice), change: stock.change24h.toFixed(2), pct: `${stock.rateOfChange >= 0 ? "+" : ""}${stock.rateOfChange.toFixed(2)}%`, up: stock.rateOfChange >= 0, bgColor: "rgba(0, 212, 161, 0.1)" })))).catch((error: Error) => setLoadError(error.message)); }, []);
 
   const approvedStocks: Stock[] = stockRequests
     .filter((r) => r.status === "approved")
-    .map((r) => ({
+    .map((r, i) => ({
+      id: `approved-${r.id ?? i}`,
       symbol: r.ticker,
       name: r.name,
       price: `$${r.initialPrice.toFixed(2)}`,

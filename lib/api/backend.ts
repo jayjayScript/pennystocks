@@ -83,22 +83,12 @@ export const authApi = {
     api<{ message: string }>("/user/account", { method: "DELETE" }),
 };
 export const stocksApi = {
-  list: () => api<Stock[]>("/stocks"), //accessable to both user and admin
-  get: (id: string) => api<Stock>(`/stocks/${id}`), //accessable to both user and admin
-  create: (data: CreateStockPayload) =>
-    api<Stock>("/stocks", { method: "POST", body: JSON.stringify(data) }), // accessable to admin only
-  update: (id: string, data: UpdateStockPayload) =>
-    api<Stock>(`/stocks/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify(data),
-    }), // accessable to admin only
-  remove: (id: string) =>
-    api<{ message: string }>(`/stocks/${id}`, { method: "DELETE" }), // accessable to admin only
-  buy: (id: string, quantity: number) =>
-    api<{ purchase: StockPurchase; transaction: Transaction }>(
-      `/stocks/${id}/buy`,
-      { method: "POST", body: JSON.stringify({ quantity }) },
-    ),
+  list: (page = 1, limit = 20) => api<Paginated<Stock>>(`/stocks?page=${page}&limit=${limit}`),  //accessable to both user and admin
+  get: (id: string) => api<Stock>(`/stocks/${id}`),  //accessable to both user and admin
+  create: (data: CreateStockPayload) => api<Stock>("/stocks", { method: "POST", body: JSON.stringify(data) }),  // accessable to admin only
+  update: (id: string, data: UpdateStockPayload) => api<Stock>(`/stocks/${id}`, { method: "PATCH", body: JSON.stringify(data) }),  // accessable to admin only
+  remove: (id: string) => api<{ message: string }>(`/stocks/${id}`, { method: "DELETE" }),  // accessable to admin only
+  buy: (id: string, quantity: number) => api<{ purchase: StockPurchase; transaction: Transaction }>(`/stocks/${id}/buy`, { method: "POST", body: JSON.stringify({ quantity }) }),
 };
 export const copyTradingApi = {
   list: () => api<CopyTrading[]>("/copy-trading"), //accessable to both user and admin

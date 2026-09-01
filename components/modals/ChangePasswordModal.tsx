@@ -2,19 +2,20 @@
 
 import React, { useState, useEffect } from "react";
 import { Icon } from "@iconify/react";
-import { usePortfolio } from "@/context/PortfolioContext";
+import { api } from "@/lib/api/client";
 
-interface SetWithdrawalPasswordModalProps {
+interface ChangePasswordModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-export default function SetWithdrawalPasswordModal({ isOpen, onClose }: SetWithdrawalPasswordModalProps) {
-  const { setWithdrawalPassword } = usePortfolio();
-  const [password, setPassword] = useState("");
+export default function ChangePasswordModal({ isOpen, onClose }: ChangePasswordModalProps) {
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [status, setStatus] = useState<"idle" | "success">("idle");
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (isOpen) document.body.style.overflow = "hidden";
@@ -24,22 +25,38 @@ export default function SetWithdrawalPasswordModal({ isOpen, onClose }: SetWithd
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
 
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters long.");
+    if (newPassword.length < 6) {
+      setError("New password must be at least 6 characters.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError("New passwords do not match.");
       return;
     }
 
-    if (password !== confirmPassword) {
-      setError("Passwords do not match.");
-      return;
-    }
-
-    const result = await setWithdrawalPassword(password);
-    if (result && !result.success) {
-      setError(result.message);
-    } else {
-      setStatus("success");
+    setLoading(true);
+    try {
+      // Try a change-password endpoint if the backend has one
+      const result = await api<{ success: boolean; message?: string }>("/auth/change-password", {
+        method: "POST",
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      if (result.success) {
+        setStatus("success");
+      } else {
+        setError(result.message ?? "Failed to change password.");
+      }
+    } catch (err) {
+      // If 404, the endpoint doesn't exist yet — show a friendly message
+      if (err instanceof Error && err.message.includes("404")) {
+        setError("Password change is not available. Please contact support.");
+      } else {
+        setError(err instanceof Error ? err.message : "Failed to change password.");
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -62,15 +79,14 @@ export default function SetWithdrawalPasswordModal({ isOpen, onClose }: SetWithd
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-[#1d2639] mb-5">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl bg-[#F44336]/15 text-[#F44336]">
-              <Icon icon="mdi:shield-key-outline" width={22} />
+              <Icon icon="mdi:lock-outline" width={22} />
             </div>
             <div>
-              <h2 className="text-white font-bold text-lg leading-tight">Create Withdrawal Password</h2>
-              <p className="text-xs text-penny-text-muted mt-0.5">Set a secure password for withdrawal transactions</p>
+              <h2 className="text-white font-bold text-lg leading-tight">Change Password</h2>
+              <p className="text-xs text-penny-text-muted mt-0.5">Update your account password</p>
             </div>
           </div>
           <button
@@ -84,11 +100,11 @@ export default function SetWithdrawalPasswordModal({ isOpen, onClose }: SetWithd
         {status === "success" ? (
           <div className="flex flex-col items-center justify-center py-8 text-center">
             <div className="w-16 h-16 rounded-full bg-[#00d4a1]/15 flex items-center justify-center mb-4">
-              <Icon icon="mdi:shield-check-outline" width={36} className="text-[#00d4a1]" />
+              <Icon icon="mdi:check-circle" width={36} className="text-[#00d4a1]" />
             </div>
-            <h3 className="text-white font-bold text-lg mb-1">Password Set Successfully</h3>
+            <h3 className="text-white font-bold text-lg mb-1">Password Changed</h3>
             <p className="text-sm text-penny-text-muted max-w-xs leading-normal mb-6">
-              Your withdrawal password has been created. You will need this password for all future withdrawal transactions.
+              Your password has been updated successfully.
             </p>
             <button
               onClick={onClose}
@@ -100,21 +116,32 @@ export default function SetWithdrawalPasswordModal({ isOpen, onClose }: SetWithd
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold mb-1.5 text-penny-text-muted">New Password</label>
+              <label className="block text-xs font-semibold mb-1.5 text-penny-text-muted">Current Password</label>
               <input
                 type="password"
-                placeholder="Enter your new withdrawal password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter current password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
                 className="w-full px-4 py-3 rounded-xl text-sm bg-[#0d1624] border border-[#252f45] text-white focus:outline-none focus:border-[#F44336]"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold mb-1.5 text-penny-text-muted">Confirm Password</label>
+              <label className="block text-xs font-semibold mb-1.5 text-penny-text-muted">New Password</label>
               <input
                 type="password"
-                placeholder="Re-enter your withdrawal password"
+                placeholder="Enter new password (min. 6 characters)"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl text-sm bg-[#0d1624] border border-[#252f45] text-white focus:outline-none focus:border-[#F44336]"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold mb-1.5 text-penny-text-muted">Confirm New Password</label>
+              <input
+                type="password"
+                placeholder="Re-enter new password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 className="w-full px-4 py-3 rounded-xl text-sm bg-[#0d1624] border border-[#252f45] text-white focus:outline-none focus:border-[#F44336]"
@@ -137,9 +164,10 @@ export default function SetWithdrawalPasswordModal({ isOpen, onClose }: SetWithd
               </button>
               <button
                 type="submit"
-                className="flex-1 py-3 rounded-xl font-bold text-sm bg-[#F44336] text-white hover:opacity-90 active:scale-95 transition-all"
+                disabled={loading}
+                className="flex-1 py-3 rounded-xl font-bold text-sm bg-[#F44336] text-white hover:opacity-90 active:scale-95 transition-all disabled:opacity-50"
               >
-                Set Password
+                {loading ? "Updating..." : "Update Password"}
               </button>
             </div>
           </form>
