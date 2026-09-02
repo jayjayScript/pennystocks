@@ -28,6 +28,7 @@ export default function CopyTradingAdminPage() {
     purchases: 0,
     totalAssets: 0,
     copyTradePrice: 0,
+    isActive: true,
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
@@ -43,6 +44,7 @@ export default function CopyTradingAdminPage() {
       purchases: 0,
       totalAssets: 0,
       copyTradePrice: 0,
+      isActive: true,
     });
     setFormErrors({});
     setShowModal(true);
@@ -59,6 +61,7 @@ export default function CopyTradingAdminPage() {
       purchases: setup.purchases,
       totalAssets: setup.totalAssets,
       copyTradePrice: setup.copyTradePrice,
+      isActive: setup.isActive ?? true,
     });
     setFormErrors({});
     setShowModal(true);
@@ -88,6 +91,13 @@ export default function CopyTradingAdminPage() {
 
   const handleDelete = (id: string) => {
     deleteMut.mutate(id, { onSuccess: () => setDeleteConfirm(null) });
+  };
+
+  const toggleActive = (setup: typeof setups[0]) => {
+    updateMut.mutate({
+      id: setup._id,
+      data: { isActive: !(setup.isActive ?? true) },
+    });
   };
 
   return (
@@ -208,7 +218,24 @@ export default function CopyTradingAdminPage() {
                         <p className="text-sm sm:text-base font-bold text-white">{setup.purchases}</p>
                       </div>
                     </div>
-                    <div className="flex gap-2 sm:ml-4">
+                    <div className="flex items-center gap-2 sm:ml-4">
+                      <span
+                        className="text-[10px] font-bold px-2 py-1 rounded-full"
+                        style={{
+                          background: setup.isActive !== false ? "rgba(0,212,161,0.12)" : "rgba(244,67,54,0.12)",
+                          color: setup.isActive !== false ? "#00d4a1" : "#F44336",
+                        }}
+                      >
+                        {setup.isActive !== false ? "Active" : "Inactive"}
+                      </span>
+                      <Button
+                        onClick={() => toggleActive(setup)}
+                        className="p-2 rounded-lg"
+                        title={setup.isActive !== false ? "Deactivate" : "Activate"}
+                        style={{ background: "#0d1624", color: setup.isActive !== false ? "#9aa3b0" : "#00d4a1" }}
+                      >
+                        <Icon icon={setup.isActive !== false ? "mdi:pause" : "mdi:play"} width={16} />
+                      </Button>
                       <Button
                         onClick={() => openEdit(setup)}
                         className="p-2 rounded-lg"

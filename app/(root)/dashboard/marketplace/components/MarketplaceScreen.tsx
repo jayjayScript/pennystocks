@@ -1,10 +1,10 @@
 "use client";
 
 import { Icon } from "@iconify/react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 
-import { stocksApi } from "@/lib/api/backend";
+import { useStocks } from "@/hooks/queries";
 import CopyTradingCarousel from "./CopyTradingCarousel";
 import BuyModal from "@/components/modals/BuyModal";
 import { useStockRequests } from "@/context/StockRequestContext";
@@ -14,11 +14,26 @@ export default function MarketplaceScreen() {
   const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
   const [buyOpen, setBuyOpen] = useState(false);
   const { stockRequests } = useStockRequests();
-  const [marketStocks, setMarketStocks] = useState<Stock[]>([]);
-  const [loadError, setLoadError] = useState("");
-  useEffect(() => { stocksApi.list().then((res) => setMarketStocks(res.data.map((stock: import("@/types/api").Stock) => ({ id: stock._id, symbol: stock.acronym, name: stock.name, price: new Intl.NumberFormat("en-US", { style: "currency", currency: stock.currency }).format(stock.lastPrice), change: stock.change24h.toFixed(2), pct: `${stock.rateOfChange >= 0 ? "+" : ""}${stock.rateOfChange.toFixed(2)}%`, up: stock.rateOfChange >= 0, bgColor: "rgba(0, 212, 161, 0.1)" })))).catch((error: Error) => setLoadError(error.message)); }, []);
 
-  const approvedStocks: Stock[] = stockRequests
+  // Only fetch approved stocks (isApproved === true)
+  const { data: stocksData, isLoading: stocksLoading, error: stocksError } = useStocks(1, 100);
+
+  // API stocks — only approved ones appear in marketplace
+  const apiApprovedStocks: Stock[] = (stocksData?.data ?? [])
+    .filter((s) => s.isApproved === true)
+    .map((s) => ({
+      id: s._id,
+      symbol: s.acronym,
+      name: s.name,
+      price: new Intl.NumberFormat("en-US", { style: "currency", currency: s.currency || "USD" }).format(s.lastPrice),
+      change: s.change24h.toFixed(2),
+      pct: `${s.rateOfChange >= 0 ? "+" : ""}${s.rateOfChange.toFixed(2)}%`,
+      up: s.rateOfChange >= 0,
+      bgColor: "rgba(0, 212, 161, 0.1)",
+    }));
+
+  // User's own approved proposals (from local context)
+  const myApprovedStocks: Stock[] = stockRequests
     .filter((r) => r.status === "approved")
     .map((r, i) => ({
       id: `approved-${r.id ?? i}`,
@@ -32,7 +47,7 @@ export default function MarketplaceScreen() {
       description: r.description,
     }));
 
-  const allMarketAssets = [...marketStocks, ...approvedStocks];
+  const allMarketAssets = [...apiApprovedStocks, ...myApprovedStocks];
 
   const filtered = allMarketAssets.filter(
     (a) =>
@@ -89,7 +104,21 @@ export default function MarketplaceScreen() {
 
       {/* ── Asset list ── */}
       <div className="px-4 sm:px-6 md:px-8 mt-3 space-y-3 max-w-7xl mx-auto w-full">
-        {loadError && <p className="text-sm text-red-400">{loadError}</p>}
+        {stocksLoading && (
+          <p className="text-sm text-penny-text-muted py-8 text-center">Loading assets...</p>
+        )}
+        {stocksError && (
+          <p className="text-sm text-red-400">Failed to load assets. Please try again.</p>
+        )}
+        {!stocksLoading && !stocksError && filtered.length === 0 && (
+          <div className="text-center py-16">
+            <Icon icon="mdi:chart-line-variant" width={48} className="mx-auto mb-3" style={{ color: "#6b7785" }} />
+            <p className="text-white font-semibold mb-1">No Listed Assets Yet</p>
+            <p className="text-sm max-w-sm mx-auto" style={{ color: "#6b7785" }}>
+              Stocks must be approved by the admin before they appear in the marketplace.
+            </p>
+          </div>
+        )}
         {filtered.map((asset, i) => (
           <div
             key={i}

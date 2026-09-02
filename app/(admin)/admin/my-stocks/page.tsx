@@ -3,60 +3,18 @@
 import React, { useState } from "react";
 import { Icon } from "@iconify/react";
 import { useStocks } from "@/hooks/queries";
-import { useCreateStock } from "@/hooks/queries/useAdminActions";
+import { useAuth } from "@/context/AuthContext";
 import { formatUSD } from "@/context/PortfolioContext";
+import CreateStockModal from "@/components/modals/CreateStockModal";
 
 export default function MyStocksPage() {
   const { data: stocksData, isLoading } = useStocks(1, 100);
-  const createMut = useCreateStock();
+  const { user } = useAuth();
+  const [createModalOpen, setCreateModalOpen] = useState(false);
 
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ ticker: "", name: "", price: "" });
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [submitted, setSubmitted] = useState(false);
-
-  const stocks = stocksData?.data ?? [];
+  // Only show stocks created by the logged-in admin
+  const stocks = (stocksData?.data ?? []).filter((s) => s.submittedBy === user?._id);
   const totalRevenue = stocks.reduce((sum, s) => sum + (s.lastPrice * (s.totalVolume ?? 0)), 0);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setForm((f) => ({ ...f, [name]: value }));
-    if (errors[name]) setErrors((e) => ({ ...e, [name]: "" }));
-  };
-
-  const validateForm = () => {
-    const errs: Record<string, string> = {};
-    if (!form.ticker.trim() || form.ticker.length < 2) errs.ticker = "Ticker must be 2+ characters";
-    if (!form.name.trim()) errs.name = "Stock name is required";
-    if (!form.price || parseFloat(form.price) <= 0) errs.price = "Valid price required";
-    setErrors(errs);
-    return Object.keys(errs).length === 0;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validateForm()) return;
-    try {
-      await createMut.mutateAsync({
-        name: form.name,
-        acronym: form.ticker.toUpperCase(),
-        lastPrice: parseFloat(form.price),
-        change24h: 0,
-        rateOfChange: 0,
-        currency: "USD",
-      });
-      setSubmitted(true);
-      setForm({ ticker: "", name: "", price: "" });
-      setTimeout(() => {
-        setSubmitted(false);
-        setShowForm(false);
-      }, 2000);
-    } catch {
-      setErrors({ form: "Failed to create stock" });
-    }
-  };
-
-  const inputStyle = { background: "#0d1624", border: "1px solid #252f45", color: "white", outline: "none" };
 
   return (
     <div className="space-y-5 sm:space-y-6">
@@ -66,52 +24,13 @@ export default function MyStocksPage() {
           <p className="text-xs sm:text-sm mt-1" style={{ color: "#9aa3b0" }}>Stocks created by you</p>
         </div>
         <button
-          onClick={() => setShowForm(!showForm)}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm"
-          style={{ background: showForm ? "#0d1624" : "#00d4a1", color: showForm ? "#9aa3b0" : "#0d1624", border: showForm ? "1px solid #252f45" : "1px solid transparent" }}
+          onClick={() => setCreateModalOpen(true)}
+          className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm bg-[#00d4a1] text-[#0d1624] hover:opacity-90 active:scale-95 transition-all"
         >
-          <Icon icon={showForm ? "mdi:close" : "mdi:plus"} width={16} />
-          {showForm ? "Cancel" : "Create Stock"}
+          <Icon icon="mdi:plus" width={16} />
+          Create Stock
         </button>
       </div>
-
-      {/* Inline Create Form */}
-      {showForm && (
-        <div className="rounded-xl sm:rounded-2xl p-4 sm:p-6" style={{ background: "#151d2d", border: "1px solid #252f45" }}>
-          <h2 className="text-base sm:text-lg font-bold text-white mb-4">Create New Stock</h2>
-          {submitted && (
-            <div className="mb-4 p-3 rounded-xl flex items-center gap-2" style={{ background: "rgba(0,212,161,0.1)", border: "1px solid rgba(0,212,161,0.2)" }}>
-              <Icon icon="mdi:check-circle" width={20} style={{ color: "#00d4a1" }} />
-              <span className="text-sm font-medium" style={{ color: "#00d4a1" }}>Stock created successfully!</span>
-            </div>
-          )}
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-xs font-medium mb-1.5" style={{ color: "#9aa3b0" }}>Ticker</label>
-                <input name="ticker" value={form.ticker} onChange={handleChange} placeholder="e.g. AAPL" className="w-full px-4 py-2.5 rounded-xl text-sm" style={{ ...inputStyle, borderColor: errors.ticker ? "#F44336" : "#252f45" }} />
-                {errors.ticker && <p className="text-xs mt-1" style={{ color: "#F44336" }}>{errors.ticker}</p>}
-              </div>
-              <div>
-                <label className="block text-xs font-medium mb-1.5" style={{ color: "#9aa3b0" }}>Stock Name</label>
-                <input name="name" value={form.name} onChange={handleChange} placeholder="e.g. Apple Inc." className="w-full px-4 py-2.5 rounded-xl text-sm" style={{ ...inputStyle, borderColor: errors.name ? "#F44336" : "#252f45" }} />
-                {errors.name && <p className="text-xs mt-1" style={{ color: "#F44336" }}>{errors.name}</p>}
-              </div>
-              <div>
-                <label className="block text-xs font-medium mb-1.5" style={{ color: "#9aa3b0" }}>Initial Price ($)</label>
-                <input name="price" type="number" step="0.01" min="0" value={form.price} onChange={handleChange} placeholder="e.g. 100.00" className="w-full px-4 py-2.5 rounded-xl text-sm" style={{ ...inputStyle, borderColor: errors.price ? "#F44336" : "#252f45" }} />
-                {errors.price && <p className="text-xs mt-1" style={{ color: "#F44336" }}>{errors.price}</p>}
-              </div>
-            </div>
-            {errors.form && <p className="text-xs" style={{ color: "#F44336" }}>{errors.form}</p>}
-            <div className="flex justify-end">
-              <button type="submit" disabled={createMut.isPending} className="px-6 py-2.5 rounded-xl font-bold text-sm" style={{ background: "#00d4a1", color: "#0d1624" }}>
-                {createMut.isPending ? "Creating..." : "Create Stock"}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 xs:grid-cols-3 gap-3 sm:gap-4">
@@ -221,6 +140,12 @@ export default function MyStocksPage() {
           </div>
         )}
       </div>
+
+      {/* Create Stock Modal */}
+      <CreateStockModal
+        isOpen={createModalOpen}
+        onClose={() => setCreateModalOpen(false)}
+      />
     </div>
   );
 }

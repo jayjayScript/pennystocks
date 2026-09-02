@@ -150,7 +150,7 @@ export default function UsersPage() {
 
                 <div className="flex items-center gap-2 pt-2 sm:pt-2" style={{ borderTop: "1px solid #252f45" }}>
                   <button
-                    onClick={(e) => { e.stopPropagation(); router.push(`/admin/users/${user._id}`); }}
+                    onClick={(e) =>{ e.stopPropagation(); router.push(`/admin/users/${user._id}`); }}
                     className="flex-1 flex items-center justify-center gap-1 py-1.5 sm:py-2 rounded-lg text-[10px] sm:text-xs font-semibold transition-colors"
                     style={{ background: "rgba(0,212,161,0.1)", color: "#00d4a1" }}
                   >
@@ -158,7 +158,7 @@ export default function UsersPage() {
                     <span className="hidden xs:inline">View</span>
                   </button>
                   <button
-                    onClick={(e) => { e.stopPropagation(); router.push(`/admin/users/${user._id}`); }}
+                    onClick={(e) =>{ e.stopPropagation(); router.push(`/admin/users/${user._id}`); }}
                     className="flex-1 flex items-center justify-center gap-1 py-1.5 sm:py-2 rounded-lg text-[10px] sm:text-xs font-semibold transition-colors"
                     style={{ background: "rgba(0,212,161,0.1)", color: "#00d4a1" }}
                   >
@@ -166,7 +166,7 @@ export default function UsersPage() {
                     <span className="hidden xs:inline">Edit</span>
                   </button>
                   <button
-                    onClick={(e) => { e.stopPropagation(); handleToggleSuspend(user._id, isSuspended); }}
+                    onClick={(e) =>{ e.stopPropagation(); handleToggleSuspend(user._id, isSuspended); }}
                     className="p-1.5 sm:p-2 rounded-lg transition-colors"
                     style={{ background: isSuspended ? "rgba(76,175,80,0.1)" : "rgba(244,67,54,0.1)", color: isSuspended ? "#4CAF50" : "#F44336" }}
                     title={isSuspended ? "Reactivate user" : "Suspend user"}

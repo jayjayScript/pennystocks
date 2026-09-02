@@ -34,7 +34,7 @@ interface AppNotification {
   icon: string;
   read: boolean;
   createdAt: string;  // ISO string
-  orderId?: string;   // link back to an order for deposit detail notifications
+  orderId?: string;   // link back to an order
   adminPaymentDetails?: string;
 }
 
@@ -170,6 +170,7 @@ interface ActiveCopyTrade {
   id: string;
   setup: CopyTradeSetup;
   startDate: string;
+  investedAmount: number;
   pnl: number;
   pnlPercent: number;
   lastTrades: CopyTradeTransaction[];

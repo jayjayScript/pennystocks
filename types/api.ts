@@ -41,11 +41,22 @@ export interface Stock {
   rateOfChange: number;
   currency: string;
   totalVolume?: number;
+  // Approval state: true = admin-created or approved proposal, false = rejected proposal, null = pending proposal
+  isApproved?: boolean | null;
+  // User's proposed price (only set on pending proposals)
+  proposedPrice?: number;
+  // Optional listing metadata submitted by user/admin
+  description?: string;
+  exchange?: string;
+  type?: string;
+  supply?: number;
+  // Who submitted the proposal
+  submittedBy?: string;
   createdAt: string;
   updatedAt: string;
 }
 
-export type CreateStockPayload = Pick<Stock, "name" | "acronym" | "lastPrice" | "change24h" | "rateOfChange"> & { currency?: string };
+export type CreateStockPayload = Pick<Stock, "name" | "acronym" | "lastPrice" | "change24h" | "rateOfChange"> & { currency?: string; isApproved?: boolean | null; submittedBy?: string };
 export type UpdateStockPayload = Partial<CreateStockPayload>;
 
 export interface CopyTrading {
@@ -59,6 +70,7 @@ export interface CopyTrading {
   totalAssets: number;
   copyTradePrice: number;
   currency: string;
+  isActive?: boolean;
   createdAt: string;
   updatedAt: string;
 }

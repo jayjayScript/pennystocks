@@ -92,7 +92,7 @@ export default function AdminOverviewPage() {
             <h2 className="text-base sm:text-lg font-bold text-white">Recent Transactions</h2>
             <p className="text-[10px] sm:text-xs mt-0.5 sm:mt-1" style={{ color: "#9aa3b0" }}>Latest buy and sell orders</p>
           </div>
-          <button className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 w-full sm:w-auto" style={{ background: "rgba(0,212,161,0.1)", color: "#00d4a1", border: "1px solid rgba(0,212,161,0.2)" }}>
+          <button className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all duration-200 w-full sm:w-auto cursor-pointer" style={{ background: "rgba(0,212,161,0.1)", color: "#00d4a1", border: "1px solid rgba(0,212,161,0.2)" }}>
             <Icon icon="mdi:download" width={14} className="sm:w-4 sm:h-4" />
             Export
           </button>
@@ -170,7 +170,7 @@ export default function AdminOverviewPage() {
         </div>
 
         <div className="px-4 sm:px-6 py-4 text-center" style={{ borderTop: "1px solid #1d2639" }}>
-          <button className="text-xs sm:text-sm font-semibold transition-opacity hover:opacity-80" style={{ color: "#00d4a1" }}>
+          <button className="text-xs sm:text-sm font-semibold transition-opacity hover:opacity-80 cursor-pointer" style={{ color: "#00d4a1" }}>
             View All Transactions
           </button>
         </div>

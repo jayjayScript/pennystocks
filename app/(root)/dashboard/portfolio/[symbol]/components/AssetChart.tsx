@@ -72,7 +72,7 @@ export default function AssetChart({ symbol, color = "#00d4a1", refreshIntervalM
       <div className={`${styles.glassCard} w-full h-full flex flex-col items-center justify-center text-penny-text-muted`}> 
         <p className="text-sm text-red-400">{error}</p>
         <button
-          className="mt-2 px-4 py-2 bg-penny-primary text-white rounded hover:bg-penny-primary-dark transition"
+          className="mt-2 px-4 py-2 bg-penny-primary text-white rounded hover:bg-penny-primary-dark transition cursor-pointer"
           onClick={() => {
             setIsLoaded(false);
             setData([]);

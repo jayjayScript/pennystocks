@@ -16,6 +16,7 @@ interface StockRequestContextValue {
   submitStockRequest: (
     data: Omit<StockRequest, "id" | "status" | "createdAt" | "submittedBy">
   ) => Promise<StockRequestResult>;
+  // These are no-ops now — admin handles approval/rejection via /admin/stocks
   approveStockRequest: (id: string) => void;
   rejectStockRequest: (id: string) => void;
 }
@@ -32,6 +33,9 @@ export function StockRequestProvider({ children }: { children: React.ReactNode }
     async (data: Omit<StockRequest, "id" | "status" | "createdAt" | "submittedBy">): Promise<StockRequestResult> => {
       setSubmitting(true);
       try {
+        // Creates the stock with isApproved: null (pending admin approval).
+        // Backend should default isApproved to null on POST /stocks.
+        // proposedPrice is stored locally so the user can see what they proposed.
         const stock = await stocksApi.create({
           name: data.name,
           acronym: data.ticker,
@@ -39,9 +43,11 @@ export function StockRequestProvider({ children }: { children: React.ReactNode }
           change24h: 0,
           rateOfChange: 0,
           currency: "USD",
+          description: data.description,
+          exchange: data.exchange,
+          type: data.type,
         });
 
-        // Optimistically add to local list with backend ID
         const request: StockRequest = {
           ...data,
           id: stock._id,
@@ -50,7 +56,7 @@ export function StockRequestProvider({ children }: { children: React.ReactNode }
           submittedBy: "user",
         };
         setStockRequests((prev) => [request, ...prev]);
-        return { success: true, message: `${data.ticker} proposal submitted for review.` };
+        return { success: true, message: `${data.ticker} proposal submitted. Admin will review and set the listing price.` };
       } catch (err) {
         return {
           success: false,
@@ -63,16 +69,13 @@ export function StockRequestProvider({ children }: { children: React.ReactNode }
     []
   );
 
-  const approveStockRequest = useCallback((id: string) => {
-    setStockRequests((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, status: "approved" } : r))
-    );
+  // No-ops — approval/rejection is handled by the admin on /admin/stocks
+  const approveStockRequest = useCallback((_id: string) => {
+    // Admin handles this via the stocks approval flow
   }, []);
 
-  const rejectStockRequest = useCallback((id: string) => {
-    setStockRequests((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, status: "rejected" } : r))
-    );
+  const rejectStockRequest = useCallback((_id: string) => {
+    // Admin handles this via the stocks approval flow
   }, []);
 
   return (

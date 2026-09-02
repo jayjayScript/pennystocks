@@ -228,7 +228,7 @@ export default function TransactionHistoryPage() {
         <button
           onClick={exportToCSV}
           disabled={filteredTransactions.length === 0}
-          className="w-full py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+          className="w-full py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-50 cursor-pointer"
           style={{ background: "#151d2d", color: "#9aa3b0", border: "1px solid #252f45" }}
         >
           <Icon icon="mdi:download" width={18} />

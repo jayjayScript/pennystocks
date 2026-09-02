@@ -82,6 +82,10 @@ body {
   width: 100%;
 }
 
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 html {
   overflow-x: hidden;
   width: 100%;

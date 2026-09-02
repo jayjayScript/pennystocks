@@ -72,7 +72,7 @@ export default function ProfileScreen() {
         {editMode ? (
           <div className="flex gap-2">
             <button
-              onClick={() => { setEditMode(false); refetch(); }}
+              onClick={() =>{ setEditMode(false); refetch(); }}
               className="px-4 py-2 rounded-xl text-sm font-semibold"
               style={{ background: "#151d2d", color: "#9aa3b0", border: "1px solid #252f45" }}
             >
@@ -81,7 +81,7 @@ export default function ProfileScreen() {
             <button
               onClick={handleSave}
               disabled={saving}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold disabled:opacity-50 cursor-pointer"
               style={{ background: "#00d4a1", color: "#0d1624" }}
             >
               <Icon icon="mdi:check" width={16} />
@@ -229,7 +229,7 @@ export default function ProfileScreen() {
           <button
             key={row.label}
             onClick={row.action}
-            className="w-full flex items-center justify-between px-5 py-4 transition-all duration-150 hover:opacity-80"
+            className="w-full flex items-center justify-between px-5 py-4 transition-all duration-150 hover:opacity-80 cursor-pointer"
             style={{
               background: "#151d2d",
               borderBottom: i < arr.length - 1 ? "1px solid #1d2639" : "none",

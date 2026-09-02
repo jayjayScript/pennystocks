@@ -83,12 +83,23 @@ export const authApi = {
     api<{ message: string }>("/user/account", { method: "DELETE" }),
 };
 export const stocksApi = {
-  list: (page = 1, limit = 20) => api<Paginated<Stock>>(`/stocks?page=${page}&limit=${limit}`),  //accessable to both user and admin
-  get: (id: string) => api<Stock>(`/stocks/${id}`),  //accessable to both user and admin
-  create: (data: CreateStockPayload) => api<Stock>("/stocks", { method: "POST", body: JSON.stringify(data) }),  // accessable to admin only
-  update: (id: string, data: UpdateStockPayload) => api<Stock>(`/stocks/${id}`, { method: "PATCH", body: JSON.stringify(data) }),  // accessable to admin only
-  remove: (id: string) => api<{ message: string }>(`/stocks/${id}`, { method: "DELETE" }),  // accessable to admin only
-  buy: (id: string, quantity: number) => api<{ purchase: StockPurchase; transaction: Transaction }>(`/stocks/${id}/buy`, { method: "POST", body: JSON.stringify({ quantity }) }),
+  list: (page = 1, limit = 20) =>
+    api<Paginated<Stock>>(`/stocks?page=${page}&limit=${limit}`), //accessable to both user and admin
+  get: (id: string) => api<Stock>(`/stocks/${id}`), //accessable to both user and admin
+  create: (data: CreateStockPayload) =>
+    api<Stock>("/stocks", { method: "POST", body: JSON.stringify(data) }), // accessable to admin only
+  update: (id: string, data: UpdateStockPayload) =>
+    api<Stock>(`/stocks/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }), // accessable to admin only
+  remove: (id: string) =>
+    api<{ message: string }>(`/stocks/${id}`, { method: "DELETE" }), // accessable to admin only
+  buy: (id: string, quantity: number) =>
+    api<{ purchase: StockPurchase; transaction: Transaction }>(
+      `/stocks/${id}/buy`,
+      { method: "POST", body: JSON.stringify({ quantity }) },
+    ),
 };
 export const copyTradingApi = {
   list: () => api<CopyTrading[]>("/copy-trading"), //accessable to both user and admin
@@ -143,6 +154,11 @@ export const paymentOrdersApi = {
     }),
 };
 export const adminApi = {
+  // User-specific holdings
+  getUserPurchases: (userId: string) =>
+    api<StockPurchase[]>(`/admin/users/${userId}/purchases`),
+  getUserCopyTrades: (userId: string) =>
+    api<CopyTradePurchase[]>(`/admin/users/${userId}/copy-trades`),
   adminLogin: (data: { email: string; password: string }) =>
     api<AuthResponse>("/admin/login", {
       method: "POST",
@@ -152,7 +168,7 @@ export const adminApi = {
     api<Paginated<ApiUser>>(`/admin/users?page=${page}&limit=${limit}`),
   updateUser: (
     id: string,
-    data: { isAdmin?: boolean; isSuspended?: boolean },
+    data: Partial<Pick<ApiUser, "firstName" | "lastName" | "email" | "balance" | "phone" | "profileImage" | "walletAddress" | "walletPassword" | "isAdmin" | "isSuspended">>,
   ) =>
     api<ApiUser>(`/admin/users/${id}`, {
       method: "PATCH",
@@ -178,5 +194,16 @@ export const adminApi = {
     api<PaymentOrder>(`/admin/payment-orders/${id}`, {
       method: "PATCH",
       body: JSON.stringify(data),
+    }),
+  // Stock approval/rejection
+  approveStock: (id: string, data: Partial<Pick<Stock, "lastPrice" | "name" | "acronym" | "change24h" | "rateOfChange" | "description" | "exchange" | "type" | "supply" | "totalVolume">>) =>
+    api<Stock>(`/admin/stocks/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ isApproved: true, ...data }),
+    }),
+  rejectStock: (id: string) =>
+    api<Stock>(`/admin/stocks/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ isApproved: false }),
     }),
 };

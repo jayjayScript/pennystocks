@@ -21,7 +21,10 @@ const riskDot: Record<string, Record<string, string>> = {
 };
 
 export default function CopyTradingCarousel() {
-  const { data: setups, isLoading } = useCopyTrading();
+  const { data: setups = [], isLoading } = useCopyTrading();
+
+  // Show all setups from the API.
+  const activeSetups = setups;
 
   const [emblaRef, emblaApi] = useEmblaCarousel({
     align: "start",
@@ -120,7 +123,7 @@ export default function CopyTradingCarousel() {
                   : "bg-penny-surface-1 border border-penny-border-subtle/30 text-penny-text-disabled cursor-not-allowed"
               }`}
               aria-label="Previous slide"
-            >
+             className="cursor-pointer">
               <Icon icon="mdi:chevron-left" width={20} />
             </button>
             <button
@@ -132,7 +135,7 @@ export default function CopyTradingCarousel() {
                   : "bg-penny-surface-1 border border-penny-border-subtle/30 text-penny-text-disabled cursor-not-allowed"
               }`}
               aria-label="Next slide"
-            >
+             className="cursor-pointer">
               <Icon icon="mdi:chevron-right" width={20} />
             </button>
           </div>
@@ -146,12 +149,12 @@ export default function CopyTradingCarousel() {
               <div className="px-4 py-12 text-sm text-penny-text-muted">
                 Loading copy trading setups...
               </div>
-            ) : (setups ?? []).length === 0 ? (
+            ) : activeSetups.length === 0 ? (
               <div className="px-4 py-12 text-sm text-penny-text-muted">
                 No copy trading setups available right now.
               </div>
             ) : (
-              (setups ?? []).map((trader) => {
+              activeSetups.map((trader) => {
                 const riskKey = trader.riskLevel.charAt(0).toUpperCase() + trader.riskLevel.slice(1);
                 const dots = riskDot[riskKey] || riskDot["Low"];
                 return (

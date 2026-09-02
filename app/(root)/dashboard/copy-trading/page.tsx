@@ -127,21 +127,21 @@ function ActiveCopyTradeCard({ trade, onStop, onPause, onResume }: {
         {trade.status === "active" ? (
           <button
             onClick={onPause}
-            className="flex-1 py-2.5 rounded-xl text-sm font-semibold" style={{ background: "#0d1624", color: "#9aa3b0", border: "1px solid #252f45" }}
+            className="flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer" style={{ background: "#0d1624", color: "#9aa3b0", border: "1px solid #252f45" }}
           >
             Pause
           </button>
         ) : (
           <button
             onClick={onResume}
-            className="flex-1 py-2.5 rounded-xl text-sm font-semibold" style={{ background: "rgba(76,175,80,0.12)", color: "#4CAF50" }}
+            className="flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer" style={{ background: "rgba(76,175,80,0.12)", color: "#4CAF50" }}
           >
             Resume
           </button>
         )}
         <button
           onClick={onStop}
-          className="flex-1 py-2.5 rounded-xl text-sm font-semibold" style={{ background: "rgba(244,67,54,0.12)", color: "#F44336" }}
+          className="flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer" style={{ background: "rgba(244,67,54,0.12)", color: "#F44336" }}
         >
           Stop & Exit
         </button>
@@ -201,7 +201,7 @@ function AvailableSetupCard({ setup, isActive, onBuy }: {
       <button
         onClick={onBuy}
         disabled={isActive}
-        className="w-full py-3 rounded-xl text-sm font-bold transition-all disabled:opacity-50"
+        className="w-full py-3 rounded-xl text-sm font-bold transition-all disabled:opacity-50 cursor-pointer"
         style={{ background: isActive ? "#0d1624" : "#00d4a1", color: isActive ? "#9aa3b0" : "#0d1624" }}
       >
         {isActive ? "Already Copied" : `Copy for ${formatCurrency(setup.price)}`}
@@ -260,10 +260,10 @@ function BuyConfirmModal({ setup, onConfirm, onClose }: {
         </div>
 
         <div className="flex gap-3">
-          <button onClick={onClose} className="flex-1 py-3 rounded-xl font-bold" style={{ background: "#0d1624", color: "#9aa3b0" }}>
+          <button onClick={onClose} className="flex-1 py-3 rounded-xl font-bold cursor-pointer" style={{ background: "#0d1624", color: "#9aa3b0" }}>
             Cancel
           </button>
-          <button onClick={onConfirm} className="flex-1 py-3 rounded-xl font-bold" style={{ background: "#00d4a1", color: "#0d1624" }}>
+          <button onClick={onConfirm} className="flex-1 py-3 rounded-xl font-bold cursor-pointer" style={{ background: "#00d4a1", color: "#0d1624" }}>
             Confirm
           </button>
         </div>

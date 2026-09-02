@@ -9,6 +9,8 @@ interface CopyTradingContextValue {
   activeCopyTrades: ActiveCopyTrade[];
   availableSetups: CopyTradeSetup[];
   loading: boolean;
+  topUpCopyWallet: (amount: number) => void;
+  addToActiveTrade: (tradeId: string, amount: number) => void;
   buyCopyTrade: (setupId: string) => Promise<CopyTradeResult>;
   stopCopyTrade: (activeTradeId: string) => CopyTradeResult;
   pauseCopyTrade: (activeTradeId: string) => void;
@@ -56,11 +58,42 @@ const CopyTradingContext = createContext<CopyTradingContextValue | null>(null);
 export function CopyTradingProvider({ children }: { children: React.ReactNode }) {
   const { data: backendSetups, isLoading: loading, refetch } = useCopyTradingQuery();
 
-  const [copyWalletBalance, setCopyWalletBalance] = useState(10_000);
+  const [copyWalletBalance, setCopyWalletBalance] = useState(0);
   const [activeCopyTrades, setActiveCopyTrades] = useState<ActiveCopyTrade[]>([]);
 
-  // availableSetups derived from backend data (fallback to empty while loading)
+  // availableSetups — show all setups from the API.
   const availableSetups: CopyTradeSetup[] = (backendSetups ?? []).map(toLocalSetup);
+
+  // ── Top Up Wallet ──────────────────────────────────────────────────────────
+  // TODO: wire to backend endpoint (e.g. POST /copy-wallet/topup)
+  const topUpCopyWallet = useCallback((amount: number) => {
+    if (amount <= 0) return;
+    setCopyWalletBalance((prev) => parseFloat((prev + amount).toFixed(2)));
+  }, []);
+
+  // ── Add Funds to Active Trade ─────────────────────────────────────────────
+  // TODO: wire to backend endpoint (e.g. POST /copy-trading/:tradeId/add-funds)
+  const addToActiveTrade = useCallback((tradeId: string, amount: number) => {
+    if (amount <= 0) return;
+    setCopyWalletBalance((prev) => {
+      const next = prev - amount;
+      if (next < 0) return prev; // insufficient balance
+      return parseFloat(next.toFixed(2));
+    });
+    setActiveCopyTrades((prev) =>
+      prev.map((trade) => {
+        if (trade.id !== tradeId) return trade;
+        const newInvested = trade.investedAmount + amount;
+        // Recalculate PnL percent based on new invested amount
+        const newPnlPercent = trade.pnl === 0 ? 0 : parseFloat(((trade.pnl / newInvested) * 100).toFixed(2));
+        return {
+          ...trade,
+          investedAmount: newInvested,
+          pnlPercent: newPnlPercent,
+        };
+      })
+    );
+  }, []);
 
   // ── Buy ──────────────────────────────────────────────────────────────────
   const buyCopyTrade = useCallback(
@@ -96,6 +129,7 @@ export function CopyTradingProvider({ children }: { children: React.ReactNode })
         id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
         setup,
         startDate: new Date().toISOString(),
+        investedAmount: setup.price,
         pnl: 0,
         pnlPercent: 0,
         lastTrades: [],
@@ -117,7 +151,7 @@ export function CopyTradingProvider({ children }: { children: React.ReactNode })
     const trade = activeCopyTrades.find((t) => t.id === activeTradeId);
     if (!trade) return { success: false, message: "Active copy trade not found." };
 
-    const returnAmount = trade.setup.price + trade.pnl;
+    const returnAmount = trade.investedAmount + trade.pnl;
     setCopyWalletBalance((prev) => parseFloat((prev + returnAmount).toFixed(2)));
     setActiveCopyTrades((prev) => prev.filter((t) => t.id !== activeTradeId));
 
@@ -162,7 +196,7 @@ export function CopyTradingProvider({ children }: { children: React.ReactNode })
 
         const newLastTrades = [newTradeObj, ...trade.lastTrades].slice(0, 10);
         const newPnl = trade.pnl + profitLoss;
-        const newPnlPercent = parseFloat(((newPnl / trade.setup.price) * 100).toFixed(2));
+        const newPnlPercent = parseFloat(((newPnl / trade.investedAmount) * 100).toFixed(2));
 
         return {
           ...trade,
@@ -184,6 +218,8 @@ export function CopyTradingProvider({ children }: { children: React.ReactNode })
     activeCopyTrades,
     availableSetups,
     loading,
+    topUpCopyWallet,
+    addToActiveTrade,
     buyCopyTrade,
     stopCopyTrade,
     pauseCopyTrade,

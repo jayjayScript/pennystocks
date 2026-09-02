@@ -17,6 +17,11 @@ export const navLinks = [
         href: "/dashboard/marketplace"
     },
     {
+        page: "Copy Trading",
+        icon: "mdi:account-cash-outline",
+        href: "/dashboard/marketplace/copy-trading"
+    },
+    {
         page: "FAQ",
         icon: "humbleicons:chat",
         href: "/dashboard/faq"

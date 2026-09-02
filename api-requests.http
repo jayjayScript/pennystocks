@@ -1,0 +1,51 @@
+### 1. Create Admin Account (Signup)
+# Click "Send Request" below this line:
+POST https://penny-stocks-backend.vercel.app/auth/signup
+Content-Type: application/json
+
+{
+  "email": "info@pennystocksmarketplace.com",
+  "password": "Godian1$",
+  "firstName": "Penny",
+  "lastName": "Stocks"
+}
+
+###
+
+### 2. Test Admin Login (After setting isAdmin: true in Database)
+# Click "Send Request" below this line:
+POST https://penny-stocks-backend.vercel.app/admin/login
+Content-Type: application/json
+
+{
+  "email": "admin@pennystocks.com",
+  "password": "AdminPassword123!"
+}
+
+###
+
+### 3. Test Standard Auth Login
+# Click "Send Request" below this line:
+POST https://penny-stocks-backend.vercel.app/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@pennystocks.com",
+  "password": "AdminPassword123!"
+}
+
+###
+
+### 4. DEBUG: Get All Admin Payment Orders (paste accessToken from login above)
+# Replace YOUR_ACCESS_TOKEN with the token from request #2 or #3
+GET https://penny-stocks-backend.vercel.app/admin/payment-orders
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2YTk3M2VhNzNkNjlkMzRkODA2MDgzMmMiLCJ1c2VySUQiOiJKcHo2VGg4biIsImVtYWlsIjoiaW5mb0BwZW5ueXN0b2Nrc21hcmtldHBsYWNlLmNvbSIsImlhdCI6MTc4ODI5OTIxMSwiZXhwIjoxNzg4MzAyODExfQ.vYx7HLpq3ypMlnOunj6QtOHhNG-WRhK6_7ZmKrnG8zs
+
+###
+
+### 5. DEBUG: Get User Payment Orders (paste user accessToken)
+# Replace USER_ACCESS_TOKEN with the token from a USER login
+GET https://penny-stocks-backend.vercel.app/transactions/orders
+Authorization: Bearer 
+
+###

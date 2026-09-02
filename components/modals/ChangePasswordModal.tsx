@@ -91,7 +91,7 @@ export default function ChangePasswordModal({ isOpen, onClose }: ChangePasswordM
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/10 text-penny-text-muted hover:text-white transition-colors"
+            className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/10 text-penny-text-muted hover:text-white transition-colors cursor-pointer"
           >
             <Icon icon="mdi:close" width={18} />
           </button>
@@ -108,7 +108,7 @@ export default function ChangePasswordModal({ isOpen, onClose }: ChangePasswordM
             </p>
             <button
               onClick={onClose}
-              className="px-6 py-2.5 rounded-xl font-bold text-sm bg-white/5 border border-[#252f45] text-white hover:bg-white/10 transition-colors"
+              className="px-6 py-2.5 rounded-xl font-bold text-sm bg-white/5 border border-[#252f45] text-white hover:bg-white/10 transition-colors cursor-pointer"
             >
               Done
             </button>
@@ -158,14 +158,14 @@ export default function ChangePasswordModal({ isOpen, onClose }: ChangePasswordM
               <button
                 type="button"
                 onClick={onClose}
-                className="flex-1 py-3 rounded-xl font-bold text-sm bg-white/5 border border-[#252f45] text-penny-text-muted hover:text-white transition-colors"
+                className="flex-1 py-3 rounded-xl font-bold text-sm bg-white/5 border border-[#252f45] text-penny-text-muted hover:text-white transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={loading}
-                className="flex-1 py-3 rounded-xl font-bold text-sm bg-[#F44336] text-white hover:opacity-90 active:scale-95 transition-all disabled:opacity-50"
+                className="flex-1 py-3 rounded-xl font-bold text-sm bg-[#F44336] text-white hover:opacity-90 active:scale-95 transition-all disabled:opacity-50 cursor-pointer"
               >
                 {loading ? "Updating..." : "Update Password"}
               </button>

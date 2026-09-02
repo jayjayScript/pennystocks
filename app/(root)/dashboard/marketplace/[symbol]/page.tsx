@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Icon } from "@iconify/react";
-import { marketAssets } from "@/constants/data";
+import { useStocks } from "@/hooks/queries";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -17,7 +17,24 @@ export default function MarketplaceStockDetail() {
   const decodedSymbol = decodeURIComponent(params.symbol).toUpperCase();
   const { stockRequests } = useStockRequests();
 
-  const approvedStocks: Stock[] = stockRequests
+  const { data: stocksData } = useStocks(1, 100);
+
+  // Approved stocks from API — only these can appear in marketplace
+  const apiApprovedStocks: Stock[] = (stocksData?.data ?? [])
+    .filter((s) => s.isApproved === true)
+    .map((s) => ({
+      symbol: s.acronym,
+      name: s.name,
+      price: new Intl.NumberFormat("en-US", { style: "currency", currency: s.currency || "USD" }).format(s.lastPrice),
+      change: s.change24h.toFixed(2),
+      pct: `${s.rateOfChange >= 0 ? "+" : ""}${s.rateOfChange.toFixed(2)}%`,
+      up: s.rateOfChange >= 0,
+      bgColor: "rgba(0, 212, 161, 0.1)",
+      description: s.description,
+    }));
+
+  // User's own approved proposals
+  const myApprovedStocks: Stock[] = stockRequests
     .filter((r) => r.status === "approved")
     .map((r) => ({
       symbol: r.ticker,
@@ -30,7 +47,7 @@ export default function MarketplaceStockDetail() {
       description: r.description,
     }));
 
-  const allMarketAssets = [...marketAssets, ...approvedStocks];
+  const allMarketAssets = [...apiApprovedStocks, ...myApprovedStocks];
   const stock = allMarketAssets.find((a) => a.symbol === decodedSymbol);
 
   const [buyOpen, setBuyOpen] = useState(false);
