@@ -1,4 +1,4 @@
-import type { ApiUser, AuthResponse, CopyTradePurchase, CopyTrading, CreateCopyTradingPayload, CreateDepositOrderPayload, CreateStockPayload, CreateWithdrawOrderPayload, Paginated, PaymentOrder, PaymentOrderStatus, Stock, StockPurchase, Transaction, TransactionStatus, UpdateCopyTradingPayload, UpdateStockPayload } from "@/types/api";
+import type { ApiUser, ApproveStockProposalPayload, AuthResponse, CopyTradePurchase, CopyTrading, CreateCopyTradingPayload, CreateDepositOrderPayload, CreateStockPayload, CreateStockProposalPayload, CreateWithdrawOrderPayload, Paginated, PaymentOrder, PaymentOrderStatus, ProposalStatus, Stock, StockProposal, StockPurchase, Transaction, TransactionStatus, UpdateCopyTradingPayload, UpdateStockPayload } from "@/types/api";
 import { api } from "./client";
 
 export const authApi = {
@@ -21,6 +21,8 @@ export const stocksApi = {
   update: (id: string, data: UpdateStockPayload) => api<Stock>(`/stocks/${id}`, { method: "PATCH", body: JSON.stringify(data) }),  // accessable to admin only
   remove: (id: string) => api<{ message: string }>(`/stocks/${id}`, { method: "DELETE" }),  // accessable to admin only
   buy: (id: string, quantity: number) => api<{ purchase: StockPurchase; transaction: Transaction }>(`/stocks/${id}/buy`, { method: "POST", body: JSON.stringify({ quantity }) }),
+  mine: () => api<StockPurchase[]>("/stocks/me/purchases"),
+  sell: (purchaseId: string, quantity: number) => api<{ purchase: StockPurchase; transaction: Transaction; proceeds: number }>(`/stocks/purchases/${purchaseId}/sell`, { method: "POST", body: JSON.stringify({ quantity }) }),
 };
 export const copyTradingApi = {
   list: () => api<CopyTrading[]>("/copy-trading"),  //accessable to both user and admin
@@ -29,6 +31,15 @@ export const copyTradingApi = {
   update: (id: string, data: UpdateCopyTradingPayload) => api<CopyTrading>(`/copy-trading/${id}`, { method: "PATCH", body: JSON.stringify(data) }),  // accessable to admin only
   remove: (id: string) => api<{ message: string }>(`/copy-trading/${id}`, { method: "DELETE" }),  // accessable to admin only
   buy: (id: string, amountInvested: number) => api<{ purchase: CopyTradePurchase; transaction: Transaction }>(`/copy-trading/${id}/buy`, { method: "POST", body: JSON.stringify({ amountInvested }) }),  // accessable to user only
+  mine: () => api<CopyTradePurchase[]>("/copy-trading/me/purchases"),
+  liquidate: (purchaseId: string, note?: string) => api<{ purchase: CopyTradePurchase; transaction: Transaction; payout: number }>(`/copy-trading/purchases/${purchaseId}/liquidate`, { method: "POST", body: JSON.stringify({ ...(note && { note }) }) }),
+};
+export const stockProposalsApi = {
+  create: (data: CreateStockProposalPayload) => api<StockProposal>("/stock-proposals", { method: "POST", body: JSON.stringify(data) }),
+  mine: (page = 1, limit = 20, status?: ProposalStatus) => api<Paginated<StockProposal>>(`/stock-proposals/me?page=${page}&limit=${limit}${status ? `&status=${status}` : ""}`),
+  list: (page = 1, limit = 20, status?: ProposalStatus) => api<Paginated<StockProposal>>(`/stock-proposals?page=${page}&limit=${limit}${status ? `&status=${status}` : ""}`),
+  approve: (id: string, data: ApproveStockProposalPayload = {}) => api<{ proposal: StockProposal; stock: Stock }>(`/stock-proposals/${id}/approve`, { method: "PATCH", body: JSON.stringify(data) }),
+  reject: (id: string, rejectionReason?: string) => api<StockProposal>(`/stock-proposals/${id}/reject`, { method: "PATCH", body: JSON.stringify({ ...(rejectionReason && { rejectionReason }) }) }),
 };
 export const transactionsApi = {
   mine: (page = 1, limit = 20) => api<Paginated<Transaction>>(`/transactions?page=${page}&limit=${limit}`),

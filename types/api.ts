@@ -1,6 +1,7 @@
 export type RiskLevel = "low" | "medium" | "high";
 export type TransactionType = "deposit" | "withdraw" | "profit" | "loss" | "buy" | "sell" | "copy_trade";
 export type TransactionStatus = "pending" | "completed" | "rejected" | "failed";
+export type ProposalStatus = "pending" | "completed" | "rejected";
 export type PaymentMethod = "crypto" | "Cash App" | "PayPal" | "Venmo" | "Zelle" | "Wire Transfer" | "Bank Transfer";
 export type PaymentOrderStatus = "pending" | "awaiting_payment" | "awaiting_confirmation" | "completed" | "rejected" | "expired";
 
@@ -37,6 +38,9 @@ export interface Stock {
   name: string;
   acronym: string;
   lastPrice: number;
+  initialListingPrice?: number;
+  category?: string;
+  exchange?: string;
   change24h: number;
   rateOfChange: number;
   currency: string;
@@ -44,7 +48,7 @@ export interface Stock {
   updatedAt: string;
 }
 
-export type CreateStockPayload = Pick<Stock, "name" | "acronym" | "lastPrice" | "change24h" | "rateOfChange"> & { currency?: string };
+export type CreateStockPayload = Pick<Stock, "name" | "acronym" | "lastPrice" | "change24h" | "rateOfChange" | "initialListingPrice" | "category" | "exchange"> & { currency?: string };
 export type UpdateStockPayload = Partial<CreateStockPayload>;
 
 export interface CopyTrading {
@@ -72,6 +76,9 @@ export interface StockPurchase {
   stockName: string;
   stockAcronym: string;
   quantity: number;
+  remainingQuantity?: number;
+  soldQuantity?: number;
+  status?: "open" | "closed";
   pricePerShare: number;
   totalAmount: number;
   currency: string;
@@ -93,8 +100,34 @@ export interface CopyTradePurchase {
   amountInvested: number;
   currency: string;
   expiredAt: string;
+  status?: "active" | "liquidated";
+  liquidatedAt?: string;
+  liquidationAmount?: number;
   createdAt: string;
 }
+
+export interface StockProposal {
+  _id: string;
+  proposedBy: string | Pick<ApiUser, "userID" | "email" | "firstName" | "lastName">;
+  companyName: string;
+  ticker: string;
+  category: string;
+  exchange: string;
+  initialListingPrice: number;
+  change24h: number;
+  rateOfChange: number;
+  currency: string;
+  status: ProposalStatus;
+  rejectionReason?: string;
+  reviewedBy?: string;
+  reviewedAt?: string;
+  createdStockId?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CreateStockProposalPayload = Pick<StockProposal, "companyName" | "ticker" | "category" | "exchange" | "initialListingPrice"> & Partial<Pick<StockProposal, "change24h" | "rateOfChange" | "currency">>;
+export type ApproveStockProposalPayload = Partial<CreateStockProposalPayload> & { lastPrice?: number };
 
 export interface Transaction {
   _id: string;
