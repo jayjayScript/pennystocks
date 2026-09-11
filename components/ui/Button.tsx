@@ -32,13 +32,12 @@ export const Button = ({
 
   return (
     <button
-      className={`font-semibold flex items-center justify-center gap-2 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0
-        ${variantStyles[variant]} 
-        ${sizeStyles[size]} 
-        ${fullWidth ? "w-full" : ""} 
+      className={`cursor-pointer font-semibold flex items-center justify-center gap-2 transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0
+        ${variantStyles[variant]}
+        ${sizeStyles[size]}
+        ${fullWidth ? "w-full" : ""}
         ${className}`}
-      {...props}
-    >
+      {...props}>
       {icon && (
         <Icon
           icon={icon}

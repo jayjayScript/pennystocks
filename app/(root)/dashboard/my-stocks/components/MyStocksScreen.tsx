@@ -62,7 +62,7 @@ export default function MyStocksScreen() {
           </p>
           <button
             onClick={() => setProposeOpen(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-[#00d4a1] text-[#0d1624] hover:opacity-90 transition-all"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-[#00d4a1] text-[#0d1624] hover:opacity-90 transition-all cursor-pointer"
           >
             <Icon icon="mdi:plus" width={16} />
             Propose a Stock

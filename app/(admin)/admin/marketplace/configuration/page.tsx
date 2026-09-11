@@ -26,7 +26,7 @@ export default function ConfigurationPage() {
             <h2 className="text-lg font-bold text-white">Stock Types</h2>
             <p className="text-sm mt-1" style={{ color: "#9aa3b0" }}>Define categories for organizing stocks</p>
           </div>
-          <button className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold" style={{ background: "rgba(0,212,161,0.1)", color: "#00d4a1", border: "1px solid rgba(0,212,161,0.2)" }}>
+          <button className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold cursor-pointer" style={{ background: "rgba(0,212,161,0.1)", color: "#00d4a1", border: "1px solid rgba(0,212,161,0.2)" }}>
             <Icon icon="mdi:add" width={16} />Add Type
           </button>
         </div>
@@ -44,10 +44,10 @@ export default function ConfigurationPage() {
                 </div>
               </div>
               <div className="flex gap-2">
-                <button className="flex-1 py-2 rounded-lg text-xs font-medium" style={{ background: "rgba(255,255,255,0.05)", color: "#9aa3b0" }}>
+                <button className="flex-1 py-2 rounded-lg text-xs font-medium cursor-pointer" style={{ background: "rgba(255,255,255,0.05)", color: "#9aa3b0" }}>
                   <Icon icon="mdi:pencil" width={12} className="inline mr-1" />Edit
                 </button>
-                <button className="flex-1 py-2 rounded-lg text-xs font-medium" style={{ background: "rgba(244,67,54,0.1)", color: "#F44336" }}>
+                <button className="flex-1 py-2 rounded-lg text-xs font-medium cursor-pointer" style={{ background: "rgba(244,67,54,0.1)", color: "#F44336" }}>
                   <Icon icon="mdi:delete" width={12} className="inline mr-1" />Delete
                 </button>
               </div>
@@ -84,7 +84,7 @@ export default function ConfigurationPage() {
           </div>
         </div>
         <div className="flex justify-end mt-6">
-          <button className="px-6 py-3 rounded-xl font-bold text-sm" style={{ background: "#00d4a1", color: "#0d1624" }}>Save Settings</button>
+          <button className="px-6 py-3 rounded-xl font-bold text-sm cursor-pointer" style={{ background: "#00d4a1", color: "#0d1624" }}>Save Settings</button>
         </div>
       </div>
     </div>

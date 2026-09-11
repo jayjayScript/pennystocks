@@ -126,7 +126,7 @@ export default function BuyModal({ stock, isOpen, onClose }: BuyModalProps) {
           </div>
           <button
             onClick={onClose}
-            className="w-9 h-9 rounded-xl flex items-center justify-center transition-colors hover:bg-white/10"
+            className="w-9 h-9 rounded-xl flex items-center justify-center transition-colors hover:bg-white/10 cursor-pointer"
             style={{ color: "#9aa3b0" }}
           >
             <Icon icon="mdi:close" width={20} />
@@ -192,7 +192,7 @@ export default function BuyModal({ stock, isOpen, onClose }: BuyModalProps) {
                 {(["usd", "units"] as InputMode[]).map((m) => (
                   <button
                     key={m}
-                    onClick={() => { setMode(m); setInputValue(""); }}
+                    onClick={() =>{ setMode(m); setInputValue(""); }}
                     className="flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200"
                     style={{
                       background: mode === m ? accentColor : "transparent",
@@ -318,7 +318,7 @@ export default function BuyModal({ stock, isOpen, onClose }: BuyModalProps) {
               <button
                 onClick={handleConfirm}
                 disabled={isInvalid}
-                className="w-full py-4 rounded-2xl font-bold text-base transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+                className="w-full py-4 rounded-2xl font-bold text-base transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0 cursor-pointer"
                 style={{
                   background: isInvalid ? "#1a2438" : accentColor,
                   color: isInvalid ? "#4a5568" : "#0d1624",
@@ -332,7 +332,7 @@ export default function BuyModal({ stock, isOpen, onClose }: BuyModalProps) {
 
               <button
                 onClick={onClose}
-                className="w-full pb-1 text-sm font-medium transition-colors hover:text-white"
+                className="w-full pb-1 text-sm font-medium transition-colors hover:text-white cursor-pointer"
                 style={{ color: "#6b7785" }}
               >
                 Cancel

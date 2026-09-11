@@ -6,13 +6,17 @@ import { useStocks } from "@/hooks/queries";
 import { useDeleteStock } from "@/hooks/queries/useAdminActions";
 import { formatUSD } from "@/context/PortfolioContext";
 
-export default function MarketplacePage() {
+export default function ListedStocksList() {
   const { data: stocksData, isLoading } = useStocks(1, 100);
   const deleteMut = useDeleteStock();
 
-  const stocks = stocksData?.data ?? [];
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+
+  const allStocks = stocksData?.data ?? [];
+  // Approved = admin-created (isApproved: true) OR pending proposals (null) are NOT listed yet
+  // Listed = isApproved === true
+  const stocks = allStocks.filter((s) => s.isApproved === true);
 
   const filtered = stocks.filter((s) => {
     if (!search) return true;
@@ -28,29 +32,7 @@ export default function MarketplacePage() {
   };
 
   return (
-    <div className="space-y-5 sm:space-y-6">
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-white">Marketplace</h1>
-        <p className="text-xs sm:text-sm mt-1" style={{ color: "#9aa3b0" }}>
-          Approved stocks for trading
-        </p>
-      </div>
-
-      {/* Summary Card */}
-      <div className="rounded-xl sm:rounded-2xl p-4 sm:p-6" style={{ background: "linear-gradient(135deg, #151d2d 0%, #1b2a40 100%)", border: "1px solid #252f45" }}>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs sm:text-sm" style={{ color: "#9aa3b0" }}>Total Approved Stocks</p>
-            <p className="text-2xl sm:text-3xl font-extrabold text-white mt-1">
-              {isLoading ? "—" : stocks.length}
-            </p>
-          </div>
-          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center" style={{ background: "rgba(0,212,161,0.12)" }}>
-            <Icon icon="mdi:chart-line" width={20} className="sm:w-6 sm:h-6" style={{ color: "#00d4a1" }} />
-          </div>
-        </div>
-      </div>
-
+    <div className="space-y-4 sm:space-y-5">
       {/* Search */}
       <div className="relative">
         <Icon icon="mdi:magnify" width={18} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "#6b7785" }} />
@@ -64,10 +46,13 @@ export default function MarketplacePage() {
         />
       </div>
 
-      {/* Stocks List */}
+      {/* Stocks Table */}
       <div className="rounded-xl sm:rounded-2xl overflow-hidden" style={{ background: "#151d2d", border: "1px solid #252f45" }}>
         <div className="px-4 sm:px-6 py-3 sm:py-4" style={{ borderBottom: "1px solid #1d2639" }}>
-          <h2 className="text-base sm:text-lg font-bold text-white">All Stocks</h2>
+          <h2 className="text-base sm:text-lg font-bold text-white">All Listed Stocks</h2>
+          <p className="text-[10px] sm:text-xs mt-0.5" style={{ color: "#6b7785" }}>
+            Stocks currently visible in the marketplace
+          </p>
         </div>
 
         {isLoading ? (
@@ -75,7 +60,10 @@ export default function MarketplacePage() {
         ) : filtered.length === 0 ? (
           <div className="py-16 text-center" style={{ color: "#6b7785" }}>
             <Icon icon="mdi:chart-line-variant" width={48} className="mx-auto" />
-            <p className="text-sm font-medium mt-3">No approved stocks yet</p>
+            <p className="text-sm font-medium mt-3">No listed stocks yet</p>
+            <p className="text-xs mt-1" style={{ color: "#4a5568" }}>
+              Approve a pending proposal or create a new stock from the &quot;Create Stock&quot; tab.
+            </p>
           </div>
         ) : (
           <>
@@ -84,7 +72,7 @@ export default function MarketplacePage() {
               <span>Stock</span>
               <span className="text-right">Price</span>
               <span className="text-right">24h Change</span>
-              <span className="text-right">Status</span>
+              <span className="text-right">Volume</span>
               <span className="text-right">Actions</span>
             </div>
 
@@ -95,7 +83,7 @@ export default function MarketplacePage() {
                   <div key={stock._id} className="md:grid md:grid-cols-[2fr_1fr_1fr_1fr_1fr] px-4 sm:px-6 py-3 sm:py-4 flex flex-col gap-2" style={{ borderColor: "#1d2639" }}>
                     {/* Stock Info */}
                     <div className="flex items-center gap-2 sm:gap-3">
-                      <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl flex items-center justify-center text-xs sm:text-sm font-bold shrink-0" style={{ background: "rgba(0,212,161,0.1)", color: "#00d4a1" }}>
+                      <div className="w-8 h-8 sm:w-10 sm:w-10 rounded-lg sm:rounded-xl flex items-center justify-center text-xs sm:text-sm font-bold shrink-0" style={{ background: "rgba(0,212,161,0.1)", color: "#00d4a1" }}>
                         {stock.acronym?.[0] ?? "?"}
                       </div>
                       <div className="min-w-0">
@@ -121,10 +109,10 @@ export default function MarketplacePage() {
                       </p>
                     </div>
 
-                    {/* Status */}
+                    {/* Volume */}
                     <div className="flex items-center justify-between md:block md:text-right">
-                      <span className="text-[10px] sm:text-xs md:hidden" style={{ color: "#6b7785" }}>Status</span>
-                      <span className="text-[10px] sm:text-xs font-bold px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full inline-block" style={{ background: "rgba(76,175,80,0.12)", color: "#4CAF50" }}>Active</span>
+                      <span className="text-[10px] sm:text-xs md:hidden" style={{ color: "#6b7785" }}>Volume</span>
+                      <p className="text-xs sm:text-sm font-semibold text-white">{(stock.totalVolume ?? 0).toLocaleString()}</p>
                     </div>
 
                     {/* Actions */}

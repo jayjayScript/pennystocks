@@ -5,7 +5,15 @@ export class ApiError extends Error {
 }
 
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
-  const token = typeof window === "undefined" ? undefined : localStorage.getItem("accessToken");
+  let token: string | null = null;
+  if (typeof window !== "undefined") {
+    const isAdmin = localStorage.getItem("isAdmin") === "true";
+    // Admin users use adminAccessToken for ALL routes (backend validates the same JWT for both user and admin endpoints).
+    // Regular users use accessToken for all routes.
+    token = isAdmin
+      ? localStorage.getItem("adminAccessToken")
+      : localStorage.getItem("accessToken");
+  }
   const response = await fetch(`${API_URL}${path}`, {
     ...options,
     headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...options.headers },

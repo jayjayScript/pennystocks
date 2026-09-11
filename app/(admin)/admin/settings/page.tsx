@@ -87,7 +87,7 @@ export default function SettingsPage() {
 
       {/* Save Button */}
       <div className="flex justify-end">
-        <button className="w-full sm:w-auto px-6 py-3 rounded-xl font-bold text-sm" style={{ background: "#00d4a1", color: "#0d1624" }}>
+        <button className="w-full sm:w-auto px-6 py-3 rounded-xl font-bold text-sm cursor-pointer" style={{ background: "#00d4a1", color: "#0d1624" }}>
           <Icon icon="mdi:content-save" width={16} className="inline mr-2" />
           Save Changes
         </button>

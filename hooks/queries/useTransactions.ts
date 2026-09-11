@@ -11,6 +11,7 @@ export function useTransactions(
   return useQuery({
     queryKey: ["transactions", page, limit],
     queryFn: () => transactionsApi.mine(page, limit),
-    staleTime: 60 * 1000,
+    staleTime: 10 * 1000,
+    refetchInterval: 10 * 1000,
   });
 }

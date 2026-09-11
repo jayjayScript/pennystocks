@@ -26,7 +26,7 @@ export default function WithdrawModal({ isOpen, onClose }: WithdrawModalProps) {
     return () => { document.body.style.overflow = ""; };
   }, [isOpen]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const parsedAmount = parseFloat(amount);
     if (isNaN(parsedAmount) || parsedAmount <= 0) {
@@ -38,25 +38,26 @@ export default function WithdrawModal({ isOpen, onClose }: WithdrawModalProps) {
       return;
     }
 
-    // Handle withdrawal password logic
     if (passwordNotSet) {
-      // If password hasn't been set yet, set it now and allow withdrawal
       if (password.trim() === "") {
         setError("Please enter a withdrawal password.");
         return;
       }
-      setWithdrawalPassword(password);
-      // Proceed with withdrawal
+      // Save password to backend, then submit withdrawal
+      await setWithdrawalPassword(password);
     } else {
-      // Password is set, verify it matches
       if (password !== withdrawalPassword) {
         setError("Incorrect withdrawal password.");
         return;
       }
     }
 
-    submitWithdrawOrder(parsedAmount, note);
-    setStatus("success");
+    const result = await submitWithdrawOrder(parsedAmount, note);
+    if (result.success) {
+      setStatus("success");
+    } else {
+      setError(result.message);
+    }
   };
 
   const handleBackdrop = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -91,7 +92,7 @@ export default function WithdrawModal({ isOpen, onClose }: WithdrawModalProps) {
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/10 text-penny-text-muted hover:text-white transition-colors"
+            className="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-white/10 text-penny-text-muted hover:text-white transition-colors cursor-pointer"
           >
             <Icon icon="mdi:close" width={18} />
           </button>
@@ -108,7 +109,7 @@ export default function WithdrawModal({ isOpen, onClose }: WithdrawModalProps) {
             </p>
             <button
               onClick={onClose}
-              className="px-6 py-2.5 rounded-xl font-bold text-sm bg-white/5 border border-[#252f45] text-white hover:bg-white/10 transition-colors"
+              className="px-6 py-2.5 rounded-xl font-bold text-sm bg-white/5 border border-[#252f45] text-white hover:bg-white/10 transition-colors cursor-pointer"
             >
               Done
             </button>
@@ -168,13 +169,13 @@ export default function WithdrawModal({ isOpen, onClose }: WithdrawModalProps) {
               <button
                 type="button"
                 onClick={onClose}
-                className="flex-1 py-3 rounded-xl font-bold text-sm bg-white/5 border border-[#252f45] text-penny-text-muted hover:text-white transition-colors"
+                className="flex-1 py-3 rounded-xl font-bold text-sm bg-white/5 border border-[#252f45] text-penny-text-muted hover:text-white transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="flex-1 py-3 rounded-xl font-bold text-sm bg-[#F44336] text-white hover:opacity-90 active:scale-95 transition-all"
+                className="flex-1 py-3 rounded-xl font-bold text-sm bg-[#F44336] text-white hover:opacity-90 active:scale-95 transition-all cursor-pointer"
               >
                 Request Withdrawal
               </button>
