@@ -117,8 +117,10 @@ export default function UserDetailPage() {
   const users = usersData?.data ?? [];
   const user = users.find((u) => u._id === userId);
 
-  const { data: purchasesData, isLoading: purchasesLoading } = useAdminUserPurchases(user?.userID ?? "");
-  const { data: copyTradesData, isLoading: copyTradesLoading } = useAdminUserCopyTrades(user?.userID ?? "");
+  const { data: purchasesResponse, isLoading: purchasesLoading } = useAdminUserPurchases(user?._id ?? "");
+  const { data: copyTradesResponse, isLoading: copyTradesLoading } = useAdminUserCopyTrades(user?._id ?? "");
+  const purchasesData = purchasesResponse?.data ?? [];
+  const copyTradesData = copyTradesResponse?.data ?? [];
 
   // Populate form when user loads or edit starts
   useEffect(() => {

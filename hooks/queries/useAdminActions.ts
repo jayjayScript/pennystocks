@@ -11,7 +11,7 @@ import type { TransactionStatus, Stock } from "@/types/api";
 export function useUpdateUser() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Parameters<ReturnType<typeof authApi.updateProfile>>[0] }) =>
+    mutationFn: ({ id, data }: { id: string; data: Parameters<typeof authApi.updateProfile>[0] }) =>
       authApi.updateProfile(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin", "users"] });
@@ -217,7 +217,7 @@ export function useCreateTransaction() {
 export function useAdminUserPurchases(userId: string) {
   return useQuery({
     queryKey: ["admin", "users", userId, "purchases"],
-    queryFn: () => adminApi.getUserPurchases(userId),
+    queryFn: () => adminApi.userStockPurchases(userId),
     enabled: !!userId,
   });
 }
@@ -225,7 +225,7 @@ export function useAdminUserPurchases(userId: string) {
 export function useAdminUserCopyTrades(userId: string) {
   return useQuery({
     queryKey: ["admin", "users", userId, "copy-trades"],
-    queryFn: () => adminApi.getUserCopyTrades(userId),
+    queryFn: () => adminApi.userCopyTradePurchases(userId),
     enabled: !!userId,
   });
 }

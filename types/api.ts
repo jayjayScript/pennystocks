@@ -2,6 +2,8 @@ export type RiskLevel = "low" | "medium" | "high";
 export type TransactionType = "deposit" | "withdraw" | "profit" | "loss" | "buy" | "sell" | "copy_trade";
 export type TransactionStatus = "pending" | "completed" | "rejected" | "failed";
 export type ProposalStatus = "pending" | "completed" | "rejected";
+export type StockPurchaseStatus = "open" | "closed";
+export type CopyTradePurchaseStatus = "active" | "liquidated";
 export type PaymentMethod = "crypto" | "Cash App" | "PayPal" | "Venmo" | "Zelle" | "Wire Transfer" | "Bank Transfer";
 export type PaymentOrderStatus = "pending" | "awaiting_payment" | "awaiting_confirmation" | "completed" | "rejected" | "expired";
 
@@ -83,8 +85,8 @@ export type UpdateCopyTradingPayload = Partial<CreateCopyTradingPayload>;
 
 export interface StockPurchase {
   _id: string;
-  userId: string;
-  stockId: string;
+  userId: string | PurchaseUser;
+  stockId: string | PurchasedStock | null;
   stockName: string;
   stockAcronym: string;
   quantity: number;
@@ -99,8 +101,8 @@ export interface StockPurchase {
 
 export interface CopyTradePurchase {
   _id: string;
-  userId: string;
-  copyTradingId: string;
+  userId: string | PurchaseUser;
+  copyTradingId: string | PurchasedCopyTradingPlan | null;
   traderName: string;
   riskLevel: RiskLevel;
   duration: string;
@@ -120,7 +122,7 @@ export interface CopyTradePurchase {
 
 export interface StockProposal {
   _id: string;
-  proposedBy: string | Pick<ApiUser, "userID" | "email" | "firstName" | "lastName">;
+  proposedBy: string | PurchaseUser;
   companyName: string;
   ticker: string;
   category: string;
@@ -181,3 +183,32 @@ export interface CreateDepositOrderPayload { amount: number; method: PaymentMeth
 export interface CreateWithdrawOrderPayload { amount: number; method: PaymentMethod; methodDetails: string; }
 
 export interface Paginated<T> { data: T[]; pagination: { page: number; limit: number; total: number; totalPages: number }; }
+
+/** The limited user record populated by admin purchase/proposal list endpoints. */
+export type PurchaseUser = Pick<ApiUser, "_id" | "userID" | "email" | "firstName" | "lastName">;
+
+/** The limited stock record populated by admin stock-purchase list endpoints. */
+export type PurchasedStock = Pick<Stock, "_id" | "name" | "acronym">;
+
+/** The limited copy-trading plan populated by admin copy-trade-purchase list endpoints. */
+export type PurchasedCopyTradingPlan = Pick<CopyTrading, "_id" | "traderName" | "currency">;
+
+export interface AdminStockPurchaseQuery {
+  page?: number;
+  limit?: number;
+  userId?: string;
+  status?: StockPurchaseStatus;
+}
+
+export interface AdminCopyTradePurchaseQuery {
+  page?: number;
+  limit?: number;
+  userId?: string;
+  status?: CopyTradePurchaseStatus;
+}
+
+export interface AdminUserStockProposalQuery {
+  page?: number;
+  limit?: number;
+  status?: ProposalStatus;
+}

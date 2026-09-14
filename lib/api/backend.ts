@@ -1,4 +1,4 @@
-import type { ApiUser, ApproveStockProposalPayload, AuthResponse, CopyTradePurchase, CopyTrading, CreateCopyTradingPayload, CreateDepositOrderPayload, CreateStockPayload, CreateStockProposalPayload, CreateWithdrawOrderPayload, Paginated, PaymentOrder, PaymentOrderStatus, ProposalStatus, Stock, StockProposal, StockPurchase, Transaction, TransactionStatus, UpdateCopyTradingPayload, UpdateStockPayload } from "@/types/api";
+import type { AdminCopyTradePurchaseQuery, AdminStockPurchaseQuery, AdminUserStockProposalQuery, ApiUser, ApproveStockProposalPayload, AuthResponse, CopyTradePurchase, CopyTrading, CreateCopyTradingPayload, CreateDepositOrderPayload, CreateStockPayload, CreateStockProposalPayload, CreateWithdrawOrderPayload, Paginated, PaymentOrder, PaymentOrderStatus, ProposalStatus, Stock, StockProposal, StockPurchase, Transaction, TransactionStatus, UpdateCopyTradingPayload, UpdateStockPayload } from "@/types/api";
 import { api } from "./client";
 
 export const authApi = {
@@ -123,11 +123,33 @@ export const paymentOrdersApi = {
     }),
 };
 export const adminApi = {
-  // User-specific holdings
-  getUserPurchases: (userId: string) =>
-    api<StockPurchase[]>(`/admin/users/${userId}/purchases`),
-  getUserCopyTrades: (userId: string) =>
-    api<CopyTradePurchase[]>(`/admin/users/${userId}/copy-trades`),
+  stockPurchases: ({ page = 1, limit = 20, userId, status }: AdminStockPurchaseQuery = {}) => {
+    const query = new URLSearchParams({ page: String(page), limit: String(limit) });
+    if (userId) query.set("userId", userId);
+    if (status) query.set("status", status);
+    return api<Paginated<StockPurchase>>(`/admin/stock-purchases?${query}`);
+  },
+  copyTradePurchases: ({ page = 1, limit = 20, userId, status }: AdminCopyTradePurchaseQuery = {}) => {
+    const query = new URLSearchParams({ page: String(page), limit: String(limit) });
+    if (userId) query.set("userId", userId);
+    if (status) query.set("status", status);
+    return api<Paginated<CopyTradePurchase>>(`/admin/copy-trade-purchases?${query}`);
+  },
+  userStockPurchases: (userId: string, { page = 1, limit = 20, status }: Omit<AdminStockPurchaseQuery, "userId"> = {}) => {
+    const query = new URLSearchParams({ page: String(page), limit: String(limit) });
+    if (status) query.set("status", status);
+    return api<Paginated<StockPurchase>>(`/admin/users/${userId}/stock-purchases?${query}`);
+  },
+  userCopyTradePurchases: (userId: string, { page = 1, limit = 20, status }: Omit<AdminCopyTradePurchaseQuery, "userId"> = {}) => {
+    const query = new URLSearchParams({ page: String(page), limit: String(limit) });
+    if (status) query.set("status", status);
+    return api<Paginated<CopyTradePurchase>>(`/admin/users/${userId}/copy-trade-purchases?${query}`);
+  },
+  userStockProposals: (userId: string, { page = 1, limit = 20, status }: AdminUserStockProposalQuery = {}) => {
+    const query = new URLSearchParams({ page: String(page), limit: String(limit) });
+    if (status) query.set("status", status);
+    return api<Paginated<StockProposal>>(`/admin/users/${userId}/stock-proposals?${query}`);
+  },
   adminLogin: (data: { email: string; password: string }) =>
     api<AuthResponse>("/admin/login", {
       method: "POST",
