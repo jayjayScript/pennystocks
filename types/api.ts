@@ -46,17 +46,6 @@ export interface Stock {
   change24h: number;
   rateOfChange: number;
   currency: string;
-  totalVolume?: number;
-  // Approval state: true = admin-created or approved proposal, false = rejected proposal, null = pending proposal
-  isApproved?: boolean | null;
-  // User's proposed price (only set on pending proposals)
-  proposedPrice?: number;
-  // Optional listing metadata submitted by user/admin
-  description?: string;
-  type?: string;
-  supply?: number;
-  // Who submitted the proposal
-  submittedBy?: string;
   createdAt: string;
   updatedAt: string;
 }

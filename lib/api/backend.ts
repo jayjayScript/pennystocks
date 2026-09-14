@@ -185,16 +185,5 @@ export const adminApi = {
     api<PaymentOrder>(`/admin/payment-orders/${id}`, {
       method: "PATCH",
       body: JSON.stringify(data),
-    }),
-  // Stock approval/rejection
-  approveStock: (id: string, data: Partial<Pick<Stock, "lastPrice" | "name" | "acronym" | "change24h" | "rateOfChange" | "description" | "exchange" | "type" | "supply" | "totalVolume">>) =>
-    api<Stock>(`/admin/stocks/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify({ isApproved: true, ...data }),
-    }),
-  rejectStock: (id: string) =>
-    api<Stock>(`/admin/stocks/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify({ isApproved: false }),
-    }),
+    })
 };
