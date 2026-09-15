@@ -2,18 +2,49 @@
 
 import React, { useState } from "react";
 import { Icon } from "@iconify/react";
-import { useStocks } from "@/hooks/queries";
-import { useAuth } from "@/context/AuthContext";
-import { formatUSD } from "@/context/PortfolioContext";
 import CreateStockModal from "@/components/modals/CreateStockModal";
+import type { Stock } from "@/types/api";
+
+const formatUSD = (n: number) =>
+  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
+
+const MOCK_ADMIN_STOCKS: Stock[] = [
+  {
+    _id: "stock-adm-1",
+    name: "Apex BioTech",
+    acronym: "APEX",
+    lastPrice: 2.45,
+    change24h: 0.32,
+    rateOfChange: 15.02,
+    currency: "USD",
+    exchange: "NASDAQ",
+    type: "Healthcare",
+    totalVolume: 84000,
+    isApproved: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    _id: "stock-adm-2",
+    name: "Solaris Power Systems",
+    acronym: "SOLR",
+    lastPrice: 3.12,
+    change24h: 0.44,
+    rateOfChange: 16.42,
+    currency: "USD",
+    exchange: "OTC",
+    type: "Tech",
+    totalVolume: 42500,
+    isApproved: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+];
 
 export default function MyStocksPage() {
-  const { data: stocksData, isLoading } = useStocks(1, 100);
-  const { user } = useAuth();
+  const stocks = MOCK_ADMIN_STOCKS;
+  const isLoading = false;
   const [createModalOpen, setCreateModalOpen] = useState(false);
-
-  // Only show stocks created by the logged-in admin
-  const stocks = (stocksData?.data ?? []).filter((s) => s.submittedBy === user?._id);
   const totalRevenue = stocks.reduce((sum, s) => sum + (s.lastPrice * (s.totalVolume ?? 0)), 0);
 
   return (

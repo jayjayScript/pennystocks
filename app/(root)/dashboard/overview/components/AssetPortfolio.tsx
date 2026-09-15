@@ -1,12 +1,16 @@
 "use client";
 
 import { Icon } from "@iconify/react";
-import { usePortfolio } from "@/context/PortfolioContext";
 import Link from "next/link";
-import { Stock } from "@/types/api";
 
-export default function AssetPortfolio({ stocks }: { stocks: Stock[] }) {
-  const { portfolio } = usePortfolio();
+const MOCK_PORTFOLIO = [
+  { symbol: "AAPL", name: "Apple Inc.",      amount: "5 shares", value: "$875.50",  bgColor: "rgba(120,120,120,0.15)", icon: "mdi:apple", up: true,  pct: "+2.1%" },
+  { symbol: "BTC",  name: "Bitcoin",         amount: "0.02 BTC", value: "$1,240.00", bgColor: "rgba(247,147,26,0.15)", icon: "mdi:bitcoin", up: true,  pct: "+4.7%" },
+  { symbol: "TSLA", name: "Tesla Inc.",       amount: "3 shares", value: "$690.00",  bgColor: "rgba(204,0,0,0.15)",   icon: "mdi:car-electric", up: false, pct: "-1.3%" },
+];
+
+export default function AssetPortfolio({ stocks }: { stocks?: unknown[] }) {
+  void stocks;
 
   return (
     <div
@@ -37,46 +41,30 @@ export default function AssetPortfolio({ stocks }: { stocks: Stock[] }) {
         className="flex-1 overflow-y-auto pr-2 space-y-4 custom-scrollbar"
         style={{ maxHeight: "250px" }}
       >
-        {portfolio.length === 0 ? (
-          <div className="text-center py-10 flex flex-col items-center justify-center h-full">
-            <Icon icon="mdi:briefcase-outline" className="text-penny-text-muted mb-2" width={28} />
-            <p className="text-xs text-penny-text-muted">No assets purchased yet</p>
-          </div>
-        ) : (
-          portfolio.map((asset, index) => (
-            <Link
-              href={`/dashboard/portfolio/${asset.symbol}`}
-              key={index}
-              className="flex items-center justify-between group cursor-pointer hover:bg-white/5 p-2 -mx-2 rounded-xl transition-colors"
-            >
-              <div className="flex items-center gap-4">
-                <div
-                  className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
-                  style={{
-                    backgroundColor: asset.bgColor || "rgba(0, 212, 161, 0.1)",
-                    color: asset.bgColor
-                      ? asset.bgColor.replace("0.1)", "1)")
-                      : "var(--penny-accent)",
-                  }}
-                >
-                  {asset.icon ? (
-                    <Icon icon={asset.icon} width={24} />
-                  ) : (
-                    <span className="text-sm font-bold">{asset.symbol[0]}</span>
-                  )}
-                </div>
-                <div>
-                  <p className="text-white font-medium">{asset.name}</p>
-                  <p className="text-penny-text-muted text-sm">{asset.symbol}</p>
-                </div>
+        {MOCK_PORTFOLIO.map((asset, index) => (
+          <Link
+            href={`/dashboard/portfolio/${asset.symbol}`}
+            key={index}
+            className="flex items-center justify-between group cursor-pointer hover:bg-white/5 p-2 -mx-2 rounded-xl transition-colors"
+          >
+            <div className="flex items-center gap-4">
+              <div
+                className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
+                style={{ backgroundColor: asset.bgColor, color: asset.bgColor.replace("0.15)", "1)") }}
+              >
+                <Icon icon={asset.icon} width={24} />
               </div>
-              <div className="text-right">
-                <p className="text-white font-bold">{asset.amount}</p>
-                <p className="text-penny-text-muted text-sm">{asset.value}</p>
+              <div>
+                <p className="text-white font-medium">{asset.name}</p>
+                <p className="text-penny-text-muted text-sm">{asset.symbol}</p>
               </div>
-            </Link>
-          ))
-        )}
+            </div>
+            <div className="text-right">
+              <p className="text-white font-bold">{asset.amount}</p>
+              <p className="text-penny-text-muted text-sm">{asset.value}</p>
+            </div>
+          </Link>
+        ))}
       </div>
 
       <style jsx global>{`

@@ -2,8 +2,9 @@
 
 import React, { useEffect, useState } from "react";
 import { Icon } from "@iconify/react";
-import { usePortfolio } from "@/context/PortfolioContext";
-import { useCopyTrading } from "@/context/CopyTradingContext";
+function formatUSD(val: number): string {
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(val);
+}
 
 interface TopUpWalletModalProps {
   isOpen: boolean;
@@ -19,8 +20,7 @@ const initialState = {
 };
 
 export default function TopUpWalletModal({ isOpen, onClose }: TopUpWalletModalProps) {
-  const { accountBalance } = usePortfolio();
-  const { topUpCopyWallet, formatUSD } = useCopyTrading();
+  const accountBalance = 12450.00;
   const [form, setForm] = useState(initialState);
 
   useEffect(() => {
@@ -57,8 +57,6 @@ export default function TopUpWalletModal({ isOpen, onClose }: TopUpWalletModalPr
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
-    const amount = parseFloat(form.amount);
-    topUpCopyWallet(amount);
     setForm(initialState);
     onClose();
   };

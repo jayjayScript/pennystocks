@@ -6,37 +6,24 @@ import { usePathname, useRouter } from "next/navigation";
 import { Icon } from "@iconify/react";
 import { adminNavLinks } from "@/constants/admin-data";
 import Logo from "@/components/logo/Logo";
-import { CopyTradingProvider } from "@/context/CopyTradingContext";
-import RequireAdmin from "@/lib/requireAdmin";
-import { useAuth } from "@/context/AuthContext";
-
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // If on admin login page, bypass dashboard shell
   if (pathname === "/admin/login") {
-    return <RequireAdmin>{children}</RequireAdmin>;
+    return <>{children}</>;
   }
 
   const handleLogout = async () => {
-    try {
-      await logout();
-      router.replace("/admin/login");
-    } catch {
-      router.replace("/admin/login");
-    }
+    router.replace("/admin/login");
   };
 
-  const displayName = user?.firstName
-    ? `${user.firstName} ${user.lastName || ""}`.trim()
-    : "Administrator";
+  const displayName = "Administrator";
 
   return (
-    <RequireAdmin>
-      <div className="flex min-h-screen" style={{ background: "#0d1624" }}>
+    <div className="flex min-h-screen" style={{ background: "#0d1624" }}>
         {/* Mobile Header */}
         <header
           className="md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-3"
@@ -141,7 +128,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 </div>
                 <div className="overflow-hidden">
                   <p className="text-sm font-semibold text-white truncate">{displayName}</p>
-                  <p className="text-xs" style={{ color: "#9aa3b0" }}>{user?.email || "Super Admin"}</p>
+                  <p className="text-xs" style={{ color: "#9aa3b0" }}>admin@pennystocks.com</p>
                 </div>
               </div>
               <button
@@ -215,7 +202,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 </div>
                 <div className="overflow-hidden">
                   <p className="text-sm font-semibold text-white truncate">{displayName}</p>
-                  <p className="text-xs truncate" style={{ color: "#9aa3b0" }}>{user?.email || "Super Admin"}</p>
+                  <p className="text-xs truncate" style={{ color: "#9aa3b0" }}>admin@pennystocks.com</p>
                 </div>
               </div>
               <button
@@ -231,11 +218,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         {/* Main Content */}
         <main className="flex-1 md:ml-64 pt-16 md:pt-0 p-4 md:p-6">
-          <CopyTradingProvider>
-            {children}
-          </CopyTradingProvider>
+          {children}
         </main>
       </div>
-    </RequireAdmin>
   );
 }

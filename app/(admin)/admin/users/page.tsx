@@ -3,21 +3,25 @@
 import React, { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@iconify/react";
-import { useAdminUsers } from "@/hooks/queries";
+import { useAdminUsers } from "@/hooks/queries/useAdminUsers";
 import { useToggleUserSuspend } from "@/hooks/queries/useAdminActions";
-import { formatUSD } from "@/context/PortfolioContext";
+import type { ApiUser } from "@/types/api";
+
+const formatUSD = (n: number) =>
+  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
 
 type StatusFilter = "all" | "active" | "suspended";
 
 export default function UsersPage() {
   const router = useRouter();
-  const { data: pagesData, isLoading } = useAdminUsers(1, 50);
-  const { mutate: toggleSuspend } = useToggleUserSuspend();
+  const { data: usersResponse, isLoading } = useAdminUsers();
+  const toggleSuspend = useToggleUserSuspend();
+  const users: ApiUser[] = usersResponse?.data ?? [];
 
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-
-  const users = pagesData?.data ?? [];
+  const [processingUserId, setProcessingUserId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState("");
 
   const filtered = useMemo(() => {
     return users.filter((u) => {
@@ -41,8 +45,16 @@ export default function UsersPage() {
     suspended: users.filter(u => u.isSuspended).length,
   }), [users]);
 
-  const handleToggleSuspend = (id: string, currentlySuspended: boolean) => {
-    toggleSuspend({ id, isSuspended: !currentlySuspended });
+  const handleToggleSuspend = async (id: string, currentlySuspended: boolean) => {
+    setActionError("");
+    setProcessingUserId(id);
+    try {
+      await toggleSuspend.mutateAsync({ id, isSuspended: !currentlySuspended });
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Failed to update the user status.");
+    } finally {
+      setProcessingUserId(null);
+    }
   };
 
   return (
@@ -82,6 +94,15 @@ export default function UsersPage() {
           </button>
         ))}
       </div>
+
+      {actionError && (
+        <div className="flex items-start justify-between gap-3 rounded-xl px-4 py-3 text-xs font-medium" style={{ background: "rgba(244,67,54,0.1)", border: "1px solid rgba(244,67,54,0.3)", color: "#F44336" }}>
+          <span>{actionError}</span>
+          <button type="button" onClick={() => setActionError("")} className="shrink-0 hover:text-white transition-colors" aria-label="Dismiss error">
+            <Icon icon="mdi:close" width={16} />
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
         {isLoading ? (
@@ -166,12 +187,13 @@ export default function UsersPage() {
                     <span className="hidden xs:inline">Edit</span>
                   </button>
                   <button
-                    onClick={(e) =>{ e.stopPropagation(); handleToggleSuspend(user._id, isSuspended); }}
+                    onClick={(e) => { e.stopPropagation(); void handleToggleSuspend(user._id, isSuspended); }}
+                    disabled={processingUserId === user._id}
                     className="p-1.5 sm:p-2 rounded-lg transition-colors"
                     style={{ background: isSuspended ? "rgba(76,175,80,0.1)" : "rgba(244,67,54,0.1)", color: isSuspended ? "#4CAF50" : "#F44336" }}
                     title={isSuspended ? "Reactivate user" : "Suspend user"}
                   >
-                    <Icon icon={isSuspended ? "mdi:account-check" : "mdi:block-helper"} width={12} className="sm:w-3.5 sm:h-3.5" />
+                    <Icon icon={processingUserId === user._id ? "mdi:loading" : isSuspended ? "mdi:account-check" : "mdi:block-helper"} width={12} className={processingUserId === user._id ? "sm:w-3.5 sm:h-3.5 animate-spin" : "sm:w-3.5 sm:h-3.5"} />
                   </button>
                 </div>
               </div>

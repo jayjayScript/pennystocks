@@ -4,11 +4,11 @@ import React, { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Icon } from "@iconify/react";
 import Logo from "@/components/logo/Logo";
-import { useAuth } from "@/context/AuthContext";
 import Link from "next/link";
+import { adminApi } from "@/lib/api/backend";
+import { ApiError } from "@/lib/api/client";
 
 function AdminLoginForm() {
-  const { login } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextUrl = searchParams.get("next") || "/admin/overview";
@@ -18,27 +18,28 @@ function AdminLoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim() || !password) {
-      setError("Please enter both email and password.");
-      return;
-    }
+  e.preventDefault();
+  if (!email.trim() || !password) {
+    setError("Please enter both email and password.");
+    return;
+  }
 
-    setError("");
-    setSubmitting(true);
-
-    try {
-      // Pass admin = true to call admin login with user collection fallback
-      await login(email.trim(), password.trim(), true);
-      router.replace(nextUrl);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Invalid admin credentials. Access denied.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  setError("");
+  setSubmitting(true);
+  try {
+    const res = await adminApi.adminLogin({ email: email.trim(), password });
+    localStorage.setItem("adminAccessToken", res.accessToken);
+    localStorage.setItem("adminRefreshToken", res.refreshToken);
+    localStorage.setItem("isAdmin", "true");
+    router.replace(nextUrl);
+  } catch (err) {
+    setError(err instanceof ApiError ? err.message : "Login failed. Please check your credentials and try again.");
+    setSubmitting(false);
+  }
+};
 
   return (
     <div className="relative w-full max-w-md">

@@ -5,18 +5,14 @@ import { Icon } from "@iconify/react";
 import ListedStocksList from "./components/ListedStocksList";
 import PendingProposalsList from "./components/PendingProposalsList";
 import RejectedProposalsList from "./components/RejectedProposalsList";
-import { useStocks } from "@/hooks/queries";
-
 type TabKey = "listed" | "pending" | "rejected";
 
 export default function StockManagementPage() {
   const [activeTab, setActiveTab] = useState<TabKey>("listed");
-  const { data: stocksData } = useStocks(1, 100);
 
-  const allStocks = stocksData?.data ?? [];
-  const listedCount = allStocks.filter((s) => s.isApproved === true).length;
-  const pendingCount = allStocks.filter((s) => s.isApproved === null || s.isApproved === undefined).length;
-  const rejectedCount = allStocks.filter((s) => s.isApproved === false).length;
+  const listedCount = 4;
+  const pendingCount = 2;
+  const rejectedCount = 0;
 
   const tabs: { key: TabKey; label: string; color: string; count?: number }[] = [
     { key: "listed",   label: "Listed Stocks",     color: "#00d4a1", count: listedCount },

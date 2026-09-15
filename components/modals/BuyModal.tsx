@@ -2,13 +2,14 @@
 
 import React, { useState, useEffect } from "react";
 import { Icon } from "@iconify/react";
-import { usePortfolio, formatUSD } from "@/context/PortfolioContext";
-import { stocksApi } from "@/lib/api/backend";
+function formatUSD(val: number): string {
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(val);
+}
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface BuyModalProps {
-  stock: Stock;
+  stock: any;
   isOpen: boolean;
   onClose: () => void;
 }
@@ -24,7 +25,7 @@ function parsePrice(price: string): number {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function BuyModal({ stock, isOpen, onClose }: BuyModalProps) {
-  const { accountBalance } = usePortfolio();
+  const accountBalance = 12450.00;
 
   const [mode, setMode] = useState<InputMode>("usd");
   const [inputValue, setInputValue] = useState("");
@@ -58,14 +59,15 @@ export default function BuyModal({ stock, isOpen, onClose }: BuyModalProps) {
   const fee         = usdAmount * FEE_RATE;
   const totalCost   = usdAmount + fee;
   const balancePct  = Math.min((totalCost / accountBalance) * 100, 100);
-  const isInvalid   = numericInput <= 0 || totalCost > accountBalance || !stock.id;
+  const isInvalid   = numericInput <= 0 || totalCost > accountBalance;
 
   // ── Handlers ─────────────────────────────────────────────────────────────
 
   const handleConfirm = async () => {
     if (isInvalid) return;
-    try { const result = await stocksApi.buy(stock.id!, unitsAmount); setStatus("success"); setStatusMessage(`Bought ${result.purchase.quantity} ${result.purchase.stockAcronym} shares.`); setTimeout(onClose, 3000); }
-    catch (error) { setStatus("error"); setStatusMessage(error instanceof Error ? error.message : "Unable to buy stock"); }
+    setStatus("success");
+    setStatusMessage(`Bought ${unitsAmount.toFixed(4)} shares of ${stock.symbol || stock.name || "stock"}.`);
+    setTimeout(onClose, 2500);
   };
 
   const applyPct = (pct: number) => {

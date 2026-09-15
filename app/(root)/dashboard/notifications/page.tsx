@@ -2,17 +2,67 @@
 
 import React, { useState } from "react";
 import { Icon } from "@iconify/react";
-import { usePortfolio } from "@/context/PortfolioContext";
 import DepositModal from "@/components/modals/DepositModal";
 
+type AppNotification = {
+  id: string;
+  type: "success" | "deposit_details" | "info" | "warning" | "error";
+  title: string;
+  message: string;
+  icon: string;
+  read: boolean;
+  createdAt: string;
+  adminPaymentDetails?: string;
+  orderId?: string;
+};
+
+const MOCK_NOTIFICATIONS: AppNotification[] = [
+  {
+    id: "1",
+    type: "success",
+    title: "Deposit Approved",
+    message: "Your deposit of $2,000.00 via bank transfer has been approved and credited to your account.",
+    icon: "mdi:check-circle-outline",
+    read: false,
+    createdAt: new Date(Date.now() - 5 * 60000).toISOString(),
+  },
+  {
+    id: "2",
+    type: "deposit_details",
+    title: "Payment Details Ready",
+    message: "Your deposit of $500.00 is ready. Tap to view payment details and upload proof.",
+    icon: "mdi:bank-outline",
+    read: false,
+    createdAt: new Date(Date.now() - 30 * 60000).toISOString(),
+    adminPaymentDetails: "Bank: Access Bank\nAccount: 0123456789\nName: Penny Stocks Ltd",
+    orderId: "order-mock-1",
+  },
+  {
+    id: "3",
+    type: "info",
+    title: "Trade Executed",
+    message: "Your buy order for 5 shares of AAPL at $175.20 has been executed successfully.",
+    icon: "mdi:chart-line",
+    read: true,
+    createdAt: new Date(Date.now() - 2 * 3600000).toISOString(),
+  },
+  {
+    id: "4",
+    type: "warning",
+    title: "Withdrawal Pending",
+    message: "Your withdrawal request of $300.00 is under review. Expected processing: 1-2 business days.",
+    icon: "mdi:clock-outline",
+    read: true,
+    createdAt: new Date(Date.now() - 6 * 3600000).toISOString(),
+  },
+];
+
 export default function NotificationsPage() {
-  const { notifications, markNotificationRead, markAllNotificationsRead, pendingOrders, refetch, ordersLoading, ordersError } = usePortfolio();
+  const [notifications, setNotifications] = useState<AppNotification[]>(MOCK_NOTIFICATIONS);
   const [filter, setFilter] = useState<"all" | "unread">("all");
   const [depositOpen, setDepositOpen] = useState(false);
   const [depositKey, setDepositKey] = useState(0);
-  const [refreshing, setRefreshing] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string | undefined>(undefined);
-  const [showDebug, setShowDebug] = useState(false);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -20,18 +70,13 @@ export default function NotificationsPage() {
     ? notifications.filter((n) => !n.read)
     : notifications;
 
-  const handleManualRefresh = async () => {
-    setRefreshing(true);
-    try {
-      await refetch();
-    } finally {
-      setTimeout(() => setRefreshing(false), 600);
-    }
+  const markNotificationRead = (id: string) => {
+    setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n));
   };
 
-  const activeDepositCount = pendingOrders.filter(
-    (o) => o.type === "deposit" && o.status !== "completed" && o.status !== "rejected" && o.status !== "expired"
-  ).length;
+  const markAllNotificationsRead = () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  };
 
   const handleNotificationClick = (n: AppNotification) => {
     markNotificationRead(n.id);
@@ -80,31 +125,10 @@ export default function NotificationsPage() {
               {unreadCount} unread notification{unreadCount > 1 ? "s" : ""}
             </p>
           ) : (
-            <p className="text-xs mt-1" style={{ color: "#6b7785" }}>
-              {activeDepositCount > 0
-                ? `${activeDepositCount} active deposit request${activeDepositCount > 1 ? "s" : ""} — waiting for admin`
-                : "No activity yet"}
-            </p>
+            <p className="text-xs mt-1" style={{ color: "#6b7785" }}>All caught up</p>
           )}
         </div>
         <div className="flex items-center gap-2">
-          {/* Manual refresh */}
-          <button
-            onClick={handleManualRefresh}
-            disabled={refreshing || ordersLoading}
-            title="Refresh notifications"
-            className="w-8 h-8 rounded-lg flex items-center justify-center transition-all disabled:opacity-40 cursor-pointer"
-            style={{ background: "#151d2d", border: "1px solid #252f45" }}
-          >
-            <div
-              className="w-4 h-4 border-2 rounded-full"
-              style={{
-                borderColor: "#00d4a1",
-                borderTopColor: "transparent",
-                animation: (refreshing || ordersLoading) ? "spin 0.7s linear infinite" : "none",
-              }}
-            />
-          </button>
           {unreadCount > 0 && (
             <button
               onClick={markAllNotificationsRead}
@@ -116,100 +140,6 @@ export default function NotificationsPage() {
           )}
         </div>
       </div>
-
-      {/* Debug toggle — for troubleshooting */}
-      <button
-        onClick={() => setShowDebug((v) => !v)}
-        className="text-xs font-mono px-2 py-1 rounded mb-4 cursor-pointer transition-all"
-        style={{
-          background: showDebug ? "#1d2639" : "transparent",
-          color: "#6b7785",
-          border: "1px solid #252f45",
-        }}
-      >
-        {showDebug ? "◉ Debug ON" : "○ Debug"} — raw order data
-      </button>
-
-      {/* Debug panel — shows exactly what the API returns */}
-      {showDebug && (
-        <div className="mb-6 p-4 rounded-2xl text-xs font-mono" style={{ background: "#0d1624", border: "1px solid #252f45" }}>
-          <div className="flex items-center justify-between mb-3">
-            <span className="font-bold" style={{ color: "#00d4a1" }}>RAW API DATA (via usePaymentOrders)</span>
-            <button onClick={handleManualRefresh} disabled={refreshing || ordersLoading} className="text-[10px] px-2 py-1 rounded cursor-pointer" style={{ background: "#1d2639", color: "#9aa3b0" }}>
-              {refreshing || ordersLoading ? "Loading..." : "Refresh"}
-            </button>
-          </div>
-
-          <div className="mb-2" style={{ color: "#9aa3b0" }}>
-            <strong>pendingOrders count:</strong> <span style={{ color: "#fff" }}>{pendingOrders.length}</span>
-          </div>
-
-          {pendingOrders.length === 0 ? (
-            <div style={{ color: "#F44336" }}>
-              ⚠ No orders returned from API. Check: (1) Are you logged in? (2) Did you submit a deposit as a REGULAR USER?
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {pendingOrders.map((order, i) => {
-                const hasMethodDetails = Boolean(order.methodDetails || order.isMethodIncluded);
-                const hasProof = Boolean(order.proofPaymentDocument);
-                const willShowNotification = hasMethodDetails && !hasProof && ["pending", "awaiting_payment", "awaiting_confirmation"].includes(order.status);
-
-                return (
-                  <div key={order._id} className="p-3 rounded-xl" style={{ background: "#151d2d", border: "1px solid #252f45" }}>
-                    <div className="flex items-center justify-between mb-2">
-                      <span style={{ color: "#00d4a1" }}>Order #{i + 1}</span>
-                      <span className="px-2 py-0.5 rounded text-[10px]" style={{ background: "#1d2639", color: "#9aa3b0" }}>
-                        {order.type} · {order.status}
-                      </span>
-                    </div>
-                    <div style={{ color: "#9aa3b0" }}>
-                      <div>amount: <span style={{ color: "#fff" }}>${order.amount}</span></div>
-                      <div>method: <span style={{ color: "#fff" }}>{order.method}</span></div>
-                      <div>methodDetails: <span style={{ color: order.methodDetails ? "#00d4a1" : "#F44336" }}>{order.methodDetails ? `"${order.methodDetails}"` : "null/undefined"}</span></div>
-                      <div>isMethodIncluded: <span style={{ color: order.isMethodIncluded ? "#00d4a1" : "#9aa3b0" }}>{String(order.isMethodIncluded)}</span></div>
-                      <div>proofPaymentDocument: <span style={{ color: hasProof ? "#00d4a1" : "#F44336" }}>{hasProof ? "present" : "null/undefined"}</span></div>
-                      <div className="mt-2 pt-2" style={{ borderTop: "1px solid #252f45" }}>
-                        <div>will show &quot;Payment Details Ready&quot; notification: <span style={{ color: willShowNotification ? "#00d4a1" : "#F44336", fontWeight: "bold" }}>{String(willShowNotification)}</span></div>
-                        <div style={{ color: "#6b7785" }}>
-                          Reason: {hasMethodDetails ? "✓ has details" : "✗ methodDetails AND isMethodIncluded are both falsy"}
-                          {hasProof ? " · ✗ proof already uploaded" : ""}
-                          {!["pending", "awaiting_payment", "awaiting_confirmation"].includes(order.status) ? ` · ✗ status is "${order.status}" (not active)` : ""}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          <div className="mt-3 pt-3" style={{ borderTop: "1px solid #252f45", color: "#9aa3b0" }}>
-            <div>notifications count: <span style={{ color: "#fff" }}>{notifications.length}</span></div>
-          </div>
-        </div>
-      )}
-
-      {/* API error banner — visible when payment-orders query fails */}
-      {ordersError && (
-        <div className="mb-4 p-3 rounded-xl flex items-start gap-2" style={{ background: "rgba(244,67,54,0.08)", border: "1px solid rgba(244,67,54,0.3)" }}>
-          <Icon icon="mdi:alert-circle-outline" width={18} className="shrink-0 mt-0.5" style={{ color: "#F44336" }} />
-          <div className="flex-1 text-xs">
-            <p className="font-bold" style={{ color: "#F44336" }}>Could not load payment orders</p>
-            <p className="mt-0.5" style={{ color: "#9aa3b0" }}>{ordersError}</p>
-            <p className="mt-1" style={{ color: "#6b7785" }}>
-              If you&apos;re logged in as a regular user, notifications will appear here automatically once the orders API responds.
-            </p>
-          </div>
-          <button
-            onClick={handleManualRefresh}
-            className="text-[10px] font-bold px-2 py-1 rounded cursor-pointer"
-            style={{ background: "rgba(244,67,54,0.15)", color: "#F44336" }}
-          >
-            Retry
-          </button>
-        </div>
-      )}
 
       {/* Filter Tabs */}
       <div className="flex gap-2 mb-6">
@@ -253,42 +183,6 @@ export default function NotificationsPage() {
             <Icon icon="mdi:bell-off-outline" width={48} className="mb-3" style={{ color: "#6b7785" }} />
             <p className="text-white font-semibold">All caught up!</p>
             <p className="text-sm mt-1" style={{ color: "#6b7785" }}>No notifications to show yet</p>
-
-            {/* Debug info — shows deposit order state */}
-            {pendingOrders.length === 0 ? (
-              <p className="text-xs mt-3" style={{ color: "#4a5568" }}>
-                No active deposit requests — submit one from your dashboard.
-              </p>
-            ) : (
-              <div className="mt-4 p-3 rounded-xl text-left w-full max-w-sm" style={{ background: "#0d1624", border: "1px solid #252f45" }}>
-                <p className="text-xs font-bold text-penny-text-muted mb-2 uppercase tracking-wider">Active Deposit Requests</p>
-                {pendingOrders
-                  .filter((o) => o.type === "deposit" && o.status !== "completed" && o.status !== "rejected" && o.status !== "expired")
-                  .map((order) => {
-                    const hasDetails = Boolean(order.methodDetails || order.isMethodIncluded);
-                    const hasProof = Boolean(order.proofPaymentDocument);
-                    let step = "Awaiting admin details";
-                    if (hasDetails) step = hasProof ? "Proof submitted, under review" : "Payment details ready — action needed";
-                    return (
-                      <div key={order._id} className="flex items-center justify-between py-2 border-b border-[#1d2639] last:border-0">
-                        <div>
-                          <p className="text-xs font-bold text-white">${order.amount.toFixed(2)}</p>
-                          <p className="text-[10px]" style={{ color: "#6b7785" }}>{order.method}</p>
-                        </div>
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{
-                          background: hasDetails ? (hasProof ? "rgba(33,150,243,0.15)" : "rgba(0,212,161,0.15)") : "rgba(245,197,24,0.15)",
-                          color: hasDetails ? (hasProof ? "#2196F3" : "#00d4a1") : "#F5C518",
-                        }}>
-                          {step}
-                        </span>
-                      </div>
-                    );
-                  })}
-                <p className="text-[10px] mt-2" style={{ color: "#4a5568" }}>
-                  Notifications update automatically. Admin sends payment details to unlock the next step.
-                </p>
-              </div>
-            )}
           </div>
         ) : (
           filteredNotifications.map((notification) => {
@@ -344,7 +238,7 @@ export default function NotificationsPage() {
                         className="text-[11px] font-bold flex items-center gap-1"
                         style={{ color: styles.color }}
                       >
-                        Tap to open & pay
+                        Tap to open &amp; pay
                         <Icon icon="mdi:arrow-right" width={12} />
                       </span>
                     )}

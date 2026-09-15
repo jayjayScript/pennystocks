@@ -2,86 +2,109 @@
 
 import React from "react";
 import { Icon } from "@iconify/react";
-import { useAdminUsers, useAdminTransactions, useStocks } from "@/hooks/queries";
-import { formatUSD } from "@/context/PortfolioContext";
+import type { Transaction } from "@/types/api";
+import { useAdminUsers } from "@/hooks/queries";
+import { useAdminTransactions } from "@/hooks/queries";
+import { useStocks } from "@/hooks/queries";
 
-function formatDate(iso: string): string {
+const formatUSD = (n: number) =>
+  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
+
+const formatDate = (iso: string): string => {
   return new Date(iso).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
     hour: "2-digit",
     minute: "2-digit",
   });
-}
+};
 
 export default function AdminOverviewPage() {
-  const { data: usersData, isLoading: usersLoading } = useAdminUsers(1, 1);
-  const { data: txData, isLoading: txLoading } = useAdminTransactions(1, 10);
-  const { data: stocksData, isLoading: stocksLoading } = useStocks(1, 1);
+  // Users
+  const {
+    data: usersData,
+    isLoading: usersLoading,
+  } = useAdminUsers(1, 100);
+  const totalUsers = usersLoading ? 0 : usersData?.data?.length ?? 0;
 
-  const users = usersData?.data ?? [];
-  const totalUsers = usersData?.pagination?.total ?? users.length;
-  const totalStocks = stocksData?.pagination?.total ?? stocksData?.data?.length ?? 0;
-  const totalTransactions = txData?.pagination?.total ?? 0;
-  const recentTx = txData?.data ?? [];
+  // Stocks
+  const {
+    data: stocksData,
+    isLoading: stocksLoading,
+  } = useStocks(1, 50);
+  const totalStocks = stocksLoading ? 0 : stocksData?.length ?? 0;
+
+  // Transactions
+  const {
+    data: txData,
+    isLoading: txLoading,
+  } = useAdminTransactions(1, 20);
+  const totalTransactions = txLoading ? 0 : txData?.data?.length ?? 0;
+  const recentTx = txLoading ? [] : txData?.data?.slice(0, 10) ?? [];
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-xl sm:text-2xl font-bold text-white">Overview</h1>
         <p className="text-xs sm:text-sm mt-1" style={{ color: "#9aa3b0" }}>
-          Here&apos;s what&apos;s happening on the platform.
+          Here&apos;re what&apos;s happening on the platform.
         </p>
       </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {/* Users */}
         <div className="rounded-xl sm:rounded-2xl p-4 sm:p-5" style={{ background: "linear-gradient(135deg, #151d2d 0%, #1b2a40 100%)", border: "1px solid #252f45" }}>
           <div className="flex items-start justify-between mb-3">
             <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-lg sm:rounded-xl flex items-center justify-center" style={{ background: "rgba(0,212,161,0.12)" }}>
               <Icon icon="mdi:users-outline" width={18} className="sm:w-[22px] sm:h-[22px]" style={{ color: "#00d4a1" }} />
             </div>
+            <div>
+              <p className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-white">
+                {usersLoading ? "—" : totalUsers.toLocaleString()}
+              </p>
+              <p className="text-[10px] sm:text-sm mt-1" style={{ color: "#9aa3b0" }}>Total Users</p>
+            </div>
           </div>
-          <p className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-white">
-            {usersLoading ? "—" : totalUsers.toLocaleString()}
-          </p>
-          <p className="text-[10px] sm:text-sm mt-1" style={{ color: "#9aa3b0" }}>Total Users</p>
         </div>
 
+        {/* Stocks */}
         <div className="rounded-xl sm:rounded-2xl p-4 sm:p-5" style={{ background: "linear-gradient(135deg, #151d2d 0%, #1b2a40 100%)", border: "1px solid #252f45" }}>
           <div className="flex items-start justify-between mb-3">
             <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-lg sm:rounded-xl flex items-center justify-center" style={{ background: "rgba(0,212,161,0.12)" }}>
               <Icon icon="mdi:chart-line-variant" width={18} className="sm:w-[22px] sm:h-[22px]" style={{ color: "#00d4a1" }} />
             </div>
+            <p className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-white">
+              {stocksLoading ? "—" : totalStocks.toLocaleString()}
+            </p>
+            <p className="text-[10px] sm:text-sm mt-1" style={{ color: "#9aa3b0" }}>Stocks Created</p>
           </div>
-          <p className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-white">
-            {stocksLoading ? "—" : totalStocks.toLocaleString()}
-          </p>
-          <p className="text-[10px] sm:text-sm mt-1" style={{ color: "#9aa3b0" }}>Stocks Created</p>
         </div>
 
+        {/* Stocks Sold */}
         <div className="rounded-xl sm:rounded-2xl p-4 sm:p-5" style={{ background: "linear-gradient(135deg, #151d2d 0%, #1b2a40 100%)", border: "1px solid #252f45" }}>
           <div className="flex items-start justify-between mb-3">
             <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-lg sm:rounded-xl flex items-center justify-center" style={{ background: "rgba(0,212,161,0.12)" }}>
               <Icon icon="mdi:shopping-outline" width={18} className="sm:w-[22px] sm:h-[22px]" style={{ color: "#00d4a1" }} />
             </div>
+            <p className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-white">
+              {txLoading ? "—" : recentTx.filter((t) => t.type === "sell").length.toLocaleString()}
+            </p>
+            <p className="text-[10px] sm:text-sm mt-1" style={{ color: "#9aa3b0" }}>Stocks Sold</p>
           </div>
-          <p className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-white">
-            {txLoading ? "—" : recentTx.filter((t) => t.type === "sell").length.toLocaleString()}
-          </p>
-          <p className="text-[10px] sm:text-sm mt-1" style={{ color: "#9aa3b0" }}>Stocks Sold</p>
         </div>
 
+        {/* Transactions */}
         <div className="rounded-xl sm:rounded-2xl p-4 sm:p-5" style={{ background: "linear-gradient(135deg, #151d2d 0%, #1b2a40 100%)", border: "1px solid #252f45" }}>
           <div className="flex items-start justify-between mb-3">
             <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-lg sm:rounded-xl flex items-center justify-center" style={{ background: "rgba(0,212,161,0.12)" }}>
               <Icon icon="mdi:swap-horizontal" width={18} className="sm:w-[22px] sm:h-[22px]" style={{ color: "#00d4a1" }} />
             </div>
+            <p className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-white">
+              {txLoading ? "—" : totalTransactions.toLocaleString()}
+            </p>
+            <p className="text-[10px] sm:text-sm mt-1" style={{ color: "#9aa3b0" }}>Transactions</p>
           </div>
-          <p className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-white">
-            {txLoading ? "—" : totalTransactions.toLocaleString()}
-          </p>
-          <p className="text-[10px] sm:text-sm mt-1" style={{ color: "#9aa3b0" }}>Transactions</p>
         </div>
       </div>
 
@@ -126,12 +149,14 @@ export default function AdminOverviewPage() {
                 <div key={tx._id} className="lg:grid lg:grid-cols-[1.5fr_1.5fr_1fr_1fr_1.5fr_1fr] px-4 sm:px-6 py-4 flex flex-col gap-3 hover:bg-opacity-50 transition-colors" style={{ borderColor: "#1d2639" }}>
                   {/* User Info */}
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center shrink-0 text-[10px] sm:text-xs font-bold" style={{ background: "rgba(0,212,161,0.1)", color: "#00d4a1" }}>
+                    <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-bold" style={{ background: "rgba(0,212,161,0.1)", color: "#00d4a1" }}>
                       {initials}
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="text-xs sm:text-sm font-semibold text-white truncate">{userName}</p>
-                      <p className="text-[10px] sm:text-xs truncate" style={{ color: "#6b7785" }}>{tx.transactionID ?? tx._id}</p>
+                      <p className="text-[10px] sm:text-sm truncate" style={{ color: "#6b7785" }}>
+                        {tx.transactionID ?? tx._id}
+                      </p>
                     </div>
                   </div>
 
@@ -161,19 +186,21 @@ export default function AdminOverviewPage() {
 
                   {/* Date */}
                   <div className="lg:text-right">
-                    <span className="text-[10px] sm:text-xs" style={{ color: "#6b7785" }}>{formatDate(tx.createdAt)}</span>
+                    <span className="text-[10px] sm:text-xs" style={{ color: "#6b7785" }}>
+                      {formatDate(tx.createdAt)}
+                    </span>
                   </div>
                 </div>
               );
             })
           )}
         </div>
+      </div>
 
-        <div className="px-4 sm:px-6 py-4 text-center" style={{ borderTop: "1px solid #1d2639" }}>
-          <button className="text-xs sm:text-sm font-semibold transition-opacity hover:opacity-80 cursor-pointer" style={{ color: "#00d4a1" }}>
-            View All Transactions
-          </button>
-        </div>
+      <div className="px-4 sm:px-6 py-4 text-center" style={{ borderTop: "1px solid #1d2639" }}>
+        <button className="text-xs sm:text-sm font-semibold transition-opacity hover:opacity-80 cursor-pointer" style={{ color: "#00d4a1" }}>
+          View All Transactions
+        </button>
       </div>
     </div>
   );

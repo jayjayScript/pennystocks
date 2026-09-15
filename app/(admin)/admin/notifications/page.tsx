@@ -2,20 +2,6 @@
 
 import React, { useState } from "react";
 import { Icon } from "@iconify/react";
-import { useAdminTransactions } from "@/hooks/queries/useAdminTransactions";
-import { useAdminPaymentOrders } from "@/hooks/queries/useAdminPaymentOrders";
-import { formatUSD } from "@/context/PortfolioContext";
-
-function timeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const m = Math.floor(diff / 60000);
-  if (m < 1) return "Just now";
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  return `${Math.floor(h / 24)}d ago`;
-}
-
 type NotifItem = {
   id: string;
   title: string;
@@ -26,54 +12,9 @@ type NotifItem = {
 };
 
 export default function AdminNotificationsPage() {
-  const { data: txData, isLoading: txLoading } = useAdminTransactions(1, 50);
-  const { data: orders, isLoading: ordersLoading } = useAdminPaymentOrders();
-
   const [filter, setFilter] = useState<"all" | "orders" | "transactions">("all");
-
-  const isLoading = txLoading || ordersLoading;
-
-  // Build unified notification list
+  const isLoading = false;
   const items: NotifItem[] = [];
-
-  // Payment orders
-  (orders ?? []).forEach((order) => {
-    let title = "";
-    let status = order.status;
-    if (order.type === "deposit") {
-      title = `Deposit Request — ${formatUSD(order.amount)} via ${order.method}`;
-    } else {
-      title = `Withdrawal Request — ${formatUSD(order.amount)} via ${order.method}`;
-    }
-    let message = `From: ${order.email}`;
-    if (order.proofPaymentDocument) message += " · Proof uploaded";
-    if (order.methodDetails) message += " · Details sent";
-
-    items.push({
-      id: `order-${order._id}`,
-      title,
-      message,
-      time: timeAgo(order.updatedAt || order.createdAt),
-      type: order.type === "deposit" ? "deposit" : "withdraw",
-      status,
-    });
-  });
-
-  // Transactions
-  (txData?.data ?? []).forEach((tx) => {
-    const typeLabel = tx.type.replace("_", " ");
-    items.push({
-      id: `tx-${tx._id}`,
-      title: `${typeLabel.charAt(0).toUpperCase() + typeLabel.slice(1)} — ${formatUSD(tx.amount)}`,
-      message: `${tx.email} · ${tx.reference ?? tx.transactionID ?? tx._id}`,
-      time: timeAgo(tx.createdAt),
-      type: "transaction",
-      status: tx.status,
-    });
-  });
-
-  // Sort newest first
-  items.sort((a, b) => (a.time > b.time ? 1 : -1));
 
   const filtered = filter === "all" ? items : items.filter((i) => {
     if (filter === "orders") return i.type === "deposit" || i.type === "withdraw";

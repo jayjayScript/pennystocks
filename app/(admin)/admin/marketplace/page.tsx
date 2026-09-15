@@ -2,15 +2,59 @@
 
 import React, { useState } from "react";
 import { Icon } from "@iconify/react";
-import { useStocks } from "@/hooks/queries";
-import { useDeleteStock } from "@/hooks/queries/useAdminActions";
-import { formatUSD } from "@/context/PortfolioContext";
+import type { Stock } from "@/types/api";
+
+const formatUSD = (n: number) =>
+  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
+
+const INITIAL_MOCK_STOCKS: Stock[] = [
+  {
+    _id: "stock-1",
+    name: "Apex BioTech",
+    acronym: "APEX",
+    lastPrice: 2.45,
+    change24h: 0.32,
+    rateOfChange: 15.02,
+    currency: "USD",
+    exchange: "NASDAQ",
+    type: "Healthcare",
+    isApproved: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    _id: "stock-2",
+    name: "Nova Lithium Corp",
+    acronym: "NOVA",
+    lastPrice: 0.88,
+    change24h: -0.05,
+    rateOfChange: -5.38,
+    currency: "USD",
+    exchange: "NYSE",
+    type: "Growth",
+    isApproved: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    _id: "stock-3",
+    name: "Solaris Power Systems",
+    acronym: "SOLR",
+    lastPrice: 3.12,
+    change24h: 0.44,
+    rateOfChange: 16.42,
+    currency: "USD",
+    exchange: "OTC",
+    type: "Tech",
+    isApproved: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+];
 
 export default function MarketplacePage() {
-  const { data: stocksData, isLoading } = useStocks(1, 100);
-  const deleteMut = useDeleteStock();
-
-  const stocks = stocksData?.data ?? [];
+  const [stocks, setStocks] = useState<Stock[]>(INITIAL_MOCK_STOCKS);
+  const isLoading = false;
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
@@ -24,7 +68,8 @@ export default function MarketplacePage() {
   });
 
   const handleDelete = (id: string) => {
-    deleteMut.mutate(id, { onSuccess: () => setDeleteConfirm(null) });
+    setStocks((prev) => prev.filter((s) => s._id !== id));
+    setDeleteConfirm(null);
   };
 
   return (

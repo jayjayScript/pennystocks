@@ -2,14 +2,13 @@
 
 import React, { useState } from "react";
 import { Icon } from "@iconify/react";
-import { useStocks } from "@/hooks/queries";
+import type { Stock } from "@/types/api";
 
 export default function RejectedProposalsList() {
-  const { data: stocksData, isLoading } = useStocks(1, 100);
+  const isLoading = false;
   const [search, setSearch] = useState("");
 
-  const allStocks = stocksData?.data ?? [];
-  const rejectedProposals = allStocks.filter((s) => s.isApproved === false);
+  const rejectedProposals: Stock[] = [];
 
   const filtered = rejectedProposals.filter((s) => {
     if (!search) return true;

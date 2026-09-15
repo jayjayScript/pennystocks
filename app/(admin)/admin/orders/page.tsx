@@ -1,11 +1,17 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Icon } from "@iconify/react";
 import { useAdminPaymentOrders } from "@/hooks/queries/useAdminPaymentOrders";
-import { useSendDepositDetails, useApprovePaymentOrder, useRejectPaymentOrder } from "@/hooks/queries/useAdminActions";
-import { formatUSD } from "@/context/PortfolioContext";
+import {
+  useApprovePaymentOrder,
+  useRejectPaymentOrder,
+  useSendDepositDetails,
+} from "@/hooks/queries/useAdminActions";
 import type { PaymentOrder } from "@/types/api";
+
+const formatUSD = (n: number) =>
+  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
 
 type TabKey = "all" | "awaiting_details" | "awaiting_proof" | "completed" | "rejected";
 
@@ -51,14 +57,9 @@ export default function OrdersPage() {
   const [activeTab, setActiveTab] = useState<TabKey>("awaiting_details");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [detailsDraft, setDetailsDraft] = useState<Record<string, string>>({});
-
-  // Auto-select the most useful tab once data arrives
-  useEffect(() => {
-    if (orders.length === 0) return;
-    if (activeTab !== "all") return;
-    const hasAwaiting = orders.some((o) => tabForOrder(o) === "awaiting_details");
-    if (hasAwaiting) setActiveTab("awaiting_details");
-  }, [orders, activeTab]);
+  const [sendingDetailsId, setSendingDetailsId] = useState<string | null>(null);
+  const [processingOrder, setProcessingOrder] = useState<{ id: string; action: "approve" | "reject" } | null>(null);
+  const [actionError, setActionError] = useState("");
 
   const filtered = orders.filter((o) => activeTab === "all" || tabForOrder(o) === activeTab);
 
@@ -80,13 +81,42 @@ export default function OrdersPage() {
   const handleSendDetails = async (id: string) => {
     const text = detailsDraft[id]?.trim();
     if (!text) return;
-    await sendDetails.mutateAsync({ id, methodDetails: text });
-    setEditingId(null);
-    setDetailsDraft((d) => ({ ...d, [id]: "" }));
+    setActionError("");
+    setSendingDetailsId(id);
+    try {
+      await sendDetails.mutateAsync({ id, methodDetails: text });
+      setEditingId(null);
+      setDetailsDraft((d) => ({ ...d, [id]: "" }));
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Failed to send payment details.");
+    } finally {
+      setSendingDetailsId(null);
+    }
   };
 
-  const handleApprove = (id: string) => approve.mutate(id);
-  const handleReject = (id: string) => reject.mutate(id);
+  const handleApprove = async (id: string) => {
+    setActionError("");
+    setProcessingOrder({ id, action: "approve" });
+    try {
+      await approve.mutateAsync(id);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Failed to approve the order.");
+    } finally {
+      setProcessingOrder(null);
+    }
+  };
+
+  const handleReject = async (id: string) => {
+    setActionError("");
+    setProcessingOrder({ id, action: "reject" });
+    try {
+      await reject.mutateAsync(id);
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Failed to reject the order.");
+    } finally {
+      setProcessingOrder(null);
+    }
+  };
 
   return (
     <div className="space-y-5 sm:space-y-6">
@@ -130,6 +160,15 @@ export default function OrdersPage() {
           );
         })}
       </div>
+
+      {actionError && (
+        <div className="flex items-start justify-between gap-3 rounded-xl px-4 py-3 text-xs font-medium" style={{ background: "rgba(244,67,54,0.1)", border: "1px solid rgba(244,67,54,0.3)", color: "#F44336" }}>
+          <span>{actionError}</span>
+          <button type="button" onClick={() => setActionError("")} className="shrink-0 hover:text-white transition-colors" aria-label="Dismiss error">
+            <Icon icon="mdi:close" width={16} />
+          </button>
+        </div>
+      )}
 
       {/* Content */}
       {isLoading ? (
@@ -240,21 +279,33 @@ export default function OrdersPage() {
                   <div className="mt-4 space-y-3">
                     {/* Deposit awaiting details — send details form */}
                     {isDeposit && tab === "awaiting_details" && (
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        <input
-                          value={detailsDraft[order._id] ?? ""}
-                          onChange={(e) => setDetailsDraft((d) => ({ ...d, [order._id]: e.target.value }))}
-                          placeholder="Send account / wallet / payment details to user…"
-                          className="flex-1 px-3 py-2.5 rounded-xl text-xs bg-[#0d1624] border text-white focus:outline-none focus:border-[#00d4a1]"
-                          style={{ borderColor: "#252f45" }}
-                        />
-                        <button
-                          onClick={() => handleSendDetails(order._id)}
-                          disabled={!detailsDraft[order._id]?.trim() || sendDetails.isPending}
-                          className="px-4 py-2.5 rounded-xl text-xs font-bold bg-[#00d4a1] text-[#0d1624] disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 active:scale-95 transition-all"
-                        >
-                          {sendDetails.isPending ? "Sending…" : "Send Details"}
-                        </button>
+                      <div className="space-y-2">
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <textarea
+                            rows={2}
+                            value={detailsDraft[order._id] ?? ""}
+                            onChange={(e) => setDetailsDraft((d) => ({ ...d, [order._id]: e.target.value }))}
+                            placeholder={
+                              order.method.toLowerCase().includes("bank") || order.method.toLowerCase().includes("wire")
+                                ? "Bank Name: Chase Bank\nAccount Number: 123456789\nAccount Name: PennyStocks LLC\nRouting: 021000021"
+                                : order.method.toLowerCase().includes("cash")
+                                ? "Cash App Tag: $PennyStocksOfficial"
+                                : order.method.toLowerCase().includes("paypal") || order.method.toLowerCase().includes("zelle")
+                                ? `${order.method} Email: payments@pennystocksmarketplace.com`
+                                : "USDT (TRC20): TXYZ1234567890...\nor BTC: 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"
+                            }
+                            className="flex-1 px-3 py-2.5 rounded-xl text-xs bg-[#0d1624] border text-white focus:outline-none focus:border-[#00d4a1] font-mono leading-relaxed"
+                            style={{ borderColor: "#252f45" }}
+                          />
+                          <button
+                            onClick={() => handleSendDetails(order._id)}
+                            disabled={!detailsDraft[order._id]?.trim() || sendingDetailsId === order._id}
+                            className="px-5 py-2.5 rounded-xl text-xs font-bold bg-[#00d4a1] text-[#0d1624] disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90 active:scale-95 transition-all flex items-center justify-center gap-1.5 shrink-0 cursor-pointer"
+                          >
+                            <Icon icon="mdi:send" width={14} />
+                            <span>{sendingDetailsId === order._id ? "Sending…" : "Send Details"}</span>
+                          </button>
+                        </div>
                       </div>
                     )}
 
@@ -263,21 +314,25 @@ export default function OrdersPage() {
                       <div className="flex gap-2">
                         <button
                           onClick={() => handleApprove(order._id)}
-                          disabled={approve.isPending}
+                          disabled={processingOrder?.id === order._id}
                           className="flex-1 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95 disabled:opacity-50"
                           style={{ background: "rgba(76,175,80,0.15)", color: "#4CAF50", border: "1px solid rgba(76,175,80,0.3)" }}
                         >
                           <Icon icon="mdi:check" width={14} />
-                          {approve.isPending ? "Approving…" : isDeposit ? "Approve & Credit" : "Approve & Send"}
+                          {processingOrder?.id === order._id && processingOrder.action === "approve"
+                            ? "Approving…"
+                            : isDeposit
+                            ? "Approve & Credit"
+                            : "Approve & Send"}
                         </button>
                         <button
                           onClick={() => handleReject(order._id)}
-                          disabled={reject.isPending}
+                          disabled={processingOrder?.id === order._id}
                           className="flex-1 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95 disabled:opacity-50"
                           style={{ background: "rgba(244,67,54,0.1)", color: "#F44336", border: "1px solid rgba(244,67,54,0.25)" }}
                         >
                           <Icon icon="mdi:close" width={14} />
-                          {reject.isPending ? "Rejecting…" : "Reject"}
+                          {processingOrder?.id === order._id && processingOrder.action === "reject" ? "Rejecting…" : "Reject"}
                         </button>
                       </div>
                     )}

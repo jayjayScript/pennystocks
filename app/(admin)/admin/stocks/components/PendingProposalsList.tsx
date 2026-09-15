@@ -2,20 +2,48 @@
 
 import React, { useState } from "react";
 import { Icon } from "@iconify/react";
-import { useStocks } from "@/hooks/queries";
-import { useApproveStock, useRejectStock } from "@/hooks/queries/useAdminActions";
 import ProposalDetailModal, { type ApprovalData } from "./ProposalDetailModal";
+import type { Stock } from "@/types/api";
+
+const MOCK_PENDING_PROPOSALS: Stock[] = [
+  {
+    _id: "prop-1",
+    name: "Helix Genetics Inc",
+    acronym: "HLIX",
+    lastPrice: 1.85,
+    change24h: 0,
+    rateOfChange: 0,
+    currency: "USD",
+    exchange: "NASDAQ",
+    type: "Healthcare",
+    description: "Gene-editing therapeutic platform focused on rare diseases.",
+    isApproved: null,
+    createdAt: new Date(Date.now() - 3600000).toISOString(),
+    updatedAt: new Date(Date.now() - 3600000).toISOString(),
+  },
+  {
+    _id: "prop-2",
+    name: "AeroDynamics Space",
+    acronym: "AERO",
+    lastPrice: 0.95,
+    change24h: 0,
+    rateOfChange: 0,
+    currency: "USD",
+    exchange: "OTC",
+    type: "Tech",
+    description: "Suborbital launch vehicle developer for microsatellites.",
+    isApproved: null,
+    createdAt: new Date(Date.now() - 7200000).toISOString(),
+    updatedAt: new Date(Date.now() - 7200000).toISOString(),
+  },
+];
 
 export default function PendingProposalsList() {
-  const { data: stocksData, isLoading } = useStocks(1, 100);
-  const approveMut = useApproveStock();
-  const rejectMut = useRejectStock();
+  const [pendingProposals, setPendingProposals] = useState<Stock[]>(MOCK_PENDING_PROPOSALS);
+  const isLoading = false;
 
   const [selectedProposal, setSelectedProposal] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-
-  const allStocks = stocksData?.data ?? [];
-  const pendingProposals = allStocks.filter((s) => s.isApproved === null || s.isApproved === undefined);
 
   const filtered = pendingProposals.filter((s) => {
     if (!search) return true;
@@ -28,13 +56,13 @@ export default function PendingProposalsList() {
 
   const selected = filtered.find((s) => s._id === selectedProposal) ?? null;
 
-  const handleApprove = async (id: string, data: ApprovalData) => {
-    await approveMut.mutateAsync({ id, data });
+  const handleApprove = async (id: string, _data: ApprovalData) => {
+    setPendingProposals((prev) => prev.filter((s) => s._id !== id));
     setSelectedProposal(null);
   };
 
   const handleReject = async (id: string) => {
-    await rejectMut.mutateAsync(id);
+    setPendingProposals((prev) => prev.filter((s) => s._id !== id));
     setSelectedProposal(null);
   };
 

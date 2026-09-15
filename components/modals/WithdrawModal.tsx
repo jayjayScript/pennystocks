@@ -2,15 +2,14 @@
 
 import React, { useState, useEffect } from "react";
 import { Icon } from "@iconify/react";
-import { usePortfolio } from "@/context/PortfolioContext";
-
 interface WithdrawModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
 export default function WithdrawModal({ isOpen, onClose }: WithdrawModalProps) {
-  const { accountBalance, submitWithdrawOrder, withdrawalPassword, setWithdrawalPassword } = usePortfolio();
+  const accountBalance = 12450.00;
+  const withdrawalPassword = "";
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
   const [password, setPassword] = useState("");
@@ -38,26 +37,12 @@ export default function WithdrawModal({ isOpen, onClose }: WithdrawModalProps) {
       return;
     }
 
-    if (passwordNotSet) {
-      if (password.trim() === "") {
-        setError("Please enter a withdrawal password.");
-        return;
-      }
-      // Save password to backend, then submit withdrawal
-      await setWithdrawalPassword(password);
-    } else {
-      if (password !== withdrawalPassword) {
-        setError("Incorrect withdrawal password.");
-        return;
-      }
+    if (password.trim() === "") {
+      setError("Please enter your withdrawal password.");
+      return;
     }
 
-    const result = await submitWithdrawOrder(parsedAmount, note);
-    if (result.success) {
-      setStatus("success");
-    } else {
-      setError(result.message);
-    }
+    setStatus("success");
   };
 
   const handleBackdrop = (e: React.MouseEvent<HTMLDivElement>) => {

@@ -4,28 +4,41 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { Icon } from "@iconify/react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useCopyTrading } from "@/context/CopyTradingContext";
-import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
+
+// ─── Mock Types ───────────────────────────────────────────────────────────────
+
+type CoinInfo = { symbol: string; icon: string; bgColor: string };
+type CopyTradeSetup = { id: string; traderNickname: string; countryFlag: string; country: string; coin: CoinInfo; leverage: number; price: number; traderWinRate: number };
+type TradeEntry = { id: string; type: "buy" | "sell"; amount: number; coinSymbol: string; profitLoss: number };
+type ActiveCopyTrade = { id: string; setup: CopyTradeSetup; status: "active" | "paused"; pnl: number; pnlPercent: number; investedAmount: number; lastTrades: TradeEntry[] };
+
+// ─── Mock Data ────────────────────────────────────────────────────────────────
+
+const MOCK_SETUPS: CopyTradeSetup[] = [
+  { id: "s1", traderNickname: "AlphaKing",  countryFlag: "🇺🇸", country: "USA",    coin: { symbol: "BTC", icon: "mdi:bitcoin",  bgColor: "rgba(247,147,26,0.15)" }, leverage: 10, price: 99,  traderWinRate: 84 },
+  { id: "s2", traderNickname: "NightOwl",   countryFlag: "🇬🇧", country: "UK",     coin: { symbol: "ETH", icon: "mdi:ethereum", bgColor: "rgba(98,126,234,0.15)"  }, leverage: 5,  price: 149, traderWinRate: 76 },
+  { id: "s3", traderNickname: "ZenTrader",  countryFlag: "🇯🇵", country: "Japan",  coin: { symbol: "SOL", icon: "mdi:alpha-s-circle", bgColor: "rgba(20,241,149,0.15)" }, leverage: 3,  price: 79,  traderWinRate: 68 },
+];
+
+const INITIAL_ACTIVE: ActiveCopyTrade[] = [
+  {
+    id: "t1",
+    setup: MOCK_SETUPS[0],
+    status: "active",
+    pnl: 248.30,
+    pnlPercent: 14.2,
+    investedAmount: 1750,
+    lastTrades: [
+      { id: "l1", type: "buy",  amount: 0.0032, coinSymbol: "BTC", profitLoss: 82.50 },
+      { id: "l2", type: "sell", amount: 0.0018, coinSymbol: "BTC", profitLoss: -12.10 },
+    ],
+  },
+];
 
 // ─── Helper Functions ──────────────────────────────────────────────────────────
 
 function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
-}
-
-function formatDate(isoString: string): string {
-  return new Date(isoString).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2 }).format(amount);
 }
 
 // ─── Active Copy Trade Card ───────────────────────────────────────────────────
@@ -37,7 +50,6 @@ function ActiveCopyTradeCard({ trade, onStop, onPause, onResume }: {
   onResume: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const { simulateNewTrade } = useCopyTrading();
 
   return (
     <div className="rounded-2xl overflow-hidden" style={{ background: "#151d2d", border: "1px solid #252f45" }}>
@@ -79,12 +91,11 @@ function ActiveCopyTradeCard({ trade, onStop, onPause, onResume }: {
         className="w-full px-4 pb-3 flex items-center justify-between"
       >
         <span className="text-xs font-semibold" style={{ color: "#9aa3b0" }}>
-          Last 10 Trades ({trade.lastTrades.length})
+          Last Trades ({trade.lastTrades.length})
         </span>
         <Icon icon={expanded ? "mdi:chevron-up" : "mdi:chevron-down"} width={16} style={{ color: "#9aa3b0" }} />
       </button>
 
-      {/* Expanded Trades List */}
       <AnimatePresence>
         {expanded && (
           <motion.div
@@ -94,7 +105,7 @@ function ActiveCopyTradeCard({ trade, onStop, onPause, onResume }: {
             className="overflow-hidden"
           >
             <div className="px-4 pb-4 space-y-2">
-              {trade.lastTrades.map((t, index) => (
+              {trade.lastTrades.map((t) => (
                 <div key={t.id} className="flex items-center justify-between p-2.5 rounded-lg" style={{ background: "#0d1624" }}>
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: t.type === "buy" ? "rgba(0,212,161,0.12)" : "rgba(244,67,54,0.12)", color: t.type === "buy" ? "#00d4a1" : "#F44336" }}>
@@ -102,19 +113,9 @@ function ActiveCopyTradeCard({ trade, onStop, onPause, onResume }: {
                     </span>
                     <span className="text-xs text-white">{t.amount.toFixed(4)} {t.coinSymbol}</span>
                   </div>
-                  <div className="text-right">
-                    <span className="text-[10px]" style={{ color: t.profitLoss >= 0 ? "#4CAF50" : "#F44336" }}>
-                      {t.profitLoss >= 0 ? "+" : ""}{formatCurrency(t.profitLoss)}
-                    </span>
-                    {index === 0 && (
-                      <button
-                        onClick={() => simulateNewTrade(trade.id)}
-                        className="ml-2 text-[10px] px-2 py-0.5 rounded" style={{ background: "rgba(0,212,161,0.1)", color: "#00d4a1" }}
-                      >
-                        Simulate +
-                      </button>
-                    )}
-                  </div>
+                  <span className="text-[10px]" style={{ color: t.profitLoss >= 0 ? "#4CAF50" : "#F44336" }}>
+                    {t.profitLoss >= 0 ? "+" : ""}{formatCurrency(t.profitLoss)}
+                  </span>
                 </div>
               ))}
             </div>
@@ -125,25 +126,16 @@ function ActiveCopyTradeCard({ trade, onStop, onPause, onResume }: {
       {/* Actions */}
       <div className="px-4 pb-4 flex gap-2">
         {trade.status === "active" ? (
-          <button
-            onClick={onPause}
-            className="flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer" style={{ background: "#0d1624", color: "#9aa3b0", border: "1px solid #252f45" }}
-          >
+          <button onClick={onPause} className="flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer" style={{ background: "#0d1624", color: "#9aa3b0", border: "1px solid #252f45" }}>
             Pause
           </button>
         ) : (
-          <button
-            onClick={onResume}
-            className="flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer" style={{ background: "rgba(76,175,80,0.12)", color: "#4CAF50" }}
-          >
+          <button onClick={onResume} className="flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer" style={{ background: "rgba(76,175,80,0.12)", color: "#4CAF50" }}>
             Resume
           </button>
         )}
-        <button
-          onClick={onStop}
-          className="flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer" style={{ background: "rgba(244,67,54,0.12)", color: "#F44336" }}
-        >
-          Stop & Exit
+        <button onClick={onStop} className="flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer" style={{ background: "rgba(244,67,54,0.12)", color: "#F44336" }}>
+          Stop &amp; Exit
         </button>
       </div>
     </div>
@@ -159,7 +151,6 @@ function AvailableSetupCard({ setup, isActive, onBuy }: {
 }) {
   return (
     <div className="rounded-2xl p-4" style={{ background: "#151d2d", border: "1px solid #252f45" }}>
-      {/* Trader Info */}
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center gap-3">
           <div className="w-11 h-11 rounded-full flex items-center justify-center text-sm font-bold" style={{ background: "rgba(0,212,161,0.1)", color: "#00d4a1" }}>
@@ -179,7 +170,6 @@ function AvailableSetupCard({ setup, isActive, onBuy }: {
         </div>
       </div>
 
-      {/* Coin & Stats */}
       <div className="grid grid-cols-3 gap-2 mb-4">
         <div className="p-2.5 rounded-xl text-center" style={{ background: "#0d1624" }}>
           <div className="w-8 h-8 mx-auto rounded-lg flex items-center justify-center mb-1" style={{ background: setup.coin.bgColor }}>
@@ -197,7 +187,6 @@ function AvailableSetupCard({ setup, isActive, onBuy }: {
         </div>
       </div>
 
-      {/* Buy Button */}
       <button
         onClick={onBuy}
         disabled={isActive}
@@ -241,18 +230,9 @@ function BuyConfirmModal({ setup, onConfirm, onClose }: {
         </div>
 
         <div className="space-y-3 p-4 rounded-xl" style={{ background: "#0d1624" }}>
-          <div className="flex justify-between text-sm">
-            <span style={{ color: "#6b7785" }}>Coin</span>
-            <span className="text-white font-semibold">{setup.coin.symbol}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span style={{ color: "#6b7785" }}>Leverage</span>
-            <span className="text-white font-semibold">{setup.leverage}x</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span style={{ color: "#6b7785" }}>Win Rate</span>
-            <span className="text-white font-semibold">{setup.traderWinRate}%</span>
-          </div>
+          <div className="flex justify-between text-sm"><span style={{ color: "#6b7785" }}>Coin</span><span className="text-white font-semibold">{setup.coin.symbol}</span></div>
+          <div className="flex justify-between text-sm"><span style={{ color: "#6b7785" }}>Leverage</span><span className="text-white font-semibold">{setup.leverage}x</span></div>
+          <div className="flex justify-between text-sm"><span style={{ color: "#6b7785" }}>Win Rate</span><span className="text-white font-semibold">{setup.traderWinRate}%</span></div>
           <div className="border-t pt-3 mt-3 flex justify-between">
             <span className="font-semibold text-white">Price</span>
             <span className="font-bold" style={{ color: "#F5C518" }}>{formatCurrency(setup.price)}</span>
@@ -260,12 +240,8 @@ function BuyConfirmModal({ setup, onConfirm, onClose }: {
         </div>
 
         <div className="flex gap-3">
-          <button onClick={onClose} className="flex-1 py-3 rounded-xl font-bold cursor-pointer" style={{ background: "#0d1624", color: "#9aa3b0" }}>
-            Cancel
-          </button>
-          <button onClick={onConfirm} className="flex-1 py-3 rounded-xl font-bold cursor-pointer" style={{ background: "#00d4a1", color: "#0d1624" }}>
-            Confirm
-          </button>
+          <button onClick={onClose} className="flex-1 py-3 rounded-xl font-bold cursor-pointer" style={{ background: "#0d1624", color: "#9aa3b0" }}>Cancel</button>
+          <button onClick={onConfirm} className="flex-1 py-3 rounded-xl font-bold cursor-pointer" style={{ background: "#00d4a1", color: "#0d1624" }}>Confirm</button>
         </div>
       </motion.div>
     </motion.div>
@@ -275,21 +251,15 @@ function BuyConfirmModal({ setup, onConfirm, onClose }: {
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function CopyTradingPage() {
-  const {
-    copyWalletBalance,
-    activeCopyTrades,
-    availableSetups,
-    buyCopyTrade,
-    stopCopyTrade,
-    pauseCopyTrade,
-    resumeCopyTrade,
-    getActiveTradeBySetupId,
-    formatUSD,
-  } = useCopyTrading();
-
+  const [activeCopyTrades, setActiveCopyTrades] = useState<ActiveCopyTrade[]>(INITIAL_ACTIVE);
+  const [copyWalletBalance] = useState(750.00);
   const [selectedSetup, setSelectedSetup] = useState<CopyTradeSetup | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [notification, setNotification] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  const availableSetups = MOCK_SETUPS.filter(
+    (s) => !activeCopyTrades.some((t) => t.setup.id === s.id)
+  );
 
   const showNotification = (type: "success" | "error", message: string) => {
     setNotification({ type, message });
@@ -298,37 +268,54 @@ export default function CopyTradingPage() {
 
   const handleBuy = (setup: CopyTradeSetup) => {
     setSelectedSetup(setup);
-    if (getActiveTradeBySetupId(setup.id)) {
-      showNotification("error", "You already have this trade copied!");
-      return;
-    }
     setShowConfirm(true);
   };
 
-  const confirmBuy = async () => {
+  const confirmBuy = () => {
     if (!selectedSetup) return;
-    const result = await buyCopyTrade(selectedSetup.id);
-    showNotification(result.success ? "success" : "error", result.message);
+    const newTrade: ActiveCopyTrade = {
+      id: `t-${Date.now()}`,
+      setup: selectedSetup,
+      status: "active",
+      pnl: 0,
+      pnlPercent: 0,
+      investedAmount: selectedSetup.price,
+      lastTrades: [],
+    };
+    setActiveCopyTrades((prev) => [...prev, newTrade]);
+    showNotification("success", `Now copying ${selectedSetup.traderNickname}!`);
     setShowConfirm(false);
     setSelectedSetup(null);
   };
 
   const handleStop = (trade: ActiveCopyTrade) => {
-    const result = stopCopyTrade(trade.id);
-    showNotification(result.success ? "success" : "error", result.message);
+    setActiveCopyTrades((prev) => prev.filter((t) => t.id !== trade.id));
+    showNotification("success", `Stopped copying ${trade.setup.traderNickname}.`);
   };
 
-  // Auto-simulate trades for active copy trades
+  const handlePause = (id: string) => {
+    setActiveCopyTrades((prev) => prev.map((t) => t.id === id ? { ...t, status: "paused" } : t));
+  };
+
+  const handleResume = (id: string) => {
+    setActiveCopyTrades((prev) => prev.map((t) => t.id === id ? { ...t, status: "active" } : t));
+  };
+
+  // Auto-simulate minor PnL drift on active trades
   useEffect(() => {
     const interval = setInterval(() => {
-      activeCopyTrades.forEach((trade) => {
-        if (trade.status === "active" && Math.random() > 0.7) {
-          // Random chance to simulate new trade
-        }
-      });
-    }, 10000); // Check every 10 seconds
+      setActiveCopyTrades((prev) =>
+        prev.map((t) => {
+          if (t.status !== "active") return t;
+          const delta = (Math.random() - 0.48) * 5;
+          const newPnl = +(t.pnl + delta).toFixed(2);
+          const newPct = +((newPnl / t.investedAmount) * 100).toFixed(2);
+          return { ...t, pnl: newPnl, pnlPercent: newPct };
+        })
+      );
+    }, 5000);
     return () => clearInterval(interval);
-  }, [activeCopyTrades]);
+  }, []);
 
   return (
     <div className="min-h-screen" style={{ background: "#0d1624" }}>
@@ -345,10 +332,9 @@ export default function CopyTradingPage() {
             </div>
           </div>
 
-          {/* Copy Wallet Balance */}
           <div className="px-4 py-2 rounded-xl" style={{ background: "#151d2d", border: "1px solid #252f45" }}>
             <p className="text-[10px]" style={{ color: "#6b7785" }}>Copy Wallet</p>
-            <p className="text-sm font-bold" style={{ color: "#F5C518" }}>{formatUSD(copyWalletBalance)}</p>
+            <p className="text-sm font-bold" style={{ color: "#F5C518" }}>{formatCurrency(copyWalletBalance)}</p>
           </div>
         </div>
       </header>
@@ -366,8 +352,8 @@ export default function CopyTradingPage() {
                   key={trade.id}
                   trade={trade}
                   onStop={() => handleStop(trade)}
-                  onPause={() => pauseCopyTrade(trade.id)}
-                  onResume={() => resumeCopyTrade(trade.id)}
+                  onPause={() => handlePause(trade.id)}
+                  onResume={() => handleResume(trade.id)}
                 />
               ))}
             </div>
@@ -387,7 +373,7 @@ export default function CopyTradingPage() {
               <AvailableSetupCard
                 key={setup.id}
                 setup={setup}
-                isActive={!!getActiveTradeBySetupId(setup.id)}
+                isActive={activeCopyTrades.some((t) => t.setup.id === setup.id)}
                 onBuy={() => handleBuy(setup)}
               />
             ))}

@@ -2,15 +2,12 @@
 
 import React, { useState, useEffect } from "react";
 import { Icon } from "@iconify/react";
-import { usePortfolio } from "@/context/PortfolioContext";
-
 interface SetWithdrawalPasswordModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
 export default function SetWithdrawalPasswordModal({ isOpen, onClose }: SetWithdrawalPasswordModalProps) {
-  const { setWithdrawalPassword } = usePortfolio();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
@@ -35,12 +32,7 @@ export default function SetWithdrawalPasswordModal({ isOpen, onClose }: SetWithd
       return;
     }
 
-    const result = await setWithdrawalPassword(password);
-    if (result && !result.success) {
-      setError(result.message);
-    } else {
-      setStatus("success");
-    }
+    setStatus("success");
   };
 
   const handleBackdrop = (e: React.MouseEvent<HTMLDivElement>) => {

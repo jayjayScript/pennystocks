@@ -4,6 +4,7 @@
 import DesktopSideNav from "@/components/global/nav/DesktopSideNav";
 import MobileNav from "@/components/global/nav/MobileNav";
 import TopNav from "@/components/global/nav/TopNav";
+import PendingDepositBanner from "@/components/global/PendingDepositBanner";
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -18,6 +19,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
         {/* Main content area — grows to fill remaining height */}
         <main className="flex-1 overflow-y-auto pb-32 md:pb-0 w-full">
+          <div className="px-4 md:px-8 pt-3">
+            <PendingDepositBanner />
+          </div>
           {children}
         </main>
       </div>

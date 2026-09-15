@@ -4,17 +4,39 @@ import { Button, Paper, Text, Title, Box, Stack } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import Apple from "@/components/global/Apple";
 import Logo from "@/components/logo/Logo";
-import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import { GoogleLogin } from "@react-oauth/google";
+import { authApi } from "@/lib/api/backend";
+import { ApiError } from "@/lib/api/client";
 
 export default function Login() {
-  const { signInWithGoogle, signInWithApple } = useAuth();
   const router = useRouter();
   const [error, setError] = React.useState("");
   const [provider, setProvider] = React.useState<"google" | "apple" | null>(null);
-  const signInWithGoogleCredential = async (credential?: string) => { setError(""); setProvider("google"); try { await signInWithGoogle(credential ?? ""); router.replace("/dashboard/overview"); } catch (err) { setError(err instanceof Error ? err.message : "Sign-in failed"); } finally { setProvider(null); } };
-  const signInWithAppleProvider = async () => { setError(""); setProvider("apple"); try { await signInWithApple(); router.replace("/dashboard/overview"); } catch (err) { setError(err instanceof Error ? err.message : "Sign-in failed"); } finally { setProvider(null); } };
+
+  const signInWithGoogleCredential = async (credential?: string) => {
+    if (!credential) {
+      setError("Google did not return a valid credential");
+      return;
+    }
+    setError("");
+    setProvider("google");
+    try {
+      const res = await authApi.google({ idToken: credential });
+      localStorage.setItem("accessToken", res.accessToken);
+      localStorage.setItem("refreshToken", res.refreshToken);
+      localStorage.setItem("isAdmin", "false");
+      router.replace("/dashboard/overview");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Google sign-in failed. Please try again.");
+      setProvider(null);
+    }
+  };
+
+  const signInWithAppleProvider = () => {
+    setError("Apple sign-in isn't available yet — please use Google for now.");
+  };
+
   const isMd = useMediaQuery('(min-width: 768px)');
   const isLg = useMediaQuery('(min-width: 1024px)');
 
@@ -47,7 +69,6 @@ export default function Login() {
             background: isMd
               ? 'linear-gradient(to top left, #FFFFFF66, #FFFFFF00)'
               : 'linear-gradient(to bottom right, #FFFFFF66, #FFFFFF00)',
-            // border: '1px solid #FFFFFF4C',
             backdropFilter: 'blur(12px)',
             transform: isLg ? 'translateX(-280px)' : 'translateX(0)',
           }}
@@ -56,13 +77,7 @@ export default function Login() {
             <Logo />
 
             <Stack gap={15} mt={isMd ? 60 : 60} align="center">
-              <Title
-                order={2}
-                fz={isMd ? 67 : 46}
-                fw={800}
-                lh="100%"
-                ta="center"
-              >
+              <Title order={2} fz={isMd ? 67 : 46} fw={800} lh="100%" ta="center">
                 Login
               </Title>
               <Text ta="center" size="16px" >
@@ -89,7 +104,6 @@ export default function Login() {
 
               <Button
                 onClick={signInWithAppleProvider}
-                loading={provider === "apple"}
                 fullWidth
                 leftSection={<Apple />}
                 bg="black"

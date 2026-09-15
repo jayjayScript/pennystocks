@@ -2,12 +2,15 @@
 
 import React, { useEffect, useState } from "react";
 import { Icon } from "@iconify/react";
-import { useCopyTrading } from "@/context/CopyTradingContext";
+
+function formatUSD(val: number): string {
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(val);
+}
 
 interface AddFundsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  trade: ActiveCopyTrade | null;
+  trade: any;
 }
 
 const initialState = {
@@ -16,7 +19,7 @@ const initialState = {
 };
 
 export default function AddFundsModal({ isOpen, onClose, trade }: AddFundsModalProps) {
-  const { copyWalletBalance, addToActiveTrade, formatUSD } = useCopyTrading();
+  const copyWalletBalance = 2450;
   const [form, setForm] = useState(initialState);
 
   useEffect(() => {
@@ -34,7 +37,7 @@ export default function AddFundsModal({ isOpen, onClose, trade }: AddFundsModalP
   const validate = () => {
     const amount = parseFloat(form.amount);
     if (!form.amount || isNaN(amount) || amount <= 0) {
-      setForm((p) => ({ ...p, error: "Enter a valid amount", status: "error" }));
+      setForm((p) => ({ ...p, error: "Enter a valid amount" }));
       return false;
     }
     if (amount > copyWalletBalance) {
@@ -50,7 +53,6 @@ export default function AddFundsModal({ isOpen, onClose, trade }: AddFundsModalP
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
-    addToActiveTrade(trade.id, parseFloat(form.amount));
     setForm(initialState);
     onClose();
   };
@@ -71,11 +73,10 @@ export default function AddFundsModal({ isOpen, onClose, trade }: AddFundsModalP
     outline: "none",
   };
 
-  const currentValue = trade.investedAmount + trade.pnl;
   const newAmount = parseFloat(form.amount) || 0;
-  const newInvested = trade.investedAmount + newAmount;
+  const newInvested = (trade.investedAmount || 0) + newAmount;
   const newPnLPercent = newInvested > 0
-    ? parseFloat(((trade.pnl / newInvested) * 100).toFixed(2))
+    ? parseFloat((((trade.pnl || 0) / newInvested) * 100).toFixed(2))
     : 0;
 
   return (
@@ -100,7 +101,7 @@ export default function AddFundsModal({ isOpen, onClose, trade }: AddFundsModalP
             <div>
               <h2 className="text-white font-bold text-lg leading-tight">Add Funds</h2>
               <p className="text-xs text-penny-text-muted mt-0.5">
-                Topping up {trade.setup.traderNickname}
+                Topping up {trade.setup?.traderNickname || "trader"}
               </p>
             </div>
           </div>
@@ -119,12 +120,12 @@ export default function AddFundsModal({ isOpen, onClose, trade }: AddFundsModalP
         >
           <div className="flex justify-between text-xs mb-1.5">
             <span style={{ color: "#6b7785" }}>Current Invested</span>
-            <span className="text-white font-semibold">{formatUSD(trade.investedAmount)}</span>
+            <span className="text-white font-semibold">{formatUSD(trade.investedAmount || 0)}</span>
           </div>
           <div className="flex justify-between text-xs mb-1.5">
             <span style={{ color: "#6b7785" }}>Current PnL</span>
-            <span className="font-semibold" style={{ color: trade.pnl >= 0 ? "#4CAF50" : "#F44336" }}>
-              {trade.pnl >= 0 ? "+" : ""}{formatUSD(trade.pnl)}
+            <span className="font-semibold" style={{ color: (trade.pnl || 0) >= 0 ? "#4CAF50" : "#F44336" }}>
+              {(trade.pnl || 0) >= 0 ? "+" : ""}{formatUSD(trade.pnl || 0)}
             </span>
           </div>
           <div className="flex justify-between text-xs">

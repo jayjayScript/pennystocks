@@ -1,103 +1,43 @@
 "use client";
 import styles from "./AssetChart.module.css";
 
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
-import { fetchTopAssets, fetchAssetHistory } from "@/lib/api/coincap";
-import { Icon } from "@iconify/react";
-import { formatUSD } from "@/context/PortfolioContext";
 
-type ChartDataPoint = {
-  time: string;
-  fullDate: string;
-  price: number;
-};
+type ChartDataPoint = { time: string; fullDate: string; price: number };
 
-export default function AssetChart({ symbol, color = "#00d4a1", refreshIntervalMs = 0 }: { symbol: string; color?: string; refreshIntervalMs?: number }) {
-  const [data, setData] = useState<ChartDataPoint[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  useEffect(() => {
-    let intervalId: NodeJS.Timeout | null = null;
-    async function loadData() {
-      try {
-        setError(null);
-        setIsLoading(true);
-        // Find the CoinGecko id for this symbol
-        const assets = await fetchTopAssets(200);
-        const asset = assets.find((a) => a.symbol.toUpperCase() === symbol.toUpperCase());
-        if (!asset) {
-          throw new Error('Asset not found');
-        }
-        // Fetch 1 day of hourly history
-        const prices = await fetchAssetHistory(asset.id, 1);
-        const chartData = prices.map(([timestamp, price]: [number, number]) => {
-          const date = new Date(timestamp);
-          return {
-            time: date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-            fullDate: date.toLocaleString(),
-            price,
-          };
-        });
-        setData(chartData);
-        setIsLoaded(true);
-      } catch (e) {
-  const errorMessage = e instanceof Error ? e.message : 'Failed to load chart data';
-  setError(errorMessage);
-} finally {
-  setIsLoading(false);
-}
-    }
-    loadData();
-    if (refreshIntervalMs > 0) {
-      intervalId = setInterval(loadData, refreshIntervalMs);
-    }
-    return () => {
-      if (intervalId) clearInterval(intervalId);
+function generateMockHistory(basePrice: number, points = 24): ChartDataPoint[] {
+  const now = Date.now();
+  return Array.from({ length: points }, (_, i) => {
+    const date = new Date(now - (points - i) * 3600000);
+    const noise = (Math.random() - 0.5) * basePrice * 0.02;
+    const trend = (i / points) * basePrice * 0.05;
+    return {
+      time: date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      fullDate: date.toLocaleString(),
+      price: +(basePrice + trend + noise).toFixed(2),
     };
-  }, [symbol, refreshIntervalMs]);
+  });
+}
 
-  if (isLoading) {
-    return (
-      <div className={`${styles.glassCard} w-full h-full flex flex-col items-center justify-center text-penny-text-muted`}> 
-        <Icon icon="mdi:loading" width={40} className="animate-spin mb-3" />
-        <p className="text-sm">Loading chart data...</p>
-      </div>
-    );
-  }
+function formatUSD(n: number) {
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
+}
 
-  if (error) {
-    return (
-      <div className={`${styles.glassCard} w-full h-full flex flex-col items-center justify-center text-penny-text-muted`}> 
-        <p className="text-sm text-red-400">{error}</p>
-        <button
-          className="mt-2 px-4 py-2 bg-penny-primary text-white rounded hover:bg-penny-primary-dark transition cursor-pointer"
-          onClick={() => {
-            setIsLoaded(false);
-            setData([]);
-            setError(null);
-            // trigger reload by changing symbol (noop) – call loadData directly
-          }}
-        >Retry</button>
-      </div>
-    );
-  }
-
-  if (data.length === 0) {
-    return (
-      <div className={`${styles.glassCard} w-full h-full flex items-center justify-center text-penny-text-muted`}> 
-        <p className="text-sm">No chart data available for {symbol}</p>
-      </div>
-    );
-  }
+export default function AssetChart({ symbol, color = "#00d4a1", basePrice = 100 }: {
+  symbol: string;
+  color?: string;
+  basePrice?: number;
+  refreshIntervalMs?: number;
+}) {
+  const data = useMemo(() => generateMockHistory(basePrice), [basePrice]);
 
   const minPrice = Math.min(...data.map((d) => d.price));
   const maxPrice = Math.max(...data.map((d) => d.price));
   const padding = (maxPrice - minPrice) * 0.1;
 
   return (
-    <div className={`${styles.glassCard} ${isLoaded ? styles.loaded : ''} w-full h-full min-h-[300px]`}>
+    <div className={`${styles.glassCard} ${styles.loaded} w-full h-full min-h-[300px]`}>
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
           <defs>
@@ -109,18 +49,10 @@ export default function AssetChart({ symbol, color = "#00d4a1", refreshIntervalM
           <XAxis dataKey="time" hide />
           <YAxis domain={[minPrice - padding, maxPrice + padding]} hide />
           <Tooltip
-            contentStyle={{
-              backgroundColor: "#151d2d",
-              border: "1px solid #252f45",
-              borderRadius: "12px",
-              color: "#fff",
-              fontWeight: "bold",
-            }}
+            contentStyle={{ backgroundColor: "#151d2d", border: "1px solid #252f45", borderRadius: "12px", color: "#fff", fontWeight: "bold" }}
             itemStyle={{ color }}
             formatter={(value) => value !== undefined ? [formatUSD(value as number), "Price"] : ["", "Price"]}
-            labelFormatter={(_label, payload) =>
-                (payload?.[0]?.payload as ChartDataPoint | undefined)?.fullDate ?? String(_label)
-              }
+            labelFormatter={(_label, payload) => (payload?.[0]?.payload as ChartDataPoint | undefined)?.fullDate ?? String(_label)}
           />
           <Area
             type="monotone"

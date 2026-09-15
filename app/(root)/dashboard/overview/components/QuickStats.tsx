@@ -1,10 +1,6 @@
 "use client";
 
 import { Icon } from "@iconify/react";
-import { useTransactions } from "@/hooks/queries";
-import { useUserProfile } from "@/hooks/queries";
-import { formatUSD } from "@/context/PortfolioContext";
-import { useMemo } from "react";
 
 interface StatRow {
   label: string;
@@ -14,49 +10,14 @@ interface StatRow {
   icon: string;
 }
 
+const MOCK_STATS: StatRow[] = [
+  { label: "Balance",            value: "$12,450.00", change: "+18.4%", up: true,  icon: "mdi:wallet-outline" },
+  { label: "Total Deposits",     value: "$10,500.00", change: "—",      up: true,  icon: "mdi:arrow-down-bold-circle-outline" },
+  { label: "Total Withdrawals",  value: "$1,200.00",  change: "—",      up: false, icon: "mdi:arrow-up-bold-circle-outline" },
+  { label: "Transactions",       value: "34",         change: "—",      up: true,  icon: "mdi:receipt-text-outline" },
+];
+
 export default function QuickStats() {
-  const { data: profile } = useUserProfile();
-  const { data: txData } = useTransactions(1, 50);
-
-  const stats: StatRow[] = useMemo(() => {
-    const transactions = txData?.data ?? [];
-    const totalDeposit = profile?.totalDeposit ?? 0;
-    const totalWithdraw = profile?.totalWithdraw ?? 0;
-    const balance = profile?.balance ?? 0;
-    const txCount = profile?.transactionCount ?? transactions.length;
-
-    return [
-      {
-        label: "Balance",
-        value: formatUSD(balance),
-        change: balance > 0 ? "+" : "—",
-        up: balance > 0,
-        icon: "mdi:wallet-outline",
-      },
-      {
-        label: "Total Deposits",
-        value: formatUSD(totalDeposit),
-        change: `${totalDeposit > 0 ? "—" : "0"}`,
-        up: totalDeposit > 0,
-        icon: "mdi:arrow-down-bold-circle-outline",
-      },
-      {
-        label: "Total Withdrawals",
-        value: formatUSD(totalWithdraw),
-        change: `${totalWithdraw > 0 ? "—" : "0"}`,
-        up: false,
-        icon: "mdi:arrow-up-bold-circle-outline",
-      },
-      {
-        label: "Transactions",
-        value: txCount.toString(),
-        change: "—",
-        up: true,
-        icon: "mdi:receipt-text-outline",
-      },
-    ];
-  }, [profile, txData]);
-
   return (
     <div
       className="rounded-2xl p-6 h-full border border-[#252f45] flex flex-col"
@@ -70,7 +31,7 @@ export default function QuickStats() {
       </div>
 
       <div className="flex flex-col gap-3 flex-1">
-        {stats.map((stat, i) => (
+        {MOCK_STATS.map((stat, i) => (
           <div
             key={i}
             className="flex items-center justify-between p-3 rounded-xl border border-white/5 bg-white/[0.03] hover:bg-white/[0.06] transition-colors"
@@ -102,7 +63,7 @@ export default function QuickStats() {
       </div>
 
       <p className="text-[11px] text-penny-text-muted mt-4 text-center">
-        Live · synced with your account
+        Mock data · pre-integration state
       </p>
     </div>
   );

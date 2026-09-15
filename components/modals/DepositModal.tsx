@@ -3,8 +3,11 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Icon } from "@iconify/react";
 import { usePortfolio } from "@/context/PortfolioContext";
-import { formatUSD } from "@/context/PortfolioContext";
-import type { PaymentOrder, PaymentMethod } from "@/types/api";
+import type { PaymentOrder } from "@/types/api";
+
+function formatUSD(val: number): string {
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(val);
+}
 
 interface DepositModalProps {
   isOpen: boolean;
@@ -15,7 +18,7 @@ interface DepositModalProps {
 interface PaymentSystem {
   id: string;
   name: string;
-  apiValue: PaymentMethod;
+  apiValue: string;
   icon: string;
   description: string;
 }
@@ -40,10 +43,9 @@ function stepForOrder(order: PaymentOrder): "awaiting_admin_details" | "awaiting
 }
 
 export default function DepositModal({ isOpen, onClose, initialOrderId }: DepositModalProps) {
-  const { pendingOrders, submitDepositOrder, submitDepositProof, refetch } = usePortfolio();
+  const { pendingOrders, submitDepositOrder, submitDepositProof } = usePortfolio();
 
   // Only show deposits that are not permanently closed (completed/rejected/expired)
-  // The modal shows the 3-step flow: awaiting-details → awaiting-proof → pending-approval
   const activeDepositOrders = useMemo(
     () => pendingOrders.filter(
       (o) =>
@@ -74,27 +76,33 @@ export default function DepositModal({ isOpen, onClose, initialOrderId }: Deposi
   const currentMethod = PAYMENT_METHODS.find((m) => m.id === selectedMethodId) || PAYMENT_METHODS[0];
 
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-      if (activeDepositOrders.length > 0) {
-        setActiveTab("active");
-        if (initialOrderId && activeDepositOrders.some((o) => o._id === initialOrderId)) {
-          setSelectedOrderId(initialOrderId);
-        } else {
-          // Default to order awaiting user proof first, otherwise the first active order
-          const readyOrder = activeDepositOrders.find((o) => stepForOrder(o) === "awaiting_user_proof");
-          setSelectedOrderId(readyOrder ? readyOrder._id : activeDepositOrders[0]._id);
-        }
-      } else {
-        setActiveTab("new");
-      }
+  if (isOpen) {
+    document.body.style.overflow = "hidden";
+  } else {
+    document.body.style.overflow = "";
+    setStatus("idle");
+    setError("");
+  }
+  return () => { document.body.style.overflow = ""; };
+}, [isOpen]);
+
+// Separate effect: only decide the initial tab/order ONCE per modal open,
+// not every time polling refreshes pendingOrders underneath us.
+useEffect(() => {
+  if (!isOpen) return;
+  if (activeDepositOrders.length > 0) {
+    setActiveTab("active");
+    if (initialOrderId && activeDepositOrders.some((o) => o._id === initialOrderId)) {
+      setSelectedOrderId(initialOrderId);
     } else {
-      document.body.style.overflow = "";
-      setStatus("idle");
-      setError("");
+      const readyOrder = activeDepositOrders.find((o) => stepForOrder(o) === "awaiting_user_proof");
+      setSelectedOrderId(readyOrder ? readyOrder._id : activeDepositOrders[0]._id);
     }
-    return () => { document.body.style.overflow = ""; };
-  }, [isOpen, activeDepositOrders, initialOrderId]);
+  } else {
+    setActiveTab("new");
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [isOpen]); // intentionally NOT depending on activeDepositOrders — only re-run when the modal opens/closes
 
   const selectedOrder = activeDepositOrders.find((o) => o._id === selectedOrderId) || activeDepositOrders[0];
   const selectedStep = selectedOrder ? stepForOrder(selectedOrder) : null;
@@ -134,22 +142,16 @@ export default function DepositModal({ isOpen, onClose, initialOrderId }: Deposi
       setError("Minimum deposit amount is $0.01.");
       return;
     }
+    setError("");
     setSubmitting(true);
-    try {
-      const result = await submitDepositOrder(parsedAmount, currentMethod.apiValue, newNote);
-      if (result.success) {
-        setStatus("request_submitted");
-        setError("");
-        setAmount("");
-        setNewNote("");
-        refetch();
-      } else {
-        setError(result.message);
-      }
-    } catch {
-      setError("Failed to submit deposit request. Please try again.");
-    } finally {
-      setSubmitting(false);
+    const result = await submitDepositOrder(parsedAmount, currentMethod.apiValue, newNote || undefined);
+    setSubmitting(false);
+    if (result.success) {
+      setStatus("request_submitted");
+      setAmount("");
+      setNewNote("");
+    } else {
+      setError(result.message);
     }
   };
 
@@ -160,22 +162,16 @@ export default function DepositModal({ isOpen, onClose, initialOrderId }: Deposi
       setError("Please select or upload your payment transfer screenshot / receipt.");
       return;
     }
+    setError("");
     setSubmitting(true);
-    try {
-      const result = await submitDepositProof(selectedOrder._id, proofImage, proofNote);
-      if (result.success) {
-        setStatus("proof_submitted");
-        setError("");
-        setProofImage(null);
-        setProofNote("");
-        refetch();
-      } else {
-        setError(result.message);
-      }
-    } catch {
-      setError("Failed to submit proof. Please try again.");
-    } finally {
-      setSubmitting(false);
+    const result = await submitDepositProof(selectedOrder._id, proofImage, proofNote || undefined);
+    setSubmitting(false);
+    if (result.success) {
+      setStatus("proof_submitted");
+      setProofImage(null);
+      setProofNote("");
+    } else {
+      setError(result.message);
     }
   };
 
@@ -222,8 +218,7 @@ export default function DepositModal({ isOpen, onClose, initialOrderId }: Deposi
             </div>
             <h3 className="text-white font-bold text-lg mb-1">Deposit Request Sent!</h3>
             <p className="text-sm text-penny-text-muted max-w-sm leading-normal mb-6">
-              Your request to deposit <span className="text-white font-bold">{amount ? formatUSD(parseFloat(amount)) : ""}</span> via{" "}
-              <span className="text-[#00d4a1] font-bold">{currentMethod.name}</span> has been sent to Admin.
+              Your request has been sent to Admin.
               <br /><br />
               Admin will send you the account/wallet details shortly. You can check back here or watch your notifications to upload payment proof.
             </p>

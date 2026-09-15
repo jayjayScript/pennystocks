@@ -4,52 +4,36 @@ import { Icon } from "@iconify/react";
 import { useState } from "react";
 import Link from "next/link";
 
-import { useStocks } from "@/hooks/queries";
 import CopyTradingCarousel from "./CopyTradingCarousel";
 import BuyModal from "@/components/modals/BuyModal";
-import { useStockRequests } from "@/context/StockRequestContext";
+
+type Stock = {
+  id: string;
+  symbol: string;
+  name: string;
+  price: string;
+  change: string;
+  pct: string;
+  up: boolean;
+  bgColor: string;
+  description?: string;
+};
+
+const MOCK_STOCKS: Stock[] = [
+  { id: "1", symbol: "AAPL",  name: "Apple Inc.",          price: "$175.20", change: "2.85",  pct: "+1.65%",  up: true,  bgColor: "rgba(120,120,120,0.15)", description: "Apple Inc. designs, manufactures and markets consumer electronics." },
+  { id: "2", symbol: "TSLA",  name: "Tesla Inc.",           price: "$228.50", change: "-4.10", pct: "-1.76%",  up: false, bgColor: "rgba(204,0,0,0.15)",     description: "Tesla designs and manufactures electric vehicles and clean energy products." },
+  { id: "3", symbol: "NVDA",  name: "NVIDIA Corporation",   price: "$485.10", change: "18.40", pct: "+3.95%",  up: true,  bgColor: "rgba(118,185,0,0.15)",   description: "NVIDIA is a global leader in visual computing and AI hardware." },
+  { id: "4", symbol: "AMZN",  name: "Amazon.com Inc.",      price: "$192.75", change: "3.25",  pct: "+1.71%",  up: true,  bgColor: "rgba(255,153,0,0.15)",   description: "Amazon is the world's largest e-commerce and cloud computing company." },
+  { id: "5", symbol: "MSFT",  name: "Microsoft Corporation",price: "$415.60", change: "-2.10", pct: "-0.50%",  up: false, bgColor: "rgba(0,120,212,0.15)",   description: "Microsoft develops, licenses, and supports a wide range of software products." },
+  { id: "6", symbol: "GOOGL", name: "Alphabet Inc.",        price: "$176.30", change: "4.80",  pct: "+2.80%",  up: true,  bgColor: "rgba(66,133,244,0.15)",  description: "Alphabet is the parent company of Google and its various subsidiaries." },
+];
 
 export default function MarketplaceScreen() {
   const [search, setSearch] = useState("");
   const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
   const [buyOpen, setBuyOpen] = useState(false);
-  const { stockRequests } = useStockRequests();
 
-  // Only fetch approved stocks (isApproved === true)
-  const { data: stocksData, isLoading: stocksLoading, error: stocksError } = useStocks(1, 100);
-
-  // API stocks — only approved ones appear in marketplace
-  const apiApprovedStocks: Stock[] = (stocksData?.data ?? [])
-    .filter((s) => s.isApproved === true)
-    .map((s) => ({
-      id: s._id,
-      symbol: s.acronym,
-      name: s.name,
-      price: new Intl.NumberFormat("en-US", { style: "currency", currency: s.currency || "USD" }).format(s.lastPrice),
-      change: s.change24h.toFixed(2),
-      pct: `${s.rateOfChange >= 0 ? "+" : ""}${s.rateOfChange.toFixed(2)}%`,
-      up: s.rateOfChange >= 0,
-      bgColor: "rgba(0, 212, 161, 0.1)",
-    }));
-
-  // User's own approved proposals (from local context)
-  const myApprovedStocks: Stock[] = stockRequests
-    .filter((r) => r.status === "approved")
-    .map((r, i) => ({
-      id: `approved-${r.id ?? i}`,
-      symbol: r.ticker,
-      name: r.name,
-      price: `$${r.initialPrice.toFixed(2)}`,
-      change: "0.00",
-      pct: "+0.00%",
-      up: true,
-      bgColor: "rgba(0, 212, 161, 0.1)",
-      description: r.description,
-    }));
-
-  const allMarketAssets = [...apiApprovedStocks, ...myApprovedStocks];
-
-  const filtered = allMarketAssets.filter(
+  const filtered = MOCK_STOCKS.filter(
     (a) =>
       a.name.toLowerCase().includes(search.toLowerCase()) ||
       a.symbol.toLowerCase().includes(search.toLowerCase()),
@@ -62,19 +46,15 @@ export default function MarketplaceScreen() {
 
   return (
     <div className="w-full min-h-screen pb-10 overflow-x-hidden">
-      {/* ── Carousel section – needs to bleed edge-to-edge ── */}
+      {/* ── Carousel section */}
       <div className="pt-5 md:pt-8 w-full overflow-hidden mb-6">
         <CopyTradingCarousel />
       </div>
 
-      {/* ── Search bar ── */}
+      {/* ── Search bar */}
       <div className="px-4 sm:px-6 md:px-8 mt-6 max-w-7xl mx-auto w-full">
         <div className="relative">
-          <Icon
-            icon="mdi:magnify"
-            width={22}
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-penny-text-muted"
-          />
+          <Icon icon="mdi:magnify" width={22} className="absolute left-4 top-1/2 -translate-y-1/2 text-penny-text-muted" />
           <input
             type="text"
             placeholder="Search assets..."
@@ -88,7 +68,7 @@ export default function MarketplaceScreen() {
         </div>
       </div>
 
-      {/* ── Desktop table header ── */}
+      {/* ── Desktop table header */}
       <div className="px-4 sm:px-6 md:px-8 mt-4 max-w-7xl mx-auto w-full">
         <div
           className="hidden md:grid grid-cols-[2fr_1fr_1fr_1fr_1fr] items-center px-5 py-3 rounded-xl text-xs font-semibold tracking-wide"
@@ -102,21 +82,13 @@ export default function MarketplaceScreen() {
         </div>
       </div>
 
-      {/* ── Asset list ── */}
+      {/* ── Asset list */}
       <div className="px-4 sm:px-6 md:px-8 mt-3 space-y-3 max-w-7xl mx-auto w-full">
-        {stocksLoading && (
-          <p className="text-sm text-penny-text-muted py-8 text-center">Loading assets...</p>
-        )}
-        {stocksError && (
-          <p className="text-sm text-red-400">Failed to load assets. Please try again.</p>
-        )}
-        {!stocksLoading && !stocksError && filtered.length === 0 && (
+        {filtered.length === 0 && (
           <div className="text-center py-16">
             <Icon icon="mdi:chart-line-variant" width={48} className="mx-auto mb-3" style={{ color: "#6b7785" }} />
-            <p className="text-white font-semibold mb-1">No Listed Assets Yet</p>
-            <p className="text-sm max-w-sm mx-auto" style={{ color: "#6b7785" }}>
-              Stocks must be approved by the admin before they appear in the marketplace.
-            </p>
+            <p className="text-white font-semibold mb-1">No Results</p>
+            <p className="text-sm max-w-sm mx-auto" style={{ color: "#6b7785" }}>Try a different search term.</p>
           </div>
         )}
         {filtered.map((asset, i) => (
@@ -128,49 +100,26 @@ export default function MarketplaceScreen() {
               transition-all duration-150 hover:border-penny-border-default"
             style={{ background: "#151d2d", border: "1px solid #1d2639" }}
           >
-            {/* LEFT – Avatar + Name (navigates to detail) */}
-            <Link
-              href={`/dashboard/marketplace/${asset.symbol}`}
-              className="flex items-center gap-4 min-w-0 flex-1"
-            >
+            {/* LEFT – Avatar + Name */}
+            <Link href={`/dashboard/marketplace/${asset.symbol}`} className="flex items-center gap-4 min-w-0 flex-1">
               <div
                 className="w-11 h-11 shrink-0 rounded-2xl flex items-center justify-center text-lg font-extrabold"
-                style={{
-                  background: asset.bgColor || "rgba(0,212,161,0.1)",
-                  color: asset.bgColor
-                    ? asset.bgColor.replace("0.1)", "1)")
-                    : "var(--penny-accent)",
-                }}
+                style={{ background: asset.bgColor, color: asset.bgColor.replace("0.15)", "1)") }}
               >
                 {asset.symbol[0]}
               </div>
-
               <div className="min-w-0">
-                <p className="text-[15px] font-bold text-white leading-tight truncate">
-                  {asset.symbol}
-                </p>
-                <p
-                  className="text-[13px] leading-snug truncate mt-0.5"
-                  style={{ color: "#9aa3b0" }}
-                >
-                  {asset.name}
-                </p>
+                <p className="text-[15px] font-bold text-white leading-tight truncate">{asset.symbol}</p>
+                <p className="text-[13px] leading-snug truncate mt-0.5" style={{ color: "#9aa3b0" }}>{asset.name}</p>
               </div>
             </Link>
 
-            {/* RIGHT – mobile only: price stacked above pct */}
+            {/* Mobile: price + pct */}
             <div className="flex flex-col items-end shrink-0 ml-3 md:hidden">
-              <p className="text-[15px] font-bold text-white leading-tight">
-                {asset.price}
-              </p>
+              <p className="text-[15px] font-bold text-white leading-tight">{asset.price}</p>
               <span
                 className="mt-1 text-[12px] font-bold px-2.5 py-0.5 rounded-full"
-                style={{
-                  background: asset.up
-                    ? "rgba(76,175,80,0.15)"
-                    : "rgba(244,67,54,0.15)",
-                  color: asset.up ? "#4CAF50" : "#F44336",
-                }}
+                style={{ background: asset.up ? "rgba(76,175,80,0.15)" : "rgba(244,67,54,0.15)", color: asset.up ? "#4CAF50" : "#F44336" }}
               >
                 {asset.pct}
               </span>
@@ -180,28 +129,17 @@ export default function MarketplaceScreen() {
             <div className="hidden md:block text-right">
               <p className="text-sm font-semibold text-white">{asset.price}</p>
             </div>
-
             <div className="hidden md:block text-right">
-              <p className="text-sm" style={{ color: "#9aa3b0" }}>
-                {asset.change}
-              </p>
+              <p className="text-sm" style={{ color: "#9aa3b0" }}>{asset.change}</p>
             </div>
-
             <div className="hidden md:block text-right">
               <span
                 className="text-xs font-bold px-2.5 py-1 rounded-full"
-                style={{
-                  background: asset.up
-                    ? "rgba(76,175,80,0.12)"
-                    : "rgba(244,67,54,0.12)",
-                  color: asset.up ? "#4CAF50" : "#F44336",
-                }}
+                style={{ background: asset.up ? "rgba(76,175,80,0.12)" : "rgba(244,67,54,0.12)", color: asset.up ? "#4CAF50" : "#F44336" }}
               >
                 {asset.pct}
               </span>
             </div>
-
-            {/* Trade button — stops propagation so row link doesn't fire */}
             <div className="hidden md:flex justify-end">
               <button
                 onClick={() => openBuy(asset)}
@@ -215,7 +153,7 @@ export default function MarketplaceScreen() {
         ))}
       </div>
 
-      {/* ── Buy Modal ── */}
+      {/* ── Buy Modal */}
       {selectedStock && (
         <BuyModal
           stock={selectedStock}

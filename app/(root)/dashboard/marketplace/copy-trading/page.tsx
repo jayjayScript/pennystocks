@@ -7,13 +7,51 @@ import useEmblaCarousel from "embla-carousel-react";
 import type { EmblaCarouselType } from "embla-carousel";
 import { motion, AnimatePresence } from "framer-motion";
 
-import { useCopyTrading as useCopyTradingQuery } from "@/hooks/queries";
-import { useCopyTrading as useCopyTradingCtx } from "@/context/CopyTradingContext";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { formatUSD } from "@/context/PortfolioContext";
 import TopUpWalletModal from "@/components/modals/TopUpWalletModal";
 import AddFundsModal from "@/components/modals/AddFundsModal";
+
+function formatCopyUSD(val: number): string {
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(val);
+}
+
+interface ActiveCopyTrade {
+  id: string;
+  setupId: string;
+  setup: {
+    traderNickname: string;
+    coin: { symbol: string };
+    leverage: number;
+  };
+  investedAmount: number;
+  pnl: number;
+  pnlPercent: number;
+  status: "active" | "paused";
+}
+
+const MOCK_SETUPS = [
+  { _id: "t1", traderName: "AlphaKing", traderNickname: "AlphaKing", riskLevel: "low", rateOfChange: 28.4, averageDailyProfit: 142.50, copyTradePrice: 500, purchases: 312, totalAssets: 1250000, duration: "6 months", coin: { symbol: "BTC" }, leverage: 5 },
+  { _id: "t2", traderName: "NightOwl", traderNickname: "NightOwl", riskLevel: "medium", rateOfChange: 47.2, averageDailyProfit: 285.00, copyTradePrice: 750, purchases: 187, totalAssets: 840000, duration: "3 months", coin: { symbol: "ETH" }, leverage: 10 },
+  { _id: "t3", traderName: "ZenTrader", traderNickname: "ZenTrader", riskLevel: "low", rateOfChange: 18.9, averageDailyProfit: 98.75, copyTradePrice: 300, purchases: 524, totalAssets: 2100000, duration: "12 months", coin: { symbol: "SOL" }, leverage: 3 },
+  { _id: "t4", traderName: "QuantumEdge", traderNickname: "QuantumEdge", riskLevel: "high", rateOfChange: -5.1, averageDailyProfit: 420.00, copyTradePrice: 1000, purchases: 94, totalAssets: 450000, duration: "1 month", coin: { symbol: "AVAX" }, leverage: 20 },
+];
+
+const INITIAL_ACTIVE_TRADES: ActiveCopyTrade[] = [
+  {
+    id: "act-1",
+    setupId: "t1",
+    setup: {
+      traderNickname: "AlphaKing",
+      coin: { symbol: "BTC" },
+      leverage: 5,
+    },
+    investedAmount: 500,
+    pnl: 142,
+    pnlPercent: 28.4,
+    status: "active",
+  },
+];
 
 const riskColors: Record<string, { bg: string; text: string; border: string }> = {
   low:    { bg: "rgba(0,212,161,0.12)",  text: "#00d4a1", border: "rgba(0,212,161,0.3)" },
@@ -31,17 +69,54 @@ function formatInitials(name: string): string {
 }
 
 export default function CopyTradingDetailPage() {
-  const { data: setups = [], isLoading } = useCopyTradingQuery();
-  const {
-    copyWalletBalance,
-    activeCopyTrades,
-    buyCopyTrade,
-    stopCopyTrade,
-    pauseCopyTrade,
-    resumeCopyTrade,
-    getActiveTradeBySetupId,
-    formatUSD: formatCopyUSD,
-  } = useCopyTradingCtx();
+  const [copyWalletBalance, setCopyWalletBalance] = useState(2450);
+  const [activeCopyTrades, setActiveCopyTrades] = useState<ActiveCopyTrade[]>(INITIAL_ACTIVE_TRADES);
+  const setups = MOCK_SETUPS;
+  const isLoading = false;
+
+  const buyCopyTrade = async (setupId: string) => {
+    const setup = setups.find(s => s._id === setupId);
+    if (!setup) return { success: false, message: "Trader not found" };
+    if (copyWalletBalance < setup.copyTradePrice) {
+      return { success: false, message: "Insufficient copy wallet balance. Please top up." };
+    }
+    setCopyWalletBalance(prev => prev - setup.copyTradePrice);
+    const newTrade: ActiveCopyTrade = {
+      id: "act-" + Date.now(),
+      setupId: setup._id,
+      setup: {
+        traderNickname: setup.traderNickname,
+        coin: setup.coin,
+        leverage: setup.leverage,
+      },
+      investedAmount: setup.copyTradePrice,
+      pnl: 0,
+      pnlPercent: 0,
+      status: "active",
+    };
+    setActiveCopyTrades(prev => [newTrade, ...prev]);
+    return { success: true, message: `Successfully copying ${setup.traderName}!` };
+  };
+
+  const stopCopyTrade = (id: string) => {
+    const trade = activeCopyTrades.find(t => t.id === id);
+    if (!trade) return { success: false, message: "Trade not found" };
+    setCopyWalletBalance(prev => prev + trade.investedAmount + trade.pnl);
+    setActiveCopyTrades(prev => prev.filter(t => t.id !== id));
+    return { success: true, message: "Copy trade stopped and funds returned to wallet." };
+  };
+
+  const pauseCopyTrade = (id: string) => {
+    setActiveCopyTrades(prev => prev.map(t => t.id === id ? { ...t, status: "paused" as const } : t));
+  };
+
+  const resumeCopyTrade = (id: string) => {
+    setActiveCopyTrades(prev => prev.map(t => t.id === id ? { ...t, status: "active" as const } : t));
+  };
+
+  const getActiveTradeBySetupId = (setupId: string) => {
+    return activeCopyTrades.find(t => t.setupId === setupId);
+  };
 
   // Show all setups from the API — same data source as the marketplace carousel.
   const activeSetups = setups;

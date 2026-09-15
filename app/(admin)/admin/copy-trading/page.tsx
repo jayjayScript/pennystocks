@@ -4,18 +4,61 @@ import React, { useState } from "react";
 import { Icon } from "@iconify/react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { useCopyTrading } from "@/hooks/queries";
-import { useCreateCopyTrade, useUpdateCopyTrade, useDeleteCopyTrade } from "@/hooks/queries/useAdminActions";
-import { formatUSD } from "@/context/PortfolioContext";
-import type { CreateCopyTradingPayload, RiskLevel } from "@/types/api";
+import type { CopyTrading, CreateCopyTradingPayload, RiskLevel } from "@/types/api";
+
+const formatUSD = (n: number) =>
+  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
 
 const RISK_OPTIONS: RiskLevel[] = ["low", "medium", "high"];
 
+const INITIAL_MOCK_SETUPS: CopyTrading[] = [
+  {
+    _id: "setup-1",
+    traderName: "Alpha Momentum",
+    riskLevel: "medium",
+    rateOfChange: 42.8,
+    duration: "14 days",
+    averageDailyProfit: 3.2,
+    purchases: 128,
+    totalAssets: 450000,
+    copyTradePrice: 49.99,
+    isActive: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    _id: "setup-2",
+    traderName: "Quantum Blue",
+    riskLevel: "low",
+    rateOfChange: 18.5,
+    duration: "30 days",
+    averageDailyProfit: 1.1,
+    purchases: 84,
+    totalAssets: 820000,
+    copyTradePrice: 29.99,
+    isActive: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    _id: "setup-3",
+    traderName: "Crypto Apex",
+    riskLevel: "high",
+    rateOfChange: 76.4,
+    duration: "7 days",
+    averageDailyProfit: 6.8,
+    purchases: 52,
+    totalAssets: 190000,
+    copyTradePrice: 99.00,
+    isActive: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+];
+
 export default function CopyTradingAdminPage() {
-  const { data: setups = [], isLoading } = useCopyTrading();
-  const createMut = useCreateCopyTrade();
-  const updateMut = useUpdateCopyTrade();
-  const deleteMut = useDeleteCopyTrade();
+  const [setups, setSetups] = useState<CopyTrading[]>(INITIAL_MOCK_SETUPS);
+  const isLoading = false;
 
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -50,7 +93,7 @@ export default function CopyTradingAdminPage() {
     setShowModal(true);
   };
 
-  const openEdit = (setup: typeof setups[0]) => {
+  const openEdit = (setup: CopyTrading) => {
     setEditingId(setup._id);
     setFormData({
       traderName: setup.traderName,
@@ -80,24 +123,30 @@ export default function CopyTradingAdminPage() {
     if (!validateForm()) return;
 
     if (editingId) {
-      updateMut.mutate(
-        { id: editingId, data: formData },
-        { onSuccess: () => setShowModal(false) }
+      setSetups((prev) =>
+        prev.map((s) => (s._id === editingId ? { ...s, ...formData, updatedAt: new Date().toISOString() } : s))
       );
     } else {
-      createMut.mutate(formData, { onSuccess: () => setShowModal(false) });
+      const newSetup: CopyTrading = {
+        ...formData,
+        _id: `setup-${Date.now()}`,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      setSetups((prev) => [newSetup, ...prev]);
     }
+    setShowModal(false);
   };
 
   const handleDelete = (id: string) => {
-    deleteMut.mutate(id, { onSuccess: () => setDeleteConfirm(null) });
+    setSetups((prev) => prev.filter((s) => s._id !== id));
+    setDeleteConfirm(null);
   };
 
-  const toggleActive = (setup: typeof setups[0]) => {
-    updateMut.mutate({
-      id: setup._id,
-      data: { isActive: !(setup.isActive ?? true) },
-    });
+  const toggleActive = (setup: CopyTrading) => {
+    setSetups((prev) =>
+      prev.map((s) => (s._id === setup._id ? { ...s, isActive: !(s.isActive ?? true) } : s))
+    );
   };
 
   return (
