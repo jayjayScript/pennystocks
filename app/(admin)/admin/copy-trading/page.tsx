@@ -21,7 +21,8 @@ const INITIAL_MOCK_SETUPS: CopyTrading[] = [
     averageDailyProfit: 3.2,
     purchases: 128,
     totalAssets: 450000,
-    copyTradePrice: 49.99,
+    percentage: 5,
+    currency: "USD",
     isActive: true,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -35,7 +36,8 @@ const INITIAL_MOCK_SETUPS: CopyTrading[] = [
     averageDailyProfit: 1.1,
     purchases: 84,
     totalAssets: 820000,
-    copyTradePrice: 29.99,
+    percentage: 3,
+    currency: "USD",
     isActive: true,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -49,7 +51,8 @@ const INITIAL_MOCK_SETUPS: CopyTrading[] = [
     averageDailyProfit: 6.8,
     purchases: 52,
     totalAssets: 190000,
-    copyTradePrice: 99.00,
+    percentage: 10,
+    currency: "USD",
     isActive: true,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -70,11 +73,15 @@ export default function CopyTradingAdminPage() {
     averageDailyProfit: 0,
     purchases: 0,
     totalAssets: 0,
-    copyTradePrice: 0,
+    percentage: 0,
     isActive: true,
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+
+  const createMut = { isPending: false }; // This is a Temporary placeholder for mutation state. Replace with actual mutation logic
+  const updateMut = { isPending: false }; // This is a Temporary placeholder for mutation state. Replace with actual mutation logic
+  const deleteMut = { isPending: false }; // This is a Temporary placeholder for mutation state. Replace with actual mutation logic
 
   const openAdd = () => {
     setEditingId(null);
@@ -86,7 +93,7 @@ export default function CopyTradingAdminPage() {
       averageDailyProfit: 0,
       purchases: 0,
       totalAssets: 0,
-      copyTradePrice: 0,
+      percentage: 0,
       isActive: true,
     });
     setFormErrors({});
@@ -103,7 +110,7 @@ export default function CopyTradingAdminPage() {
       averageDailyProfit: setup.averageDailyProfit,
       purchases: setup.purchases,
       totalAssets: setup.totalAssets,
-      copyTradePrice: setup.copyTradePrice,
+      percentage: setup.percentage,
       isActive: setup.isActive ?? true,
     });
     setFormErrors({});
@@ -113,7 +120,7 @@ export default function CopyTradingAdminPage() {
   const validateForm = () => {
     const errs: Record<string, string> = {};
     if (!formData.traderName.trim()) errs.traderName = "Trader name is required";
-    if (formData.copyTradePrice <= 0) errs.copyTradePrice = "Price must be greater than 0";
+    if (formData.percentage < 0 || formData.percentage > 100) errs.percentage = "Percentage must be between 0 and 100";
     setFormErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -130,6 +137,7 @@ export default function CopyTradingAdminPage() {
       const newSetup: CopyTrading = {
         ...formData,
         _id: `setup-${Date.now()}`,
+        currency: "USD",
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -184,9 +192,9 @@ export default function CopyTradingAdminPage() {
           </p>
         </div>
         <div className="rounded-xl sm:rounded-2xl p-3 sm:p-5" style={{ background: "linear-gradient(135deg, #151d2d 0%, #1b2a40 100%)", border: "1px solid #252f45" }}>
-          <p className="text-[10px] sm:text-sm" style={{ color: "#9aa3b0" }}>Revenue</p>
+          <p className="text-[10px] sm:text-sm" style={{ color: "#9aa3b0" }}>Average Fee</p>
           <p className="text-lg sm:text-2xl lg:text-3xl font-extrabold text-white mt-1">
-            {isLoading ? "—" : formatUSD(setups.reduce((sum, s) => sum + s.copyTradePrice * s.purchases, 0))}
+            {isLoading ? "—" : `${(setups.reduce((sum, s) => sum + s.percentage, 0) / Math.max(setups.length, 1)).toFixed(2)}%`}
           </p>
         </div>
       </div>
@@ -257,9 +265,9 @@ export default function CopyTradingAdminPage() {
                         </p>
                       </div>
                       <div className="text-center">
-                        <p className="text-[10px] sm:text-xs" style={{ color: "#6b7785" }}>Price</p>
+                        <p className="text-[10px] sm:text-xs" style={{ color: "#6b7785" }}>Liquidation Fee</p>
                         <p className="text-sm sm:text-base lg:text-lg font-bold" style={{ color: "#F5C518" }}>
-                          {formatUSD(setup.copyTradePrice)}
+                          {setup.percentage}%
                         </p>
                       </div>
                       <div className="text-center">
@@ -313,7 +321,7 @@ export default function CopyTradingAdminPage() {
       {showModal && (
         <>
           <div className="fixed inset-0 z-50 bg-black/80" onClick={() => setShowModal(false)} />
-          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[95%] sm:w-[500px] max-h-[90vh] overflow-y-auto rounded-2xl p-5 sm:p-6"
+          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[95%] sm:w-125 max-h-[90vh] overflow-y-auto rounded-2xl p-5 sm:p-6"
             style={{ background: "#151d2d", border: "1px solid #252f45" }}
           >
             <div className="flex items-center justify-between mb-6">
@@ -368,17 +376,18 @@ export default function CopyTradingAdminPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-semibold mb-2 block" style={{ color: "#6b7785" }}>Copy Price ($)</label>
+                  <label className="text-xs font-semibold mb-2 block" style={{ color: "#6b7785" }}>Liquidation Fee (%)</label>
                   <input
                     type="number"
                     min="0"
                     step="0.01"
-                    value={formData.copyTradePrice}
-                    onChange={(e) => setFormData(f => ({ ...f, copyTradePrice: parseFloat(e.target.value) || 0 }))}
+                    max="100"
+                    value={formData.percentage}
+                    onChange={(e) => setFormData(f => ({ ...f, percentage: parseFloat(e.target.value) || 0 }))}
                     className="w-full px-4 py-2.5 rounded-xl text-sm"
-                    style={{ background: "#0d1624", border: `1px solid ${formErrors.copyTradePrice ? "#F44336" : "#252f45"}`, color: "white" }}
+                    style={{ background: "#0d1624", border: `1px solid ${formErrors.percentage ? "#F44336" : "#252f45"}`, color: "white" }}
                   />
-                  {formErrors.copyTradePrice && <p className="text-xs mt-1" style={{ color: "#F44336" }}>{formErrors.copyTradePrice}</p>}
+                  {formErrors.percentage && <p className="text-xs mt-1" style={{ color: "#F44336" }}>{formErrors.percentage}</p>}
                 </div>
                 <div>
                   <label className="text-xs font-semibold mb-2 block" style={{ color: "#6b7785" }}>Avg Daily Profit ($)</label>

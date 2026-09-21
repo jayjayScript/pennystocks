@@ -46,7 +46,8 @@ function toLocalSetup(backend: import("@/types/api").CopyTrading): CopyTradeSetu
     countryFlag: "🌐",
     country: "Global",
     leverage: 1,
-    price: backend.copyTradePrice,
+    // Plans have no fixed price; users choose the amount they want to invest.
+    price: 0,
     traderWinRate: backend.rateOfChange,
   };
 }

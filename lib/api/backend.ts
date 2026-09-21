@@ -1,4 +1,4 @@
-import type { AdminCopyTradePurchaseQuery, AdminStockPurchaseQuery, AdminUserStockProposalQuery, ApiUser, ApproveStockProposalPayload, AuthResponse, CopyTradePurchase, CopyTrading, CreateCopyTradingPayload, CreateDepositOrderPayload, CreateStockPayload, CreateStockProposalPayload, CreateWithdrawOrderPayload, Paginated, PaymentOrder, PaymentOrderStatus, ProposalStatus, Stock, StockProposal, StockPurchase, Transaction, TransactionStatus, UpdateCopyTradingPayload, UpdateStockPayload } from "@/types/api";
+import type { AdminCopyTradePurchaseQuery, AdminStockPurchaseQuery, AdminUserStockProposalQuery, ApiUser, ApproveStockProposalPayload, AuthResponse, CopyTradePurchase, CopyTrading, CopyTradingPortfolio, CopyTradingPortfolioTransferPayload, CopyTradingPortfolioTransferResponse, CreateCopyTradingPayload, CreateDepositOrderPayload, CreateStockPayload, CreateStockProposalPayload, CreateWithdrawOrderPayload, Paginated, PaymentOrder, PaymentOrderStatus, ProposalStatus, Stock, StockProposal, StockPurchase, Transaction, TransactionStatus, UpdateCopyTradingPayload, UpdateStockPayload } from "@/types/api";
 import { api } from "./client";
 
 export const authApi = {
@@ -82,7 +82,10 @@ export const copyTradingApi = {
   remove: (id: string) => api<{ message: string }>(`/copy-trading/${id}`, { method: "DELETE" }),  // accessable to admin only
   buy: (id: string, amountInvested: number) => api<{ purchase: CopyTradePurchase; transaction: Transaction }>(`/copy-trading/${id}/buy`, { method: "POST", body: JSON.stringify({ amountInvested }) }),  // accessable to user only
   mine: () => api<CopyTradePurchase[]>("/copy-trading/me/purchases"),
-  liquidate: (purchaseId: string, note?: string) => api<{ purchase: CopyTradePurchase; transaction: Transaction; payout: number }>(`/copy-trading/purchases/${purchaseId}/liquidate`, { method: "POST", body: JSON.stringify({ ...(note && { note }) }) }),
+  portfolio: () => api<CopyTradingPortfolio>("/copy-trading/portfolio/me"),
+  depositToPortfolio: (data: CopyTradingPortfolioTransferPayload) => api<CopyTradingPortfolioTransferResponse>("/copy-trading/portfolio/deposit", { method: "POST", body: JSON.stringify(data) }),
+  withdrawFromPortfolio: (data: CopyTradingPortfolioTransferPayload) => api<CopyTradingPortfolioTransferResponse>("/copy-trading/portfolio/withdraw", { method: "POST", body: JSON.stringify(data) }),
+  liquidate: (purchaseId: string, note?: string) => api<{ purchase: CopyTradePurchase; transaction: Transaction; payout: number; fee: number }>(`/copy-trading/purchases/${purchaseId}/liquidate`, { method: "POST", body: JSON.stringify({ ...(note && { note }) }) }),
 };
 export const stockProposalsApi = {
   create: (data: CreateStockProposalPayload) => api<StockProposal>("/stock-proposals", { method: "POST", body: JSON.stringify(data) }),
