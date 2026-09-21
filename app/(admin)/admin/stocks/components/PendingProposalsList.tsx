@@ -2,45 +2,41 @@
 
 import React, { useState } from "react";
 import { Icon } from "@iconify/react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import ProposalDetailModal, { type ApprovalData } from "./ProposalDetailModal";
-import type { Stock } from "@/types/api";
-
-const MOCK_PENDING_PROPOSALS: Stock[] = [
-  {
-    _id: "prop-1",
-    name: "Helix Genetics Inc",
-    acronym: "HLIX",
-    lastPrice: 1.85,
-    change24h: 0,
-    rateOfChange: 0,
-    currency: "USD",
-    exchange: "NASDAQ",
-    type: "Healthcare",
-    description: "Gene-editing therapeutic platform focused on rare diseases.",
-    isApproved: null,
-    createdAt: new Date(Date.now() - 3600000).toISOString(),
-    updatedAt: new Date(Date.now() - 3600000).toISOString(),
-  },
-  {
-    _id: "prop-2",
-    name: "AeroDynamics Space",
-    acronym: "AERO",
-    lastPrice: 0.95,
-    change24h: 0,
-    rateOfChange: 0,
-    currency: "USD",
-    exchange: "OTC",
-    type: "Tech",
-    description: "Suborbital launch vehicle developer for microsatellites.",
-    isApproved: null,
-    createdAt: new Date(Date.now() - 7200000).toISOString(),
-    updatedAt: new Date(Date.now() - 7200000).toISOString(),
-  },
-];
+import { stockProposalsApi } from "@/lib/api/backend";
+import type { StockProposal } from "@/types/api";
 
 export default function PendingProposalsList() {
-  const [pendingProposals, setPendingProposals] = useState<Stock[]>(MOCK_PENDING_PROPOSALS);
-  const isLoading = false;
+  const queryClient = useQueryClient();
+
+  const { data: pendingResponse, isLoading } = useQuery({
+    queryKey: ["admin", "stock-proposals", "pending"],
+    queryFn: () => stockProposalsApi.list(1, 50, "pending"),
+  });
+
+  const approveMut = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: ApprovalData }) =>
+      stockProposalsApi.approve(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "stock-proposals"] });
+      queryClient.invalidateQueries({ queryKey: ["my-stock-proposals"] });
+      queryClient.invalidateQueries({ queryKey: ["stocks"] });
+      setSelectedProposal(null);
+    },
+  });
+
+  const rejectMut = useMutation({
+    mutationFn: (id: string) => stockProposalsApi.reject(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin", "stock-proposals"] });
+      setSelectedProposal(null);
+    },
+  });
+
+  const pendingProposals: StockProposal[] = Array.isArray(pendingResponse)
+    ? pendingResponse
+    : pendingResponse?.data ?? [];
 
   const [selectedProposal, setSelectedProposal] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -49,21 +45,19 @@ export default function PendingProposalsList() {
     if (!search) return true;
     const q = search.toLowerCase();
     return (
-      s.name?.toLowerCase().includes(q) ||
-      s.acronym?.toLowerCase().includes(q)
+      s.companyName?.toLowerCase().includes(q) ||
+      s.ticker?.toLowerCase().includes(q)
     );
   });
 
   const selected = filtered.find((s) => s._id === selectedProposal) ?? null;
 
-  const handleApprove = async (id: string, _data: ApprovalData) => {
-    setPendingProposals((prev) => prev.filter((s) => s._id !== id));
-    setSelectedProposal(null);
+  const handleApprove = async (id: string, data: ApprovalData) => {
+    await approveMut.mutateAsync({ id, data });
   };
 
   const handleReject = async (id: string) => {
-    setPendingProposals((prev) => prev.filter((s) => s._id !== id));
-    setSelectedProposal(null);
+    await rejectMut.mutateAsync(id);
   };
 
   return (
@@ -119,32 +113,34 @@ export default function PendingProposalsList() {
                   {/* Stock Info */}
                   <div className="flex items-center gap-2 sm:gap-3">
                     <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center text-xs sm:text-sm font-bold shrink-0" style={{ background: "rgba(245,197,24,0.12)", color: "#F5C518" }}>
-                      {stock.acronym?.[0] ?? "?"}
+                      {stock.ticker?.[0] ?? "?"}
                     </div>
                     <div className="min-w-0">
-                      <p className="text-xs sm:text-sm font-semibold text-white">{stock.acronym}</p>
-                      <p className="text-[10px] sm:text-xs truncate hidden sm:block" style={{ color: "#6b7785" }}>{stock.name}</p>
+                      <p className="text-xs sm:text-sm font-semibold text-white">{stock.ticker}</p>
+                      <p className="text-[10px] sm:text-xs truncate hidden sm:block" style={{ color: "#6b7785" }}>{stock.companyName}</p>
                     </div>
                   </div>
 
                   {/* Exchange / Category */}
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-white/5 text-penny-text-muted uppercase">{stock.exchange ?? "—"}</span>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-white/5 text-penny-text-muted">{stock.type ?? "—"}</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-white/5 text-penny-text-muted">{stock.category ?? "—"}</span>
                   </div>
 
                   {/* Proposed Price */}
                   <div className="flex items-center justify-between lg:block lg:text-right">
                     <span className="text-[10px] lg:hidden" style={{ color: "#6b7785" }}>Proposed Price</span>
                     <p className="text-xs sm:text-sm font-bold text-[#00d4a1]">
-                      ${(stock.proposedPrice ?? stock.lastPrice ?? 0).toFixed(2)}
+                      ${(stock.proposedPrice ?? 0).toFixed(2)}
                     </p>
                   </div>
 
-                  {/* Volume */}
+                  {/* Submitted Date */}
                   <div className="flex items-center justify-between lg:block lg:text-right">
-                    <span className="text-[10px] lg:hidden" style={{ color: "#6b7785" }}>Volume</span>
-                    <p className="text-xs sm:text-sm font-semibold text-white">{(stock.totalVolume ?? 0).toLocaleString()}</p>
+                    <span className="text-[10px] lg:hidden" style={{ color: "#6b7785" }}>Submitted</span>
+                    <p className="text-xs sm:text-sm font-semibold text-white">
+                      {new Date(stock.createdAt).toLocaleDateString()}
+                    </p>
                   </div>
 
                   {/* Actions */}

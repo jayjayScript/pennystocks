@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect } from "react";
 import { Icon } from "@iconify/react";
-import type { Stock } from "@/types/api";
+import type { StockProposal } from "@/types/api";
 
 interface ProposalDetailModalProps {
-  proposal: Stock | null;
+  proposal: StockProposal | null;
   isOpen: boolean;
   onClose: () => void;
   onApprove: (id: string, data: ApprovalData) => Promise<void> | void;
@@ -13,15 +13,15 @@ interface ProposalDetailModalProps {
 }
 
 export interface ApprovalData {
-  lastPrice: number;
-  change24h: number;
-  rateOfChange: number;
-  name: string;
-  acronym: string;
-  description?: string;
+  initialListingPrice?: number;
+  lastPrice?: number;
+  companyName?: string;
+  ticker?: string;
   exchange?: string;
-  type?: string;
-  supply?: number;
+  category?: string;
+  change24h?: number;
+  rateOfChange?: number;
+  currency?: string;
 }
 
 const inputStyles = {
@@ -38,35 +38,30 @@ export default function ProposalDetailModal({
   onApprove,
   onReject,
 }: ProposalDetailModalProps) {
-  // Form state — all fields admin can edit
+  // Form state — fields matching ApproveStockProposalPayload
   const [form, setForm] = useState<ApprovalData>({
-    lastPrice: 0,
+    initialListingPrice: 0,
+    companyName: "",
+    ticker: "",
+    exchange: "",
+    category: "",
     change24h: 0,
     rateOfChange: 0,
-    name: "",
-    acronym: "",
-    description: "",
-    exchange: "",
-    type: "",
-    supply: 0,
   });
   const [submitting, setSubmitting] = useState<"approve" | "reject" | null>(null);
   const [showRejectConfirm, setShowRejectConfirm] = useState(false);
 
   useEffect(() => {
     if (isOpen && proposal) {
-      // Pre-fill from proposal; admin can adjust anything
-      const proposedPrice = proposal.proposedPrice ?? proposal.lastPrice;
+      // Pre-fill from proposal
       setForm({
-        lastPrice: proposedPrice,
+        initialListingPrice: proposal.proposedPrice ?? 0,
+        companyName: proposal.companyName ?? "",
+        ticker: proposal.ticker ?? "",
+        exchange: proposal.exchange ?? "",
+        category: proposal.category ?? "",
         change24h: proposal.change24h ?? 0,
         rateOfChange: proposal.rateOfChange ?? 0,
-        name: proposal.name ?? "",
-        acronym: proposal.acronym ?? "",
-        description: proposal.description ?? "",
-        exchange: proposal.exchange ?? "",
-        type: proposal.type ?? "",
-        supply: proposal.supply ?? 0,
       });
       setShowRejectConfirm(false);
     }
@@ -76,10 +71,21 @@ export default function ProposalDetailModal({
 
   const handleApprove = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (form.lastPrice <= 0) return;
+    const price = form.initialListingPrice ?? 0;
+    if (price <= 0) return;
     setSubmitting("approve");
     try {
-      await onApprove(proposal._id, form);
+      // Clean up payload so backend validator receives exact allowed fields
+      const payload: ApprovalData = {
+        companyName: form.companyName,
+        ticker: form.ticker,
+        exchange: form.exchange,
+        category: form.category,
+        initialListingPrice: price,
+        ...(form.change24h ? { change24h: form.change24h } : {}),
+        ...(form.rateOfChange ? { rateOfChange: form.rateOfChange } : {}),
+      };
+      await onApprove(proposal._id, payload);
       onClose();
     } finally {
       setSubmitting(null);
@@ -110,7 +116,7 @@ export default function ProposalDetailModal({
         <div className="flex items-center justify-between pb-4 border-b border-[#1d2639] mb-5">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-xl flex items-center justify-center font-extrabold text-lg" style={{ background: "rgba(0,212,161,0.12)", color: "#00d4a1" }}>
-              {proposal.acronym?.[0] ?? "?"}
+              {proposal.ticker?.[0] ?? "?"}
             </div>
             <div>
               <h2 className="text-white font-bold text-lg leading-tight">Review Stock Proposal</h2>
@@ -131,11 +137,11 @@ export default function ProposalDetailModal({
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
             <div>
               <p className="text-penny-text-muted text-[10px]">Company</p>
-              <p className="text-white font-semibold mt-0.5">{proposal.name}</p>
+              <p className="text-white font-semibold mt-0.5">{proposal.companyName}</p>
             </div>
             <div>
               <p className="text-penny-text-muted text-[10px]">Ticker</p>
-              <p className="text-white font-semibold mt-0.5">{proposal.acronym}</p>
+              <p className="text-white font-semibold mt-0.5">{proposal.ticker}</p>
             </div>
             <div>
               <p className="text-penny-text-muted text-[10px]">Exchange</p>
@@ -143,11 +149,11 @@ export default function ProposalDetailModal({
             </div>
             <div>
               <p className="text-penny-text-muted text-[10px]">Category</p>
-              <p className="text-white font-semibold mt-0.5">{proposal.type ?? "—"}</p>
+              <p className="text-white font-semibold mt-0.5">{proposal.category ?? "—"}</p>
             </div>
             <div>
               <p className="text-penny-text-muted text-[10px]">Proposed Price</p>
-              <p className="text-[#00d4a1] font-bold mt-0.5">${(proposal.proposedPrice ?? proposal.lastPrice ?? 0).toFixed(2)}</p>
+              <p className="text-[#00d4a1] font-bold mt-0.5">${(proposal.proposedPrice ?? 0).toFixed(2)}</p>
             </div>
             <div>
               <p className="text-penny-text-muted text-[10px]">Submitted</p>
@@ -205,8 +211,8 @@ export default function ProposalDetailModal({
                 <label className="block text-xs font-semibold mb-1.5 text-penny-text-muted">Company Name</label>
                 <input
                   type="text"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  value={form.companyName ?? ""}
+                  onChange={(e) => setForm({ ...form, companyName: e.target.value })}
                   className="w-full px-3.5 py-2.5 rounded-xl text-sm"
                   style={inputStyles}
                   required
@@ -216,8 +222,8 @@ export default function ProposalDetailModal({
                 <label className="block text-xs font-semibold mb-1.5 text-penny-text-muted">Ticker Symbol</label>
                 <input
                   type="text"
-                  value={form.acronym}
-                  onChange={(e) => setForm({ ...form, acronym: e.target.value.toUpperCase() })}
+                  value={form.ticker ?? ""}
+                  onChange={(e) => setForm({ ...form, ticker: e.target.value.toUpperCase() })}
                   className="w-full px-3.5 py-2.5 rounded-xl text-sm"
                   style={inputStyles}
                   required
@@ -227,7 +233,7 @@ export default function ProposalDetailModal({
                 <label className="block text-xs font-semibold mb-1.5 text-penny-text-muted">Exchange</label>
                 <input
                   type="text"
-                  value={form.exchange}
+                  value={form.exchange ?? ""}
                   onChange={(e) => setForm({ ...form, exchange: e.target.value })}
                   placeholder="e.g. NASDAQ"
                   className="w-full px-3.5 py-2.5 rounded-xl text-sm"
@@ -238,8 +244,8 @@ export default function ProposalDetailModal({
                 <label className="block text-xs font-semibold mb-1.5 text-penny-text-muted">Category</label>
                 <input
                   type="text"
-                  value={form.type}
-                  onChange={(e) => setForm({ ...form, type: e.target.value })}
+                  value={form.category ?? ""}
+                  onChange={(e) => setForm({ ...form, category: e.target.value })}
                   placeholder="e.g. Tech"
                   className="w-full px-3.5 py-2.5 rounded-xl text-sm"
                   style={inputStyles}
@@ -255,36 +261,24 @@ export default function ProposalDetailModal({
                   type="number"
                   step="0.01"
                   min="0.01"
-                  value={form.lastPrice}
-                  onChange={(e) => setForm({ ...form, lastPrice: parseFloat(e.target.value) || 0 })}
+                  value={form.initialListingPrice ?? 0}
+                  onChange={(e) => setForm({ ...form, initialListingPrice: parseFloat(e.target.value) || 0 })}
                   className="w-full px-3.5 py-2.5 rounded-xl text-sm"
-                  style={{ ...inputStyles, borderColor: form.lastPrice > 0 ? "#00d4a1" : "#F44336" }}
+                  style={{ ...inputStyles, borderColor: (form.initialListingPrice ?? 0) > 0 ? "#00d4a1" : "#F44336" }}
                   required
                 />
-                {proposal.proposedPrice != null && form.lastPrice !== proposal.proposedPrice && (
+                {proposal.proposedPrice != null && form.initialListingPrice !== proposal.proposedPrice && (
                   <p className="text-[10px] mt-1" style={{ color: "#F5C518" }}>
                     User proposed ${proposal.proposedPrice.toFixed(2)} — you&apos;re setting a different price.
                   </p>
                 )}
               </div>
               <div>
-                <label className="block text-xs font-semibold mb-1.5 text-penny-text-muted">Total Supply</label>
-                <input
-                  type="number"
-                  min="0"
-                  value={form.supply}
-                  onChange={(e) => setForm({ ...form, supply: parseInt(e.target.value) || 0 })}
-                  placeholder="e.g. 1000000"
-                  className="w-full px-3.5 py-2.5 rounded-xl text-sm"
-                  style={inputStyles}
-                />
-              </div>
-              <div>
                 <label className="block text-xs font-semibold mb-1.5 text-penny-text-muted">24h Change ($)</label>
                 <input
                   type="number"
                   step="0.01"
-                  value={form.change24h}
+                  value={form.change24h ?? 0}
                   onChange={(e) => setForm({ ...form, change24h: parseFloat(e.target.value) || 0 })}
                   className="w-full px-3.5 py-2.5 rounded-xl text-sm"
                   style={inputStyles}
@@ -295,23 +289,12 @@ export default function ProposalDetailModal({
                 <input
                   type="number"
                   step="0.01"
-                  value={form.rateOfChange}
+                  value={form.rateOfChange ?? 0}
                   onChange={(e) => setForm({ ...form, rateOfChange: parseFloat(e.target.value) || 0 })}
                   className="w-full px-3.5 py-2.5 rounded-xl text-sm"
                   style={inputStyles}
                 />
               </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold mb-1.5 text-penny-text-muted">Description</label>
-              <textarea
-                value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
-                rows={3}
-                className="w-full px-3.5 py-2.5 rounded-xl text-sm resize-none"
-                style={inputStyles}
-              />
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3 pt-2">
@@ -327,7 +310,7 @@ export default function ProposalDetailModal({
               </button>
               <button
                 type="submit"
-                disabled={submitting === "approve" || form.lastPrice <= 0}
+                disabled={submitting === "approve" || (form.initialListingPrice ?? 0) <= 0}
                 className="flex-1 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                 style={{ background: "#00d4a1", color: "#0d1624" }}
               >

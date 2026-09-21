@@ -32,7 +32,7 @@ export default function AdminOverviewPage() {
     data: stocksData,
     isLoading: stocksLoading,
   } = useStocks(1, 50);
-  const totalStocks = stocksLoading ? 0 : stocksData?.length ?? 0;
+  const totalStocks = stocksLoading ? 0 : stocksData?.data?.length ?? 0;
 
   // Transactions
   const {

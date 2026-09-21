@@ -2,14 +2,31 @@
 
 import React, { useState, useEffect } from "react";
 import { Icon } from "@iconify/react";
+import { usePortfolio } from "@/context/PortfolioContext";
+import { stocksApi } from "@/lib/api/backend";
 function formatUSD(val: number): string {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(val);
 }
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
+interface BuyStock {
+  _id?: string;
+  symbol: string;
+  name: string;
+  price: string;
+  bgColor?: string;
+  icon?: string;
+  category?: string;
+  exchange?: string;
+  lastPrice?: number;
+  up?: boolean;
+  pct?: string;
+  change?: string;
+}
+
 interface BuyModalProps {
-  stock: any;
+  stock: BuyStock;
   isOpen: boolean;
   onClose: () => void;
 }
@@ -25,7 +42,7 @@ function parsePrice(price: string): number {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function BuyModal({ stock, isOpen, onClose }: BuyModalProps) {
-  const accountBalance = 12450.00;
+  const { accountBalance } = usePortfolio();
 
   const [mode, setMode] = useState<InputMode>("usd");
   const [inputValue, setInputValue] = useState("");
@@ -34,15 +51,16 @@ export default function BuyModal({ stock, isOpen, onClose }: BuyModalProps) {
 
   const stockPrice = parsePrice(stock.price);
 
-  // Reset when modal opens
-  useEffect(() => {
+  const [prevIsOpen, setPrevIsOpen] = useState(isOpen);
+  if (isOpen !== prevIsOpen) {
+    setPrevIsOpen(isOpen);
     if (isOpen) {
       setInputValue("");
       setMode("usd");
       setStatus("idle");
       setStatusMessage("");
     }
-  }, [isOpen]);
+  }
 
   // Lock body scroll
   useEffect(() => {
@@ -65,9 +83,21 @@ export default function BuyModal({ stock, isOpen, onClose }: BuyModalProps) {
 
   const handleConfirm = async () => {
     if (isInvalid) return;
-    setStatus("success");
-    setStatusMessage(`Bought ${unitsAmount.toFixed(4)} shares of ${stock.symbol || stock.name || "stock"}.`);
-    setTimeout(onClose, 2500);
+    if (!stock._id) {
+      setStatus("error");
+      setStatusMessage("Cannot complete purchase: stock ID is missing.");
+      return;
+    }
+    try {
+      const qty = parseFloat(unitsAmount.toFixed(6));
+      await stocksApi.buy(stock._id, qty);
+      setStatus("success");
+      setStatusMessage(`Bought ${qty} shares of ${stock.symbol || stock.name || "stock"}.`);
+      setTimeout(onClose, 2500);
+    } catch (err) {
+      setStatus("error");
+      setStatusMessage(err instanceof Error ? err.message : "Purchase failed. Please try again.");
+    }
   };
 
   const applyPct = (pct: number) => {

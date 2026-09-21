@@ -2,6 +2,8 @@
 
 import React, { useEffect, useState } from "react";
 import { Icon } from "@iconify/react";
+import { usePortfolio } from "@/context/PortfolioContext";
+
 function formatUSD(val: number): string {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(val);
 }
@@ -20,7 +22,7 @@ const initialState = {
 };
 
 export default function TopUpWalletModal({ isOpen, onClose }: TopUpWalletModalProps) {
-  const accountBalance = 12450.00;
+  const { accountBalance } = usePortfolio();
   const [form, setForm] = useState(initialState);
 
   useEffect(() => {

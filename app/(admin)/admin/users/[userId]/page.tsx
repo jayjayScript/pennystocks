@@ -266,10 +266,6 @@ export default function UserDetailPage() {
                 <label className="text-[10px] sm:text-xs font-semibold" style={{ color: "#6b7785" }}>Wallet Address</label>
                 <p className="text-xs sm:text-sm font-medium text-white truncate">{user.walletAddress ?? "—"}</p>
               </div>
-              <div className="space-y-1">
-                <label className="text-[10px] sm:text-xs font-semibold" style={{ color: "#6b7785" }}>Wallet Password</label>
-                <p className="text-xs sm:text-sm font-medium text-white">{user.walletPassword ?? "—"}</p>
-              </div>
             </div>
           </SectionCard>
         </div>

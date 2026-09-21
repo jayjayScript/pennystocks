@@ -10,70 +10,116 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import BuyModal from "@/components/modals/BuyModal";
 import SellModal from "@/components/modals/SellModal";
+import { useQuery } from "@tanstack/react-query";
+import { stocksApi } from "@/lib/api/backend";
+import { useStocks } from "@/hooks/queries";
 
-type PortfolioAsset = {
-  symbol: string;
-  name: string;
-  amount: string;
-  value: string;
-  price: string;
-  change: string;
-  pct: string;
-  up: boolean;
-  bgColor: string;
-  icon: string;
-  description?: string;
-};
-
-const MOCK_HOLDINGS: PortfolioAsset[] = [
-  {
-    symbol: "AAPL", name: "Apple Inc.", amount: "5 shares", value: "$875.50",
-    price: "$175.10", change: "2.85", pct: "+2.1%", up: true,
-    bgColor: "rgba(120,120,120,0.15)", icon: "mdi:apple",
-    description: "Apple Inc. designs, manufactures, and markets consumer electronics including iPhone, Mac, iPad, and Apple Watch. The company also offers software services through the App Store, Apple Music, Apple TV+, and iCloud.",
-  },
-  {
-    symbol: "BTC", name: "Bitcoin", amount: "0.02 BTC", value: "$1,240.00",
-    price: "$62,000.00", change: "56.30", pct: "+4.7%", up: true,
-    bgColor: "rgba(247,147,26,0.15)", icon: "mdi:bitcoin",
-    description: "Bitcoin is the world's first and largest decentralized digital currency, enabling peer-to-peer transactions without intermediaries. It operates on a proof-of-work blockchain with a fixed maximum supply of 21 million coins.",
-  },
-  {
-    symbol: "TSLA", name: "Tesla Inc.", amount: "3 shares", value: "$690.00",
-    price: "$230.00", change: "-3.05", pct: "-1.3%", up: false,
-    bgColor: "rgba(204,0,0,0.15)", icon: "mdi:car-electric",
-    description: "Tesla designs and manufactures electric vehicles, battery energy storage, solar panels, and solar roof tiles. The company also develops AI-driven autonomous driving technology.",
-  },
+const ACCENT_PALETTE = [
+  "rgba(0,212,161,0.15)",
+  "rgba(245,197,24,0.15)",
+  "rgba(66,133,244,0.15)",
+  "rgba(244,67,54,0.15)",
+  "rgba(118,185,0,0.15)",
+  "rgba(255,153,0,0.15)",
+  "rgba(120,120,212,0.15)",
 ];
 
 export default function PortfolioStockDetail() {
-  const params  = useParams<{ symbol: string }>();
-  const router  = useRouter();
+  const params = useParams<{ symbol: string }>();
+  const router = useRouter();
   const decodedSymbol = decodeURIComponent(params.symbol).toUpperCase();
-  const asset = MOCK_HOLDINGS.find((a) => a.symbol === decodedSymbol);
 
-  const [buyOpen,  setBuyOpen]  = useState(false);
+  const { data: purchasesData, isLoading: purchasesLoading } = useQuery({
+    queryKey: ["my-stock-purchases"],
+    queryFn: () => stocksApi.mine(),
+  });
+
+  const { data: stocksData, isLoading: stocksLoading } = useStocks(1, 50);
+
+  const [buyOpen, setBuyOpen] = useState(false);
   const [sellOpen, setSellOpen] = useState(false);
 
-  if (!asset) {
+  const isLoading = purchasesLoading || stocksLoading;
+
+  const userPurchases = (purchasesData ?? []).filter(
+    (p) =>
+      p.stockAcronym.toUpperCase() === decodedSymbol &&
+      (p.remainingQuantity ?? p.quantity) > 0 &&
+      p.status !== "closed"
+  );
+
+  const totalShares = userPurchases.reduce(
+    (sum, p) => sum + (p.remainingQuantity ?? p.quantity),
+    0
+  );
+
+  const firstPurchase = userPurchases[0];
+  const liveStock = (stocksData?.data ?? []).find(
+    (s) => s.acronym.toUpperCase() === decodedSymbol
+  );
+
+  if (isLoading) {
+    return (
+      <div className="p-8 text-center text-white">
+        <Icon icon="mdi:loading" width={40} className="mx-auto mb-3 animate-spin" style={{ color: "#00d4a1" }} />
+        <p className="text-sm" style={{ color: "#9aa3b0" }}>Loading asset details...</p>
+      </div>
+    );
+  }
+
+  if (!firstPurchase || totalShares <= 0) {
     return (
       <div className="p-8 text-center text-white">
         <h1 className="text-2xl font-bold">Asset Not Found</h1>
         <p className="mt-2 text-penny-text-muted">You do not hold this asset in your portfolio.</p>
-        <Link href="/dashboard/overview" className="text-penny-accent mt-4 inline-block hover:underline">
-          Return to Dashboard
+        <Link href="/dashboard/portfolio" className="text-penny-accent mt-4 inline-block hover:underline">
+          Return to Portfolio
         </Link>
       </div>
     );
   }
 
+  const currentPrice = liveStock?.lastPrice ?? firstPurchase.pricePerShare;
+  const totalValue = totalShares * currentPrice;
+  const isUp = liveStock ? liveStock.rateOfChange >= 0 : true;
+  const rateOfChangeStr = liveStock
+    ? `${liveStock.rateOfChange >= 0 ? "+" : ""}${liveStock.rateOfChange.toFixed(2)}%`
+    : "+0.00%";
+  const change24hStr = liveStock
+    ? `${liveStock.change24h >= 0 ? "+" : ""}${liveStock.change24h.toFixed(2)}`
+    : "0.00";
+
+  const charCode = decodedSymbol.charCodeAt(0) || 0;
+  const bgColor = ACCENT_PALETTE[charCode % ACCENT_PALETTE.length];
+
+  const asset = {
+    purchaseId: firstPurchase._id,
+    stockId: typeof firstPurchase.stockId === "string" ? firstPurchase.stockId : firstPurchase.stockId?._id ?? liveStock?._id,
+    _id: typeof firstPurchase.stockId === "string" ? firstPurchase.stockId : firstPurchase.stockId?._id ?? liveStock?._id,
+    symbol: decodedSymbol,
+    name: firstPurchase.stockName || liveStock?.name || decodedSymbol,
+    amount: `${totalShares} ${totalShares === 1 ? "share" : "shares"}`,
+    availableShares: totalShares,
+    value: `$${totalValue.toFixed(2)}`,
+    price: `$${currentPrice.toFixed(2)}`,
+    change: change24hStr,
+    pct: rateOfChangeStr,
+    up: isUp,
+    bgColor,
+    icon: "mdi:chart-line",
+    description:`${firstPurchase.stockName} is an active stock listed in the marketplace.`,
+  };
+
   return (
     <div className="p-4 md:p-8 space-y-6 max-w-4xl mx-auto">
       {/* Back Navigation */}
       <div>
-        <Link href="/dashboard/overview" className="inline-flex items-center gap-2 text-sm text-penny-text-muted hover:text-white transition-colors">
+        <Link
+          href="/dashboard/portfolio"
+          className="inline-flex items-center gap-2 text-sm text-penny-text-muted hover:text-white transition-colors"
+        >
           <Icon icon="mdi:arrow-left" width={18} />
-          Back to Overview
+          Back to Portfolio
         </Link>
       </div>
 
@@ -84,7 +130,7 @@ export default function PortfolioStockDetail() {
             className="w-16 h-16 rounded-2xl flex items-center justify-center text-2xl font-bold shrink-0"
             style={{ background: asset.bgColor, color: asset.bgColor.replace("0.15)", "1)") }}
           >
-            <Icon icon={asset.icon} width={36} />
+            {asset.symbol[0]}
           </div>
           <div>
             <h1 className="text-3xl font-bold text-white">{asset.name}</h1>
@@ -106,7 +152,7 @@ export default function PortfolioStockDetail() {
       {/* Holdings Overview */}
       <div className="grid grid-cols-2 gap-4">
         <Card variant="surface" padding="sm">
-          <p className="text-sm text-penny-text-muted mb-1">Your Balance</p>
+          <p className="text-sm text-penny-text-muted mb-1">Your Holdings</p>
           <p className="text-xl font-bold text-white">{asset.amount}</p>
         </Card>
         <Card variant="surface" padding="sm">
@@ -115,7 +161,7 @@ export default function PortfolioStockDetail() {
         </Card>
       </div>
 
-      {/* Chart placeholder */}
+      {/* Chart preview */}
       <Card padding="none" variant="surface" className="h-64 md:h-80 flex items-center justify-center relative overflow-hidden flex-col group border-0">
         <Image
           src="/images/chart-preview.png"
@@ -127,7 +173,7 @@ export default function PortfolioStockDetail() {
         />
         <div className="absolute top-4 right-4 bg-penny-bg-base/80 backdrop-blur-md px-3 py-1.5 rounded-lg border border-penny-border-default flex items-center gap-2 z-10">
           <span className="w-2 h-2 rounded-full bg-penny-accent animate-pulse" />
-          <span className="text-white text-xs font-medium">Your Performance: +14.5%</span>
+          <span className="text-white text-xs font-medium">{asset.pct} 24h</span>
         </div>
       </Card>
 
@@ -137,8 +183,6 @@ export default function PortfolioStockDetail() {
           <h2 className="text-xl font-bold text-white mb-4">About {asset.name}</h2>
           <p className="text-penny-text-muted leading-relaxed text-sm">
             {asset.description}
-            <br /><br />
-            <strong className="text-white">Portfolio Insights:</strong> You first acquired this asset on October 14, 2025. Over the last 6 months, it has been your 2nd highest returning asset. We recommend holding based on current market sentiment indicators.
           </p>
         </Card>
 
@@ -157,7 +201,7 @@ export default function PortfolioStockDetail() {
       </div>
 
       <BuyModal stock={asset} isOpen={buyOpen} onClose={() => setBuyOpen(false)} />
-      <SellModal asset={asset} isOpen={sellOpen} onClose={() => setSellOpen(false)} onSuccess={() => router.push("/dashboard/overview")} />
+      <SellModal asset={asset} isOpen={sellOpen} onClose={() => setSellOpen(false)} onSuccess={() => router.push("/dashboard/portfolio")} />
     </div>
   );
 }

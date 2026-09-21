@@ -3,35 +3,15 @@
 import React, { useState } from "react";
 import { Icon } from "@iconify/react";
 import DepositModal from "@/components/modals/DepositModal";
+import { usePortfolio } from "@/context/PortfolioContext";
 
 function formatUSD(val: number): string {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(val);
 }
 
-interface MockDepositOrder {
-  _id: string;
-  type: string;
-  amount: number;
-  method: string;
-  methodDetails?: string;
-  status: string;
-  proofPaymentDocument?: string;
-  isMethodIncluded?: boolean;
-}
-
-const MOCK_ACTIVE_ORDERS: MockDepositOrder[] = [
-  {
-    _id: "dep-mock-01",
-    type: "deposit",
-    amount: 1500,
-    method: "USDT (TRC20)",
-    methodDetails: "TL9eW8zQp2p4q7R9mK3jU5vT1a8s9X4z",
-    status: "pending",
-    isMethodIncluded: true,
-  },
-];
-
 export default function PendingDepositBanner() {
+  const { pendingOrders } = usePortfolio();
+
   const [dismissed, setDismissed] = useState(false);
   const [depositOpen, setDepositOpen] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string | undefined>(undefined);
@@ -39,7 +19,13 @@ export default function PendingDepositBanner() {
 
   if (dismissed) return null;
 
-  const readyOrder = MOCK_ACTIVE_ORDERS[0];
+  const readyOrder = pendingOrders.find(
+    (o) =>
+      o.type === "deposit" &&
+      o.status !== "completed" &&
+      o.status !== "rejected" &&
+      o.status !== "expired"
+  );
   if (!readyOrder) return null;
 
   const handleCopy = (e: React.MouseEvent, orderId: string, text: string) => {

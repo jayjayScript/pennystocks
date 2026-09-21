@@ -2,20 +2,28 @@
 
 import React, { useState } from "react";
 import { Icon } from "@iconify/react";
-import type { Stock } from "@/types/api";
+import { useQuery } from "@tanstack/react-query";
+import { stockProposalsApi } from "@/lib/api/backend";
+import type { StockProposal } from "@/types/api";
 
 export default function RejectedProposalsList() {
-  const isLoading = false;
   const [search, setSearch] = useState("");
 
-  const rejectedProposals: Stock[] = [];
+  const { data: rejectedResponse, isLoading } = useQuery({
+    queryKey: ["admin", "stock-proposals", "rejected"],
+    queryFn: () => stockProposalsApi.list(1, 50, "rejected"),
+  });
+
+  const rejectedProposals: StockProposal[] = Array.isArray(rejectedResponse)
+    ? rejectedResponse
+    : rejectedResponse?.data ?? [];
 
   const filtered = rejectedProposals.filter((s) => {
     if (!search) return true;
     const q = search.toLowerCase();
     return (
-      s.name?.toLowerCase().includes(q) ||
-      s.acronym?.toLowerCase().includes(q)
+      s.companyName?.toLowerCase().includes(q) ||
+      s.ticker?.toLowerCase().includes(q)
     );
   });
 
@@ -72,25 +80,25 @@ export default function RejectedProposalsList() {
                   {/* Stock Info */}
                   <div className="flex items-center gap-2 sm:gap-3">
                     <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center text-xs sm:text-sm font-bold shrink-0" style={{ background: "rgba(244,67,54,0.12)", color: "#F44336" }}>
-                      {stock.acronym?.[0] ?? "?"}
+                      {stock.ticker?.[0] ?? "?"}
                     </div>
                     <div className="min-w-0">
-                      <p className="text-xs sm:text-sm font-semibold text-white">{stock.acronym}</p>
-                      <p className="text-[10px] sm:text-xs truncate hidden sm:block" style={{ color: "#6b7785" }}>{stock.name}</p>
+                      <p className="text-xs sm:text-sm font-semibold text-white">{stock.ticker}</p>
+                      <p className="text-[10px] sm:text-xs truncate hidden sm:block" style={{ color: "#6b7785" }}>{stock.companyName}</p>
                     </div>
                   </div>
 
                   {/* Exchange / Category */}
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-white/5 text-penny-text-muted uppercase">{stock.exchange ?? "—"}</span>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-white/5 text-penny-text-muted">{stock.type ?? "—"}</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-white/5 text-penny-text-muted">{stock.category ?? "—"}</span>
                   </div>
 
                   {/* Proposed Price */}
                   <div className="flex items-center justify-between lg:block lg:text-right">
                     <span className="text-[10px] lg:hidden" style={{ color: "#6b7785" }}>Proposed Price</span>
                     <p className="text-xs sm:text-sm font-semibold text-white">
-                      ${(stock.proposedPrice ?? stock.lastPrice ?? 0).toFixed(2)}
+                      ${(stock.proposedPrice ?? 0).toFixed(2)}
                     </p>
                   </div>
 

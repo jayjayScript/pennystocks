@@ -11,12 +11,23 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  React.useEffect(() => {
+    if (pathname === "/admin/login") return;
+    const token = localStorage.getItem("adminAccessToken") || localStorage.getItem("accessToken");
+    if (!token) {
+      router.replace("/admin/login");
+    }
+  }, [pathname, router]);
+
   // If on admin login page, bypass dashboard shell
   if (pathname === "/admin/login") {
     return <>{children}</>;
   }
 
   const handleLogout = async () => {
+    localStorage.removeItem("adminAccessToken");
+    localStorage.removeItem("adminRefreshToken");
+    localStorage.removeItem("isAdmin");
     router.replace("/admin/login");
   };
 

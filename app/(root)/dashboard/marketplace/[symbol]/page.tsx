@@ -9,34 +9,52 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import StockPriceChart from "./StockPriceChart";
 import BuyModal from "@/components/modals/BuyModal";
+import { useStocks } from "@/hooks/queries";
 
-type Stock = {
-  symbol: string;
-  name: string;
-  price: string;
-  change: string;
-  pct: string;
-  up: boolean;
-  bgColor: string;
-  icon?: string;
-  description?: string;
-};
-
-const MOCK_STOCKS: Stock[] = [
-  { symbol: "AAPL",  name: "Apple Inc.",           price: "$175.20", change: "2.85",  pct: "+1.65%",  up: true,  bgColor: "rgba(120,120,120,0.15)", description: "Apple Inc. designs, manufactures and markets consumer electronics, computer software, and online services. The company's best-known hardware products include the iPhone, iPad, Mac, and Apple Watch." },
-  { symbol: "TSLA",  name: "Tesla Inc.",           price: "$228.50", change: "-4.10", pct: "-1.76%",  up: false, bgColor: "rgba(204,0,0,0.15)",     description: "Tesla, Inc. designs, develops, manufactures, leases, and sells electric vehicles, energy generation and storage systems, and provides services related to its products." },
-  { symbol: "NVDA",  name: "NVIDIA Corporation",   price: "$485.10", change: "18.40", pct: "+3.95%",  up: true,  bgColor: "rgba(118,185,0,0.15)",   description: "NVIDIA Corporation provides graphics, and compute and networking solutions in the United States, Taiwan, China, and internationally. The company's GPU products are used in gaming, professional visualization, data center, and automotive markets." },
-  { symbol: "AMZN",  name: "Amazon.com Inc.",      price: "$192.75", change: "3.25",  pct: "+1.71%",  up: true,  bgColor: "rgba(255,153,0,0.15)",   description: "Amazon.com, Inc. engages in the retail sale of consumer products and subscriptions in North America and internationally. It operates through three segments: North America, International, and Amazon Web Services (AWS)." },
-  { symbol: "MSFT",  name: "Microsoft Corporation",price: "$415.60", change: "-2.10", pct: "-0.50%",  up: false, bgColor: "rgba(0,120,212,0.15)",   description: "Microsoft Corporation develops, licenses, and supports software, services, devices, and solutions worldwide. The company operates through three segments: Productivity and Business Processes, Intelligent Cloud, and More Personal Computing." },
-  { symbol: "GOOGL", name: "Alphabet Inc.",        price: "$176.30", change: "4.80",  pct: "+2.80%",  up: true,  bgColor: "rgba(66,133,244,0.15)",  description: "Alphabet Inc. provides various products and platforms in the United States, Europe, the Middle East, Africa, the Asia-Pacific, Canada, and Latin America. It operates through Google Services, Google Cloud, and Other Bets segments." },
+const ACCENT_PALETTE = [
+  "rgba(0,212,161,0.15)",
+  "rgba(245,197,24,0.15)",
+  "rgba(66,133,244,0.15)",
+  "rgba(244,67,54,0.15)",
+  "rgba(118,185,0,0.15)",
+  "rgba(255,153,0,0.15)",
+  "rgba(120,120,212,0.15)",
+  "rgba(204,0,0,0.15)",
 ];
 
 export default function MarketplaceStockDetail() {
   const params = useParams<{ symbol: string }>();
   const decodedSymbol = decodeURIComponent(params.symbol).toUpperCase();
-
-  const stock = MOCK_STOCKS.find((a) => a.symbol === decodedSymbol);
   const [buyOpen, setBuyOpen] = useState(false);
+
+  const { data: stocksData, isLoading } = useStocks(1, 50);
+  const apiStock = (stocksData?.data ?? []).find(
+    (s) => s.acronym.toUpperCase() === decodedSymbol
+  );
+
+  const stock = apiStock
+    ? {
+        _id: apiStock._id,
+        symbol: apiStock.acronym,
+        name: apiStock.name,
+        price: `$${apiStock.lastPrice.toFixed(2)}`,
+        change: `${apiStock.change24h >= 0 ? "+" : ""}${apiStock.change24h.toFixed(2)}`,
+        pct: `${apiStock.rateOfChange >= 0 ? "+" : ""}${apiStock.rateOfChange.toFixed(2)}%`,
+        up: apiStock.rateOfChange >= 0,
+        bgColor: ACCENT_PALETTE[Math.abs(apiStock.acronym.charCodeAt(0)) % ACCENT_PALETTE.length],
+        category: apiStock.category,
+        exchange: apiStock.exchange,
+      }
+    : null;
+
+  if (isLoading) {
+    return (
+      <div className="p-8 text-center">
+        <Icon icon="mdi:loading" width={40} className="mx-auto mb-3 animate-spin" style={{ color: "#00d4a1" }} />
+        <p className="text-white">Loading…</p>
+      </div>
+    );
+  }
 
   if (!stock) {
     return (
@@ -148,7 +166,7 @@ export default function MarketplaceStockDetail() {
         <Card variant="default" className="md:col-span-2">
           <h2 className="text-xl font-bold text-white mb-4">About {stock.name}</h2>
           <p className="text-penny-text-muted leading-relaxed text-sm">
-            {stock.description}
+            {stock.category ? `${stock.category} · ` : ""}{stock.exchange ? `Listed on ${stock.exchange}` : "Listed stock"}
             <br /><br />
             <strong className="text-white">Project Overview:</strong> This asset has shown significant resilience over the past few quarters, maintaining strong support levels despite broader market volatility. Integration with multiple decentralized finance protocols continues to drive fundamental value.
           </p>

@@ -1,4 +1,5 @@
 {
     "terminal.integrated.cursorStyle": "line",
-    "terminal.integrated.cursorBlinking": true
+    "terminal.integrated.cursorBlinking": true,
+    "CodeGPT.apiKey": "CodeGPT Plus Beta"
 }

@@ -1,64 +1,32 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Icon } from "@iconify/react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import type { CopyTrading, CreateCopyTradingPayload, RiskLevel } from "@/types/api";
+import {
+  useCopyTrading,
+  useCreateCopyTrade,
+  useUpdateCopyTrade,
+  useDeleteCopyTrade,
+} from "@/hooks/queries";
 
 const formatUSD = (n: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
 
 const RISK_OPTIONS: RiskLevel[] = ["low", "medium", "high"];
 
-const INITIAL_MOCK_SETUPS: CopyTrading[] = [
-  {
-    _id: "setup-1",
-    traderName: "Alpha Momentum",
-    riskLevel: "medium",
-    rateOfChange: 42.8,
-    duration: "14 days",
-    averageDailyProfit: 3.2,
-    purchases: 128,
-    totalAssets: 450000,
-    copyTradePrice: 49.99,
-    isActive: true,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    _id: "setup-2",
-    traderName: "Quantum Blue",
-    riskLevel: "low",
-    rateOfChange: 18.5,
-    duration: "30 days",
-    averageDailyProfit: 1.1,
-    purchases: 84,
-    totalAssets: 820000,
-    copyTradePrice: 29.99,
-    isActive: true,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    _id: "setup-3",
-    traderName: "Crypto Apex",
-    riskLevel: "high",
-    rateOfChange: 76.4,
-    duration: "7 days",
-    averageDailyProfit: 6.8,
-    purchases: 52,
-    totalAssets: 190000,
-    copyTradePrice: 99.00,
-    isActive: true,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-];
-
 export default function CopyTradingAdminPage() {
-  const [setups, setSetups] = useState<CopyTrading[]>(INITIAL_MOCK_SETUPS);
-  const isLoading = false;
+  const { data: rawSetups, isLoading } = useCopyTrading();
+  const createMut = useCreateCopyTrade();
+  const updateMut = useUpdateCopyTrade();
+  const deleteMut = useDeleteCopyTrade();
+
+  const setups: CopyTrading[] = useMemo(() => {
+    const arr = Array.isArray(rawSetups) ? rawSetups : ((rawSetups as unknown as { data?: CopyTrading[] })?.data ?? []);
+    return arr;
+  }, [rawSetups]);
 
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -118,35 +86,40 @@ export default function CopyTradingAdminPage() {
     return Object.keys(errs).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
 
-    if (editingId) {
-      setSetups((prev) =>
-        prev.map((s) => (s._id === editingId ? { ...s, ...formData, updatedAt: new Date().toISOString() } : s))
-      );
-    } else {
-      const newSetup: CopyTrading = {
-        ...formData,
-        _id: `setup-${Date.now()}`,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      setSetups((prev) => [newSetup, ...prev]);
+    try {
+      if (editingId) {
+        await updateMut.mutateAsync({ id: editingId, data: formData });
+      } else {
+        await createMut.mutateAsync(formData);
+      }
+      setShowModal(false);
+    } catch (err) {
+      console.error("Failed to save copy trade setup", err);
     }
-    setShowModal(false);
   };
 
-  const handleDelete = (id: string) => {
-    setSetups((prev) => prev.filter((s) => s._id !== id));
-    setDeleteConfirm(null);
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteMut.mutateAsync(id);
+      setDeleteConfirm(null);
+    } catch (err) {
+      console.error("Failed to delete copy trade setup", err);
+    }
   };
 
-  const toggleActive = (setup: CopyTrading) => {
-    setSetups((prev) =>
-      prev.map((s) => (s._id === setup._id ? { ...s, isActive: !(s.isActive ?? true) } : s))
-    );
+  const toggleActive = async (setup: CopyTrading) => {
+    try {
+      await updateMut.mutateAsync({
+        id: setup._id,
+        data: { isActive: !(setup.isActive !== false) },
+      });
+    } catch (err) {
+      console.error("Failed to toggle active status", err);
+    }
   };
 
   return (
@@ -180,13 +153,13 @@ export default function CopyTradingAdminPage() {
         <div className="rounded-xl sm:rounded-2xl p-3 sm:p-5" style={{ background: "linear-gradient(135deg, #151d2d 0%, #1b2a40 100%)", border: "1px solid #252f45" }}>
           <p className="text-[10px] sm:text-sm" style={{ color: "#9aa3b0" }}>Active Copies</p>
           <p className="text-lg sm:text-2xl lg:text-3xl font-extrabold text-white mt-1">
-            {isLoading ? "—" : setups.reduce((sum, s) => sum + s.purchases, 0)}
+            {isLoading ? "—" : setups.reduce((sum, s) => sum + (s.purchases ?? 0), 0)}
           </p>
         </div>
         <div className="rounded-xl sm:rounded-2xl p-3 sm:p-5" style={{ background: "linear-gradient(135deg, #151d2d 0%, #1b2a40 100%)", border: "1px solid #252f45" }}>
           <p className="text-[10px] sm:text-sm" style={{ color: "#9aa3b0" }}>Revenue</p>
           <p className="text-lg sm:text-2xl lg:text-3xl font-extrabold text-white mt-1">
-            {isLoading ? "—" : formatUSD(setups.reduce((sum, s) => sum + s.copyTradePrice * s.purchases, 0))}
+            {isLoading ? "—" : formatUSD(setups.reduce((sum, s) => sum + (s.copyTradePrice ?? 0) * (s.purchases ?? 0), 0))}
           </p>
         </div>
       </div>
@@ -241,10 +214,10 @@ export default function CopyTradingAdminPage() {
                         </div>
                         <div className="flex items-center gap-2 sm:gap-3 mt-1 flex-wrap">
                           <span className="text-[10px] sm:text-xs" style={{ color: "#6b7785" }}>
-                            {setup.duration}
+                            {setup.duration || "N/A"}
                           </span>
                           <span className="text-[10px] sm:text-xs" style={{ color: "#6b7785" }}>
-                            Win: {setup.rateOfChange.toFixed(2)}%
+                            Win: {(setup.rateOfChange ?? 0).toFixed(2)}%
                           </span>
                         </div>
                       </div>
@@ -253,18 +226,18 @@ export default function CopyTradingAdminPage() {
                       <div className="text-center">
                         <p className="text-[10px] sm:text-xs" style={{ color: "#6b7785" }}>Daily Profit</p>
                         <p className="text-sm sm:text-base lg:text-lg font-bold" style={{ color: "#00d4a1" }}>
-                          {formatUSD(setup.averageDailyProfit)}
+                          {formatUSD(setup.averageDailyProfit ?? 0)}
                         </p>
                       </div>
                       <div className="text-center">
                         <p className="text-[10px] sm:text-xs" style={{ color: "#6b7785" }}>Price</p>
                         <p className="text-sm sm:text-base lg:text-lg font-bold" style={{ color: "#F5C518" }}>
-                          {formatUSD(setup.copyTradePrice)}
+                          {formatUSD(setup.copyTradePrice ?? 0)}
                         </p>
                       </div>
                       <div className="text-center">
                         <p className="text-[10px] sm:text-xs" style={{ color: "#6b7785" }}>Purchases</p>
-                        <p className="text-sm sm:text-base font-bold text-white">{setup.purchases}</p>
+                        <p className="text-sm sm:text-base font-bold text-white">{setup.purchases ?? 0}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 sm:ml-4">

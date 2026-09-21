@@ -3,14 +3,24 @@
 import React, { useEffect, useState } from "react";
 import { Icon } from "@iconify/react";
 
+import { usePortfolio } from "@/context/PortfolioContext";
+
 function formatUSD(val: number): string {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(val);
+}
+
+interface AddFundsTrade {
+  investedAmount?: number;
+  pnl?: number;
+  setup?: {
+    traderNickname?: string;
+  };
 }
 
 interface AddFundsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  trade: any;
+  trade: AddFundsTrade | null;
 }
 
 const initialState = {
@@ -19,7 +29,8 @@ const initialState = {
 };
 
 export default function AddFundsModal({ isOpen, onClose, trade }: AddFundsModalProps) {
-  const copyWalletBalance = 2450;
+  const { accountBalance } = usePortfolio();
+  const copyWalletBalance = accountBalance;
   const [form, setForm] = useState(initialState);
 
   useEffect(() => {

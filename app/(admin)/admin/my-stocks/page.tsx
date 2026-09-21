@@ -1,51 +1,23 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Icon } from "@iconify/react";
 import CreateStockModal from "@/components/modals/CreateStockModal";
+import { useStocks } from "@/hooks/queries";
 import type { Stock } from "@/types/api";
 
 const formatUSD = (n: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
 
-const MOCK_ADMIN_STOCKS: Stock[] = [
-  {
-    _id: "stock-adm-1",
-    name: "Apex BioTech",
-    acronym: "APEX",
-    lastPrice: 2.45,
-    change24h: 0.32,
-    rateOfChange: 15.02,
-    currency: "USD",
-    exchange: "NASDAQ",
-    type: "Healthcare",
-    totalVolume: 84000,
-    isApproved: true,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    _id: "stock-adm-2",
-    name: "Solaris Power Systems",
-    acronym: "SOLR",
-    lastPrice: 3.12,
-    change24h: 0.44,
-    rateOfChange: 16.42,
-    currency: "USD",
-    exchange: "OTC",
-    type: "Tech",
-    totalVolume: 42500,
-    isApproved: true,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-];
-
 export default function MyStocksPage() {
-  const stocks = MOCK_ADMIN_STOCKS;
-  const isLoading = false;
+  const { data: rawStocks, isLoading } = useStocks(1, 50);
+
+  const stocks: Stock[] = useMemo(() => {
+    return Array.isArray(rawStocks) ? rawStocks : (rawStocks as { data?: Stock[] })?.data ?? [];
+  }, [rawStocks]);
+
   const [createModalOpen, setCreateModalOpen] = useState(false);
-  const totalRevenue = stocks.reduce((sum, s) => sum + (s.lastPrice * (s.totalVolume ?? 0)), 0);
+  const totalRevenue = stocks.reduce((sum, s) => sum + ((s.lastPrice ?? 0) * ((s as unknown as { totalVolume?: number }).totalVolume ?? 0)), 0);
 
   return (
     <div className="space-y-5 sm:space-y-6">
@@ -82,7 +54,7 @@ export default function MyStocksPage() {
             <span className="text-[10px] sm:text-sm" style={{ color: "#9aa3b0" }}>Total Volume</span>
           </div>
           <p className="text-xl sm:text-2xl font-extrabold text-white">
-            {isLoading ? "—" : stocks.reduce((sum, s) => sum + (s.totalVolume ?? 0), 0).toLocaleString()}
+            {isLoading ? "—" : stocks.reduce((sum, s) => sum + ((s as unknown as { totalVolume?: number }).totalVolume ?? 0), 0).toLocaleString()}
           </p>
         </div>
         <div className="rounded-xl sm:rounded-2xl p-4 sm:p-5" style={{ background: "linear-gradient(135deg, #151d2d 0%, #1b2a40 100%)", border: "1px solid #252f45" }}>
@@ -122,6 +94,7 @@ export default function MyStocksPage() {
           <div className="divide-y" style={{ borderColor: "#1d2639" }}>
             {stocks.map((stock) => {
               const isPositive = (stock.rateOfChange ?? 0) >= 0;
+              const volume = (stock as unknown as { totalVolume?: number }).totalVolume ?? 0;
               return (
                 <div key={stock._id} className="lg:grid lg:grid-cols-[2fr_1fr_1fr_1fr_1fr] px-4 sm:px-6 py-3 sm:py-4 flex flex-col gap-2" style={{ borderColor: "#1d2639" }}>
                   {/* Stock Info */}
@@ -138,7 +111,7 @@ export default function MyStocksPage() {
                   {/* Price */}
                   <div className="flex items-center justify-between lg:block lg:text-right">
                     <span className="text-[10px] sm:text-xs lg:hidden" style={{ color: "#6b7785" }}>Price</span>
-                    <p className="text-xs sm:text-sm font-semibold text-white">{formatUSD(stock.lastPrice)}</p>
+                    <p className="text-xs sm:text-sm font-semibold text-white">{formatUSD(stock.lastPrice ?? 0)}</p>
                   </div>
 
                   {/* Change */}
@@ -155,14 +128,14 @@ export default function MyStocksPage() {
                   {/* Volume */}
                   <div className="flex items-center justify-between lg:block lg:text-right">
                     <span className="text-[10px] sm:text-xs lg:hidden" style={{ color: "#6b7785" }}>Volume</span>
-                    <p className="text-xs sm:text-sm font-semibold text-white">{(stock.totalVolume ?? 0).toLocaleString()}</p>
+                    <p className="text-xs sm:text-sm font-semibold text-white">{volume.toLocaleString()}</p>
                   </div>
 
                   {/* Market Cap */}
                   <div className="flex items-center justify-between lg:block lg:text-right">
                     <span className="text-[10px] sm:text-xs lg:hidden" style={{ color: "#6b7785" }}>Market Cap</span>
                     <p className="text-xs sm:text-sm font-semibold" style={{ color: "#00d4a1" }}>
-                      {formatUSD(stock.lastPrice * (stock.totalVolume ?? 0))}
+                      {formatUSD((stock.lastPrice ?? 0) * volume)}
                     </p>
                   </div>
                 </div>

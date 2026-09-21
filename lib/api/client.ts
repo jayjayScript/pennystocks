@@ -19,6 +19,22 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
     headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}), ...options.headers },
   });
   if (!response.ok) {
+    if (response.status === 401 && typeof window !== "undefined") {
+      const isAdminRoute = window.location.pathname.startsWith("/admin");
+      if (isAdminRoute) {
+        localStorage.removeItem("adminAccessToken");
+        localStorage.removeItem("adminRefreshToken");
+        if (window.location.pathname !== "/admin/login") {
+          window.location.replace("/admin/login");
+        }
+      } else {
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("refreshToken");
+        if (window.location.pathname !== "/") {
+          window.location.replace("/");
+        }
+      }
+    }
     const body = await response.json().catch(() => ({}));
     throw new ApiError(Array.isArray(body.message) ? body.message.join(", ") : body.message || "Request failed", response.status);
   }

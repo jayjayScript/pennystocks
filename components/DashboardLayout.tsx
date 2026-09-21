@@ -1,12 +1,23 @@
 // components/DashboardLayout.tsx — client component
 "use client";
 
+import React, { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import DesktopSideNav from "@/components/global/nav/DesktopSideNav";
 import MobileNav from "@/components/global/nav/MobileNav";
 import TopNav from "@/components/global/nav/TopNav";
 import PendingDepositBanner from "@/components/global/PendingDepositBanner";
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+
+  useEffect(() => {
+    const token = localStorage.getItem("accessToken");
+    if (!token) {
+      router.replace("/");
+    }
+  }, [router]);
+
   return (
     <div className="min-h-screen flex w-full overflow-x-hidden" style={{ background: "#0d1624" }}>
       {/* Desktop Sidebar — fixed, hidden on mobile */}

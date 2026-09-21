@@ -2,17 +2,31 @@
 
 import React, { useState } from "react";
 import { Icon } from "@iconify/react";
+import { useQuery } from "@tanstack/react-query";
 import ListedStocksList from "./components/ListedStocksList";
 import PendingProposalsList from "./components/PendingProposalsList";
 import RejectedProposalsList from "./components/RejectedProposalsList";
+import { useStocks } from "@/hooks/queries";
+import { stockProposalsApi } from "@/lib/api/backend";
+
 type TabKey = "listed" | "pending" | "rejected";
 
 export default function StockManagementPage() {
   const [activeTab, setActiveTab] = useState<TabKey>("listed");
+  const { data: stocksData } = useStocks(1, 50);
 
-  const listedCount = 4;
-  const pendingCount = 2;
-  const rejectedCount = 0;
+  const { data: pendingResponse } = useQuery({
+    queryKey: ["admin", "stock-proposals", "pending"],
+    queryFn: () => stockProposalsApi.list(1, 10, "pending"),
+  });
+  const { data: rejectedResponse } = useQuery({
+    queryKey: ["admin", "stock-proposals", "rejected"],
+    queryFn: () => stockProposalsApi.list(1, 10, "rejected"),
+  });
+
+  const listedCount = stocksData?.total ?? stocksData?.data?.length ?? 0;
+  const pendingCount = pendingResponse?.total ?? (Array.isArray(pendingResponse) ? pendingResponse.length : pendingResponse?.data?.length ?? 0);
+  const rejectedCount = rejectedResponse?.total ?? (Array.isArray(rejectedResponse) ? rejectedResponse.length : rejectedResponse?.data?.length ?? 0);
 
   const tabs: { key: TabKey; label: string; color: string; count?: number }[] = [
     { key: "listed",   label: "Listed Stocks",     color: "#00d4a1", count: listedCount },

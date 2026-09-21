@@ -2,75 +2,18 @@
 
 import React, { useState } from "react";
 import { Icon } from "@iconify/react";
-import type { Stock } from "@/types/api";
+import { useStocks, useDeleteStock } from "@/hooks/queries";
 
 const formatUSD = (n: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
 
-const MOCK_LISTED_STOCKS: Stock[] = [
-  {
-    _id: "stock-list-1",
-    name: "Apex BioTech",
-    acronym: "APEX",
-    lastPrice: 2.45,
-    change24h: 0.32,
-    rateOfChange: 15.02,
-    currency: "USD",
-    exchange: "NASDAQ",
-    type: "Healthcare",
-    isApproved: true,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    _id: "stock-list-2",
-    name: "Nova Lithium Corp",
-    acronym: "NOVA",
-    lastPrice: 0.88,
-    change24h: -0.05,
-    rateOfChange: -5.38,
-    currency: "USD",
-    exchange: "NYSE",
-    type: "Growth",
-    isApproved: true,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    _id: "stock-list-3",
-    name: "Solaris Power Systems",
-    acronym: "SOLR",
-    lastPrice: 3.12,
-    change24h: 0.44,
-    rateOfChange: 16.42,
-    currency: "USD",
-    exchange: "OTC",
-    type: "Tech",
-    isApproved: true,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    _id: "stock-list-4",
-    name: "Vanguard Rare Earths",
-    acronym: "VGND",
-    lastPrice: 1.15,
-    change24h: 0.08,
-    rateOfChange: 7.48,
-    currency: "USD",
-    exchange: "AMEX",
-    type: "Growth",
-    isApproved: true,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-];
-
 export default function ListedStocksList() {
-  const [stocks, setStocks] = useState<Stock[]>(MOCK_LISTED_STOCKS);
-  const isLoading = false;
+  const { data: stocksData, isLoading } = useStocks(1, 50);
+  const deleteMut = useDeleteStock();
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+
+  const stocks = stocksData?.data ?? [];
 
   const filtered = stocks.filter((s) => {
     if (!search) return true;
@@ -81,9 +24,13 @@ export default function ListedStocksList() {
     );
   });
 
-  const handleDelete = (id: string) => {
-    setStocks((prev) => prev.filter((s) => s._id !== id));
-    setDeleteConfirm(null);
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteMut.mutateAsync(id);
+      setDeleteConfirm(null);
+    } catch {
+      // Mutation error handled by React Query / UI
+    }
   };
 
   return (

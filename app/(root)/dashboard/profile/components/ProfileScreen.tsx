@@ -2,7 +2,6 @@
 
 import { Icon } from "@iconify/react";
 import { useState } from "react";
-import SetWithdrawalPasswordModal from "@/components/modals/SetWithdrawalPasswordModal";
 import ChangePasswordModal from "@/components/modals/ChangePasswordModal";
 import DepositModal from "@/components/modals/DepositModal";
 
@@ -15,7 +14,6 @@ const MOCK_PROFILE = {
   userID: "USR-84291",
   balance: 12450.00,
   verified: true,
-  walletPasswordSet: true,
 };
 
 export default function ProfileScreen() {
@@ -25,7 +23,7 @@ export default function ProfileScreen() {
   const [phone, setPhone] = useState(MOCK_PROFILE.phone);
   const [walletAddress, setWalletAddress] = useState(MOCK_PROFILE.walletAddress);
   const [saveMsg, setSaveMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
-  const [openModal, setOpenModal] = useState<"withdraw-pw" | "change-pw" | "deposit" | null>(null);
+  const [openModal, setOpenModal] = useState<"change-pw" | "deposit" | null>(null);
 
   const handleSave = () => {
     setSaveMsg({ kind: "ok", text: "Profile updated." });
@@ -166,9 +164,7 @@ export default function ProfileScreen() {
             </div>
             <div className="text-right">
               <p className="text-[10px]" style={{ color: "#9aa3b0" }}>Status</p>
-              <p className="text-sm font-bold" style={{ color: "#4CAF50" }}>
-                {MOCK_PROFILE.walletPasswordSet ? "Set" : "Not Set"}
-              </p>
+              <p className="text-sm font-bold" style={{ color: "#4CAF50" }}>Active</p>
             </div>
           </div>
         </div>
@@ -178,7 +174,6 @@ export default function ProfileScreen() {
       <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid #1d2639" }}>
         {[
           { label: "Change Password",      icon: "mdi:lock-outline",          danger: false, action: () => setOpenModal("change-pw") },
-          { label: "Withdrawal Password",  icon: "mdi:shield-key-outline",    danger: false, action: () => setOpenModal("withdraw-pw") },
           { label: "Notifications",        icon: "mdi:bell-outline",          danger: false, action: () => setOpenModal("deposit") },
           { label: "Privacy Policy",       icon: "mdi:file-document-outline", danger: false, action: () => window.open("/privacy", "_blank") },
           { label: "Log Out",              icon: "mdi:logout",                danger: true,  action: () => { /* disconnected: no-op */ } },
@@ -198,7 +193,6 @@ export default function ProfileScreen() {
         ))}
       </div>
 
-      {openModal === "withdraw-pw" && <SetWithdrawalPasswordModal isOpen onClose={() => setOpenModal(null)} />}
       {openModal === "change-pw"   && <ChangePasswordModal isOpen onClose={() => setOpenModal(null)} />}
       {openModal === "deposit"     && <DepositModal isOpen onClose={() => setOpenModal(null)} />}
     </div>

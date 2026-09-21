@@ -2,21 +2,18 @@
 
 import React, { useState, useEffect } from "react";
 import { Icon } from "@iconify/react";
+import { usePortfolio } from "@/context/PortfolioContext";
 interface WithdrawModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
 export default function WithdrawModal({ isOpen, onClose }: WithdrawModalProps) {
-  const accountBalance = 12450.00;
-  const withdrawalPassword = "";
+  const { accountBalance, submitWithdrawOrder } = usePortfolio();
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
-  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const [status, setStatus] = useState<"idle" | "success">("idle");
-
-  const passwordNotSet = withdrawalPassword === "";
+  const [status, setStatus] = useState<"idle" | "success" | "submitting">("idle");
 
 
   useEffect(() => {
@@ -37,12 +34,17 @@ export default function WithdrawModal({ isOpen, onClose }: WithdrawModalProps) {
       return;
     }
 
-    if (password.trim() === "") {
-      setError("Please enter your withdrawal password.");
-      return;
+    setStatus("submitting");
+    setError("");
+    const result = await submitWithdrawOrder(parsedAmount, note || undefined);
+    if (result.success) {
+      setStatus("success");
+      setAmount("");
+      setNote("");
+    } else {
+      setStatus("idle");
+      setError(result.message);
     }
-
-    setStatus("success");
   };
 
   const handleBackdrop = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -90,7 +92,7 @@ export default function WithdrawModal({ isOpen, onClose }: WithdrawModalProps) {
             </div>
             <h3 className="text-white font-bold text-lg mb-1">Withdrawal Requested</h3>
             <p className="text-sm text-penny-text-muted max-w-xs leading-normal mb-6">
-              Your withdrawal request of ${parseFloat(amount).toFixed(2)} has been submitted. The Admin will process your request and update your account balance.
+              Your withdrawal request has been submitted. The Admin will process your request and update your account balance.
             </p>
             <button
               onClick={onClose}
@@ -131,18 +133,6 @@ export default function WithdrawModal({ isOpen, onClose }: WithdrawModalProps) {
               />
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold mb-1.5 text-penny-text-muted">
-                {passwordNotSet ? "Create Withdrawal Password" : "Withdrawal Password"}
-              </label>
-              <input
-                type="password"
-                placeholder={passwordNotSet ? "Set your withdrawal password" : "Enter your withdrawal password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl text-sm bg-[#0d1624] border border-[#252f45] text-white focus:outline-none focus:border-[#F44336]"
-              />
-            </div>
 
             {error && (
               <div className="p-3 rounded-lg bg-[#F44336]/10 border border-[#F44336]/20 text-xs font-medium text-[#F44336]">

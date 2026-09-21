@@ -6,40 +6,53 @@ import Link from "next/link";
 
 import CopyTradingCarousel from "./CopyTradingCarousel";
 import BuyModal from "@/components/modals/BuyModal";
+import { useStocks } from "@/hooks/queries";
+import type { Stock as ApiStock } from "@/types/api";
 
-type Stock = {
-  id: string;
-  symbol: string;
-  name: string;
-  price: string;
-  change: string;
-  pct: string;
-  up: boolean;
-  bgColor: string;
-  description?: string;
-};
-
-const MOCK_STOCKS: Stock[] = [
-  { id: "1", symbol: "AAPL",  name: "Apple Inc.",          price: "$175.20", change: "2.85",  pct: "+1.65%",  up: true,  bgColor: "rgba(120,120,120,0.15)", description: "Apple Inc. designs, manufactures and markets consumer electronics." },
-  { id: "2", symbol: "TSLA",  name: "Tesla Inc.",           price: "$228.50", change: "-4.10", pct: "-1.76%",  up: false, bgColor: "rgba(204,0,0,0.15)",     description: "Tesla designs and manufactures electric vehicles and clean energy products." },
-  { id: "3", symbol: "NVDA",  name: "NVIDIA Corporation",   price: "$485.10", change: "18.40", pct: "+3.95%",  up: true,  bgColor: "rgba(118,185,0,0.15)",   description: "NVIDIA is a global leader in visual computing and AI hardware." },
-  { id: "4", symbol: "AMZN",  name: "Amazon.com Inc.",      price: "$192.75", change: "3.25",  pct: "+1.71%",  up: true,  bgColor: "rgba(255,153,0,0.15)",   description: "Amazon is the world's largest e-commerce and cloud computing company." },
-  { id: "5", symbol: "MSFT",  name: "Microsoft Corporation",price: "$415.60", change: "-2.10", pct: "-0.50%",  up: false, bgColor: "rgba(0,120,212,0.15)",   description: "Microsoft develops, licenses, and supports a wide range of software products." },
-  { id: "6", symbol: "GOOGL", name: "Alphabet Inc.",        price: "$176.30", change: "4.80",  pct: "+2.80%",  up: true,  bgColor: "rgba(66,133,244,0.15)",  description: "Alphabet is the parent company of Google and its various subsidiaries." },
+// Palette cycles through accent hues for stocks without a colour code
+const ACCENT_PALETTE = [
+  "rgba(0,212,161,0.15)",
+  "rgba(245,197,24,0.15)",
+  "rgba(66,133,244,0.15)",
+  "rgba(244,67,54,0.15)",
+  "rgba(118,185,0,0.15)",
+  "rgba(255,153,0,0.15)",
+  "rgba(120,120,212,0.15)",
+  "rgba(204,0,0,0.15)",
 ];
+
+function mapStock(s: ApiStock, idx: number) {
+  const up = s.rateOfChange >= 0;
+  return {
+    _id: s._id,
+    symbol: s.acronym,
+    name: s.name,
+    price: `$${s.lastPrice.toFixed(2)}`,
+    change: `${s.change24h >= 0 ? "+" : ""}${s.change24h.toFixed(2)}`,
+    pct: `${s.rateOfChange >= 0 ? "+" : ""}${s.rateOfChange.toFixed(2)}%`,
+    up,
+    bgColor: ACCENT_PALETTE[idx % ACCENT_PALETTE.length],
+    category: s.category,
+    exchange: s.exchange,
+    lastPrice: s.lastPrice,
+  };
+}
 
 export default function MarketplaceScreen() {
   const [search, setSearch] = useState("");
-  const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
+  const [selectedStock, setSelectedStock] = useState<ReturnType<typeof mapStock> | null>(null);
   const [buyOpen, setBuyOpen] = useState(false);
 
-  const filtered = MOCK_STOCKS.filter(
+  const { data: stocksData, isLoading, isError } = useStocks(1, 50);
+  const stocks = (stocksData?.data ?? []).map(mapStock);
+
+  const filtered = stocks.filter(
     (a) =>
       a.name.toLowerCase().includes(search.toLowerCase()) ||
       a.symbol.toLowerCase().includes(search.toLowerCase()),
   );
 
-  const openBuy = (asset: Stock) => {
+  const openBuy = (asset: ReturnType<typeof mapStock>) => {
     setSelectedStock(asset);
     setBuyOpen(true);
   };
@@ -84,14 +97,27 @@ export default function MarketplaceScreen() {
 
       {/* ── Asset list */}
       <div className="px-4 sm:px-6 md:px-8 mt-3 space-y-3 max-w-7xl mx-auto w-full">
-        {filtered.length === 0 && (
+        {isLoading && (
+          <div className="text-center py-16">
+            <Icon icon="mdi:loading" width={40} className="mx-auto mb-3 animate-spin" style={{ color: "#00d4a1" }} />
+            <p className="text-sm" style={{ color: "#6b7785" }}>Loading stocks…</p>
+          </div>
+        )}
+        {isError && !isLoading && (
+          <div className="text-center py-16">
+            <Icon icon="mdi:alert-circle-outline" width={40} className="mx-auto mb-3" style={{ color: "#F44336" }} />
+            <p className="text-white font-semibold mb-1">Failed to load stocks</p>
+            <p className="text-sm" style={{ color: "#6b7785" }}>Please try refreshing the page.</p>
+          </div>
+        )}
+        {!isLoading && !isError && filtered.length === 0 && (
           <div className="text-center py-16">
             <Icon icon="mdi:chart-line-variant" width={48} className="mx-auto mb-3" style={{ color: "#6b7785" }} />
             <p className="text-white font-semibold mb-1">No Results</p>
             <p className="text-sm max-w-sm mx-auto" style={{ color: "#6b7785" }}>Try a different search term.</p>
           </div>
         )}
-        {filtered.map((asset, i) => (
+        {!isLoading && filtered.map((asset, i) => (
           <div
             key={i}
             className="flex items-center justify-between
