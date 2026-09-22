@@ -139,7 +139,7 @@ export default function TopUpWalletModal({ isOpen, onClose, onSuccess }: TopUpWa
                 <button
                   key={preset}
                   type="button"
-                  onClick={() => handlePreset(String(preset))}
+                  onClick={() => handlePreset(preset)}
                   className="py-2 rounded-xl text-xs font-semibold transition-all"
                   style={{
                     background:

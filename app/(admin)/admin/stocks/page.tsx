@@ -24,9 +24,9 @@ export default function StockManagementPage() {
     queryFn: () => stockProposalsApi.list(1, 10, "rejected"),
   });
 
-  const listedCount = stocksData?.total ?? stocksData?.data?.length ?? 0;
-  const pendingCount = pendingResponse?.total ?? (Array.isArray(pendingResponse) ? pendingResponse.length : pendingResponse?.data?.length ?? 0);
-  const rejectedCount = rejectedResponse?.total ?? (Array.isArray(rejectedResponse) ? rejectedResponse.length : rejectedResponse?.data?.length ?? 0);
+  const listedCount = stocksData?.pagination?.total ?? stocksData?.data?.length ?? 0;
+  const pendingCount = pendingResponse?.pagination?.total ?? (Array.isArray(pendingResponse) ? pendingResponse.length : pendingResponse?.data?.length ?? 0);
+  const rejectedCount = rejectedResponse?.pagination?.total ?? (Array.isArray(rejectedResponse) ? rejectedResponse.length : rejectedResponse?.data?.length ?? 0);
 
   const tabs: { key: TabKey; label: string; color: string; count?: number }[] = [
     { key: "listed",   label: "Listed Stocks",     color: "#00d4a1", count: listedCount },

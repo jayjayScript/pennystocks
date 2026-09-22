@@ -43,9 +43,7 @@ export function StockRequestProvider({ children }: { children: React.ReactNode }
           change24h: 0,
           rateOfChange: 0,
           currency: "USD",
-          description: data.description,
           exchange: data.exchange,
-          type: data.type,
         });
 
         const request: StockRequest = {
