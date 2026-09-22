@@ -62,13 +62,13 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <MantineProvider defaultColorScheme="dark" theme={theme}>
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
-          <CopyTradingProvider>
-            <PortfolioProvider>
+          <PortfolioProvider>
+            <CopyTradingProvider>
               <StockRequestProvider>
                 {children}
               </StockRequestProvider>
-            </PortfolioProvider>
-          </CopyTradingProvider>
+            </CopyTradingProvider>
+          </PortfolioProvider>
         </AuthProvider>
       </QueryClientProvider>
     </MantineProvider>

@@ -22,6 +22,8 @@ export default function PendingProposalsList() {
       queryClient.invalidateQueries({ queryKey: ["admin", "stock-proposals"] });
       queryClient.invalidateQueries({ queryKey: ["my-stock-proposals"] });
       queryClient.invalidateQueries({ queryKey: ["stocks"] });
+      // Refetch to ensure updated proposal status appears immediately in My Stocks
+      queryClient.refetchQueries({ queryKey: ["my-stock-proposals"] });
       setSelectedProposal(null);
     },
   });
@@ -131,7 +133,7 @@ export default function PendingProposalsList() {
                   <div className="flex items-center justify-between lg:block lg:text-right">
                     <span className="text-[10px] lg:hidden" style={{ color: "#6b7785" }}>Proposed Price</span>
                     <p className="text-xs sm:text-sm font-bold text-[#00d4a1]">
-                      ${(stock.proposedPrice ?? 0).toFixed(2)}
+                      ${(stock.initialListingPrice ?? 0).toFixed(2)}
                     </p>
                   </div>
 

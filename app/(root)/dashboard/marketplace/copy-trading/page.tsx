@@ -12,8 +12,9 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import TopUpWalletModal from "@/components/modals/TopUpWalletModal";
 import AddFundsModal from "@/components/modals/AddFundsModal";
-import { useCopyTrading, useUserProfile } from "@/hooks/queries";
-import { usePortfolio } from "@/context/PortfolioContext";
+import WithdrawCopyWalletModal from "@/components/modals/WithdrawCopyWalletModal";
+import { useCopyTrading as useCopyTradingQuery, useUserProfile } from "@/hooks/queries";
+import { useCopyTrading } from "@/context/CopyTradingContext";
 import { copyTradingApi } from "@/lib/api/backend";
 import type { CopyTrading, CopyTradePurchase } from "@/types/api";
 
@@ -72,10 +73,10 @@ function formatInitials(name?: string): string {
 
 export default function CopyTradingDetailPage() {
   const queryClient = useQueryClient();
-  const { accountBalance } = usePortfolio();
+  const { copyWalletBalance } = useCopyTrading();
   const { data: profile } = useUserProfile();
 
-  const { data: rawSetups, isLoading: isSetupsLoading } = useCopyTrading();
+  const { data: rawSetups, isLoading: isSetupsLoading } = useCopyTradingQuery();
   const { data: rawPurchases, isLoading: isPurchasesLoading } = useQuery({
     queryKey: ["my-copy-trades"],
     queryFn: () => copyTradingApi.mine(),
@@ -86,14 +87,15 @@ export default function CopyTradingDetailPage() {
   const activeSetups: CopyTrading[] = useMemo(() => {
     const arr = Array.isArray(rawSetups)
       ? rawSetups
-      : ((rawSetups as { data?: CopyTrading[] })?.data ?? []);
+      : ((rawSetups as unknown as { data?: CopyTrading[] })?.data ?? []);
     return arr.filter((s) => s.isActive !== false);
   }, [rawSetups]);
 
   const myPurchases: CopyTradePurchase[] = useMemo(() => {
     return Array.isArray(rawPurchases)
       ? rawPurchases
-      : ((rawPurchases as { data?: CopyTradePurchase[] })?.data ?? []);
+      : ((rawPurchases as unknown as { data?: CopyTradePurchase[] })?.data ??
+          []);
   }, [rawPurchases]);
 
   const activeCopyTrades: ActiveCopyTrade[] = useMemo(() => {
@@ -131,10 +133,11 @@ export default function CopyTradingDetailPage() {
     async (setupId: string) => {
       const setup = activeSetups.find((s) => s._id === setupId);
       if (!setup) return { success: false, message: "Trader not found" };
-      if (accountBalance < setup.copyTradePrice) {
+      if (copyWalletBalance < setup.copyTradePrice) {
         return {
           success: false,
-          message: "Insufficient wallet balance. Please top up.",
+          message:
+            "Insufficient copy wallet balance. Please top up your copy wallet.",
         };
       }
       try {
@@ -144,6 +147,7 @@ export default function CopyTradingDetailPage() {
           queryClient.invalidateQueries({ queryKey: ["user-profile"] }),
           queryClient.invalidateQueries({ queryKey: ["transactions"] }),
           queryClient.invalidateQueries({ queryKey: ["portfolio"] }),
+          queryClient.invalidateQueries({ queryKey: ["copy-trading-portfolio"] }),
         ]);
         return {
           success: true,
@@ -155,7 +159,7 @@ export default function CopyTradingDetailPage() {
         return { success: false, message: errorMsg };
       }
     },
-    [activeSetups, accountBalance, queryClient],
+    [activeSetups, copyWalletBalance, queryClient],
   );
 
   const stopCopyTrade = useCallback(
@@ -167,10 +171,11 @@ export default function CopyTradingDetailPage() {
           queryClient.invalidateQueries({ queryKey: ["user-profile"] }),
           queryClient.invalidateQueries({ queryKey: ["transactions"] }),
           queryClient.invalidateQueries({ queryKey: ["portfolio"] }),
+          queryClient.invalidateQueries({ queryKey: ["copy-trading-portfolio"] }),
         ]);
         return {
           success: true,
-          message: "Copy trade stopped and funds returned to wallet.",
+          message: "Copy trade stopped and funds returned to copy wallet.",
         };
       } catch (err: unknown) {
         const errorMsg =
@@ -205,6 +210,7 @@ export default function CopyTradingDetailPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTraderId, setSelectedTraderId] = useState<string | null>(null);
   const [showTopUp, setShowTopUp] = useState(false);
+  const [showWithdraw, setShowWithdraw] = useState(false);
   const [addFundsTrade, setAddFundsTrade] = useState<ActiveCopyTrade | null>(
     null,
   );
@@ -313,9 +319,17 @@ export default function CopyTradingDetailPage() {
                 Copy Wallet
               </p>
               <p className="text-sm font-bold" style={{ color: "#F5C518" }}>
-                {formatCopyUSD(accountBalance)}
+                {formatCopyUSD(copyWalletBalance)}
               </p>
             </div>
+            <button
+              onClick={() => setShowWithdraw(true)}
+              className="px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5"
+              style={{ background: "#151d2d", color: "#F44336", border: "1px solid #252f45" }}
+            >
+              <Icon icon="mdi:bank-transfer-out" width={12} />
+              Withdraw
+            </button>
             <button
               onClick={() => setShowTopUp(true)}
               className="px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5"
@@ -686,6 +700,14 @@ export default function CopyTradingDetailPage() {
       <TopUpWalletModal
         isOpen={showTopUp}
         onClose={() => setShowTopUp(false)}
+        onSuccess={(message) => showNotification("success", message)}
+      />
+
+      {/* Withdraw to Main Wallet Modal */}
+      <WithdrawCopyWalletModal
+        isOpen={showWithdraw}
+        onClose={() => setShowWithdraw(false)}
+        onSuccess={(message) => showNotification("success", message)}
       />
 
       {/* Add Funds to Trade Modal */}
@@ -693,6 +715,7 @@ export default function CopyTradingDetailPage() {
         isOpen={!!addFundsTrade}
         onClose={() => setAddFundsTrade(null)}
         trade={addFundsTrade}
+        onSuccess={(message) => showNotification("success", message)}
       />
 
       {/* Notification Toast */}
@@ -774,7 +797,7 @@ export default function CopyTradingDetailPage() {
                     className="text-white font-bold text-sm"
                     style={{ color: "#F5C518" }}
                   >
-                    {formatCopyUSD(accountBalance)}
+                    {formatCopyUSD(copyWalletBalance)}
                   </span>
                 </div>
                 {[

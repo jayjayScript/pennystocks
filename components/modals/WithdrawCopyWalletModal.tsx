@@ -9,22 +9,23 @@ function formatUSD(val: number): string {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(val);
 }
 
-interface TopUpWalletModalProps {
+interface WithdrawCopyWalletModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: (message: string) => void;
 }
 
-const PRESET_AMOUNTS = [50, 100, 250, 500];
-
 const initialState = {
   amount: "",
   error: "",
-  status: "idle" as "idle" | "error",
 };
 
-export default function TopUpWalletModal({ isOpen, onClose, onSuccess }: TopUpWalletModalProps) {
-  const { topUpCopyWallet } = useCopyTrading();
+export default function WithdrawCopyWalletModal({
+  isOpen,
+  onClose,
+  onSuccess,
+}: WithdrawCopyWalletModalProps) {
+  const { copyWalletBalance, withdrawCopyWallet } = useCopyTrading();
   const { accountBalance } = usePortfolio();
   const [form, setForm] = useState(initialState);
   const [submitting, setSubmitting] = useState(false);
@@ -36,24 +37,23 @@ export default function TopUpWalletModal({ isOpen, onClose, onSuccess }: TopUpWa
   }, [isOpen]);
 
   const setAmount = (value: string) => {
-    setForm((p) => ({ ...p, amount: value, error: "", status: "idle" }));
+    setForm((p) => ({ ...p, amount: value, error: "" }));
   };
 
-  const handlePreset = (preset: number) => {
-    setAmount(String(preset));
+  const handleWithdrawAll = () => {
+    setAmount(String(copyWalletBalance.toFixed(2)));
   };
 
   const validate = () => {
     const amount = parseFloat(form.amount);
     if (!form.amount || isNaN(amount) || amount <= 0) {
-      setForm((p) => ({ ...p, error: "Enter a valid amount", status: "error" }));
+      setForm((p) => ({ ...p, error: "Enter a valid amount" }));
       return false;
     }
-    if (amount > accountBalance) {
+    if (amount > copyWalletBalance) {
       setForm((p) => ({
         ...p,
-        error: `Insufficient balance. You have ${formatUSD(accountBalance)} available.`,
-        status: "error",
+        error: `Insufficient copy wallet balance. You have ${formatUSD(copyWalletBalance)} available.`,
       }));
       return false;
     }
@@ -65,10 +65,10 @@ export default function TopUpWalletModal({ isOpen, onClose, onSuccess }: TopUpWa
     if (!validate()) return;
     const amount = parseFloat(form.amount);
     setSubmitting(true);
-    const result = await topUpCopyWallet(amount);
+    const result = await withdrawCopyWallet(amount);
     setSubmitting(false);
     if (!result.success) {
-      setForm((p) => ({ ...p, error: result.message, status: "error" }));
+      setForm((p) => ({ ...p, error: result.message }));
       return;
     }
     setForm(initialState);
@@ -110,13 +110,13 @@ export default function TopUpWalletModal({ isOpen, onClose, onSuccess }: TopUpWa
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-[#1d2639] mb-5">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-[#F5C518]/15 text-[#F5C518]">
-              <Icon icon="mdi:wallet-plus" width={22} />
+            <div className="p-2 rounded-xl bg-[#F44336]/15 text-[#F44336]">
+              <Icon icon="mdi:bank-transfer-out" width={22} />
             </div>
             <div>
-              <h2 className="text-white font-bold text-lg leading-tight">Top Up Copy Wallet</h2>
+              <h2 className="text-white font-bold text-lg leading-tight">Withdraw to Main Wallet</h2>
               <p className="text-xs text-penny-text-muted mt-0.5">
-                Available: {formatUSD(accountBalance)}
+                Copy wallet: {formatUSD(copyWalletBalance)}
               </p>
             </div>
           </div>
@@ -129,36 +129,21 @@ export default function TopUpWalletModal({ isOpen, onClose, onSuccess }: TopUpWa
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Preset amounts */}
+          {/* Amount */}
           <div>
-            <label className="block text-xs font-semibold mb-2 text-penny-text-muted">
-              Quick Add
-            </label>
-            <div className="grid grid-cols-4 gap-2">
-              {PRESET_AMOUNTS.map((preset) => (
-                <button
-                  key={preset}
-                  type="button"
-                  onClick={() => handlePreset(String(preset))}
-                  className="py-2 rounded-xl text-xs font-semibold transition-all"
-                  style={{
-                    background:
-                      form.amount === String(preset) ? "rgba(245,197,24,0.15)" : "#0d1624",
-                    border: `1px solid ${form.amount === String(preset) ? "#F5C518" : "#252f45"}`,
-                    color: form.amount === String(preset) ? "#F5C518" : "#9aa3b0",
-                  }}
-                >
-                  ${preset}
-                </button>
-              ))}
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-semibold text-penny-text-muted">
+                Amount to Withdraw ($)
+              </label>
+              <button
+                type="button"
+                onClick={handleWithdrawAll}
+                className="text-xs font-bold cursor-pointer"
+                style={{ color: "#F5C518" }}
+              >
+                Withdraw All
+              </button>
             </div>
-          </div>
-
-          {/* Custom amount */}
-          <div>
-            <label className="block text-xs font-semibold mb-1.5 text-penny-text-muted">
-              Or enter custom amount
-            </label>
             <div className="relative">
               <span
                 className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm font-semibold"
@@ -187,10 +172,11 @@ export default function TopUpWalletModal({ isOpen, onClose, onSuccess }: TopUpWa
           {/* Info note */}
           <div
             className="p-3 rounded-xl text-xs flex items-start gap-2"
-            style={{ background: "rgba(0,212,161,0.06)", border: "1px solid rgba(0,212,161,0.15)", color: "#9aa3b0" }}
+            style={{ background: "rgba(244,67,54,0.06)", border: "1px solid rgba(244,67,54,0.15)", color: "#9aa3b0" }}
           >
-            <Icon icon="mdi:information-outline" width={14} className="shrink-0 mt-0.5" style={{ color: "#00d4a1" }} />
-            Funds transfer instantly from your main balance to your copy trading wallet.
+            <Icon icon="mdi:information-outline" width={14} className="shrink-0 mt-0.5" style={{ color: "#F44336" }} />
+            Funds transfer instantly from your copy trading wallet back to your main balance
+            ({formatUSD(accountBalance)}).
           </div>
 
           <div className="flex justify-between gap-3 pt-2">
@@ -204,10 +190,10 @@ export default function TopUpWalletModal({ isOpen, onClose, onSuccess }: TopUpWa
             <button
               type="submit"
               disabled={submitting}
-              className="px-5 py-2.5 rounded-xl font-bold text-sm bg-[#F5C518] text-[#0d1624] hover:opacity-90 active:scale-95 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+              className="px-5 py-2.5 rounded-xl font-bold text-sm bg-[#F44336] text-white hover:opacity-90 active:scale-95 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              <Icon icon="mdi:wallet-plus" width={16} />
-              {submitting ? "Topping Up…" : "Top Up"}
+              <Icon icon="mdi:bank-transfer-out" width={16} />
+              {submitting ? "Withdrawing…" : "Withdraw"}
             </button>
           </div>
         </form>

@@ -1,5 +1,5 @@
 export type RiskLevel = "low" | "medium" | "high";
-export type TransactionType = "deposit" | "withdraw" | "profit" | "loss" | "buy" | "sell" | "copy_trade";
+export type TransactionType = "deposit" | "withdraw" | "profit" | "loss" | "buy" | "sell" | "copy_trade" | "copy_trade_deposit" | "copy_trade_withdraw" | "copy_trade_liquidation";
 export type TransactionStatus = "pending" | "completed" | "rejected" | "failed";
 export type ProposalStatus = "pending" | "completed" | "rejected";
 export type StockPurchaseStatus = "open" | "closed";
@@ -62,7 +62,7 @@ export interface CopyTrading {
   averageDailyProfit: number;
   purchases: number;
   totalAssets: number;
-  copyTradePrice: number;
+  percentage: number;
   currency: string;
   isActive?: boolean;
   createdAt: string;
@@ -71,6 +71,28 @@ export interface CopyTrading {
 
 export type CreateCopyTradingPayload = Omit<CopyTrading, "_id" | "currency" | "createdAt" | "updatedAt">;
 export type UpdateCopyTradingPayload = Partial<CreateCopyTradingPayload>;
+
+export interface CopyTradingPortfolio {
+  _id: string;
+  userId: string;
+  balance: number;
+  currency: string;
+  totalDeposited: number;
+  totalWithdrawn: number;
+  totalInvested: number;
+  totalLiquidated: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CopyTradingPortfolioTransferPayload {
+  amount: number;
+}
+
+export interface CopyTradingPortfolioTransferResponse {
+  portfolio: CopyTradingPortfolio;
+  transaction: Transaction;
+}
 
 export interface StockPurchase {
   _id: string;
@@ -99,13 +121,14 @@ export interface CopyTradePurchase {
   averageDailyProfit: number;
   purchases: number;
   totalAssets: number;
-  copyTradePrice: number;
+  percentage: number;
   amountInvested: number;
   currency: string;
   expiredAt: string;
   status?: "active" | "liquidated";
   liquidatedAt?: string;
   liquidationAmount?: number;
+  liquidationFee?: number;
   createdAt: string;
 }
 

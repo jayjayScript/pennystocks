@@ -3,13 +3,14 @@
 import React, { useEffect, useState } from "react";
 import { Icon } from "@iconify/react";
 
-import { usePortfolio } from "@/context/PortfolioContext";
+import { useCopyTrading } from "@/context/CopyTradingContext";
 
 function formatUSD(val: number): string {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(val);
 }
 
 interface AddFundsTrade {
+  id?: string;
   investedAmount?: number;
   pnl?: number;
   setup?: {
@@ -21,6 +22,7 @@ interface AddFundsModalProps {
   isOpen: boolean;
   onClose: () => void;
   trade: AddFundsTrade | null;
+  onSuccess?: (message: string) => void;
 }
 
 const initialState = {
@@ -28,9 +30,8 @@ const initialState = {
   error: "",
 };
 
-export default function AddFundsModal({ isOpen, onClose, trade }: AddFundsModalProps) {
-  const { accountBalance } = usePortfolio();
-  const copyWalletBalance = accountBalance;
+export default function AddFundsModal({ isOpen, onClose, trade, onSuccess }: AddFundsModalProps) {
+  const { copyWalletBalance, addToActiveTrade } = useCopyTrading();
   const [form, setForm] = useState(initialState);
 
   useEffect(() => {
@@ -54,7 +55,7 @@ export default function AddFundsModal({ isOpen, onClose, trade }: AddFundsModalP
     if (amount > copyWalletBalance) {
       setForm((p) => ({
         ...p,
-        error: `Insufficient wallet balance. You have ${formatUSD(copyWalletBalance)} available.`,
+        error: `Insufficient copy wallet balance. You have ${formatUSD(copyWalletBalance)} available.`,
       }));
       return false;
     }
@@ -64,7 +65,12 @@ export default function AddFundsModal({ isOpen, onClose, trade }: AddFundsModalP
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
+    const amount = parseFloat(form.amount);
+    if (trade?.id) {
+      addToActiveTrade(trade.id, amount);
+    }
     setForm(initialState);
+    onSuccess?.(`${formatUSD(amount)} added to your copy trade.`);
     onClose();
   };
 
@@ -140,7 +146,7 @@ export default function AddFundsModal({ isOpen, onClose, trade }: AddFundsModalP
             </span>
           </div>
           <div className="flex justify-between text-xs">
-            <span style={{ color: "#6b7785" }}>Wallet Balance</span>
+            <span style={{ color: "#6b7785" }}>Copy Wallet Balance</span>
             <span className="text-white font-semibold">{formatUSD(copyWalletBalance)}</span>
           </div>
         </div>

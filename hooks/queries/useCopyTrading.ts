@@ -1,3 +1,4 @@
+
 "use client";
 
 import { copyTradingApi } from "@/lib/api/backend";
@@ -17,5 +18,12 @@ export function useCopyTradingDetail(id?: string) {
     queryFn: () => copyTradingApi.get(id!),
     enabled: Boolean(id),
     staleTime: 60 * 1000,
+  });
+}
+export function useCopyTradingPortfolio() {
+  return useQuery({
+    queryKey: ["copy-trading-portfolio"],
+    queryFn: copyTradingApi.portfolio,
+    staleTime: 30 * 1000,
   });
 }

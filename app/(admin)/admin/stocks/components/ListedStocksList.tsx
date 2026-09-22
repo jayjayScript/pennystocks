@@ -114,7 +114,7 @@ export default function ListedStocksList() {
                     {/* Volume */}
                     <div className="flex items-center justify-between md:block md:text-right">
                       <span className="text-[10px] sm:text-xs md:hidden" style={{ color: "#6b7785" }}>Volume</span>
-                      <p className="text-xs sm:text-sm font-semibold text-white">{(stock.totalVolume ?? 0).toLocaleString()}</p>
+                      <p className="text-xs sm:text-sm font-semibold text-white">—</p>
                     </div>
 
                     {/* Actions */}
