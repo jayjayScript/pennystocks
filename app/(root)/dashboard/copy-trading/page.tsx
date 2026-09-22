@@ -51,44 +51,114 @@ function ActiveCopyTradeCard({ trade, onStop, onPause, onResume }: {
 }) {
   const [expanded, setExpanded] = useState(false);
 
+  const isUp = trade.pnl >= 0;
+  const pnlColor = isUp ? "#4CAF50" : "#F44336";
+  const isPaused = trade.status === "paused";
+  const currentValue = trade.investedAmount + trade.pnl;
+  // Bar fill: how much of the invested capital is currently in profit (capped for display).
+  const profitFill = Math.min(Math.max(Math.abs(trade.pnlPercent), 0), 100);
+
+  const statusMeta = isPaused
+    ? { label: "PAUSED", color: "#F5C518", bg: "rgba(245,197,24,0.12)" }
+    : { label: "ACTIVE", color: "#00d4a1", bg: "rgba(0,212,161,0.12)" };
+
   return (
-    <div className="rounded-2xl overflow-hidden" style={{ background: "#151d2d", border: "1px solid #252f45" }}>
+    <div
+      className="rounded-2xl overflow-hidden transition-colors"
+      style={{ background: "#151d2d", border: `1px solid ${isPaused ? "#3a3320" : "#252f45"}` }}
+    >
       {/* Header */}
-      <div className="p-4 flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl flex items-center justify-center text-sm font-bold" style={{ background: trade.setup.coin.bgColor }}>
-            <Icon icon={trade.setup.coin.icon || "mdi:coin"} width={24} />
+      <div className="p-4 flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div
+            className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
+            style={{ background: trade.setup.coin.bgColor || "rgba(0,212,161,0.12)" }}
+          >
+            <Icon icon={trade.setup.coin.icon || "mdi:chart-line"} width={24} />
           </div>
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="text-white font-bold">{trade.setup.traderNickname}</span>
-              <span className="text-sm">{trade.setup.countryFlag}</span>
-              {trade.status === "paused" && (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: "rgba(245,197,24,0.12)", color: "#F5C518" }}>PAUSED</span>
-              )}
+              <span className="text-white font-bold truncate">{trade.setup.traderNickname}</span>
+              <span className="text-sm shrink-0">{trade.setup.countryFlag}</span>
             </div>
-            <div className="flex items-center gap-2 text-xs" style={{ color: "#6b7785" }}>
+            <div className="flex items-center gap-2 text-xs mt-0.5" style={{ color: "#6b7785" }}>
+              <span>{trade.setup.country}</span>
+              <span>•</span>
               <span>{trade.setup.coin.symbol}</span>
               <span>•</span>
-              <span>{trade.setup.leverage}x Leverage</span>
+              <span>{trade.setup.leverage}x</span>
             </div>
           </div>
         </div>
 
-        <div className="text-right">
-          <p className="text-lg font-bold" style={{ color: trade.pnl >= 0 ? "#4CAF50" : "#F44336" }}>
-            {trade.pnl >= 0 ? "+" : ""}{formatCurrency(trade.pnl)}
+        <span
+          className="text-[10px] font-bold px-2.5 py-1 rounded-full shrink-0 tracking-wide"
+          style={{ background: statusMeta.bg, color: statusMeta.color }}
+        >
+          {statusMeta.label}
+        </span>
+      </div>
+
+      {/* PnL Hero */}
+      <div className="px-4">
+        <div
+          className="rounded-xl p-4"
+          style={{
+            background: isUp
+              ? "linear-gradient(135deg, rgba(76,175,80,0.12), rgba(76,175,80,0.02))"
+              : "linear-gradient(135deg, rgba(244,67,54,0.12), rgba(244,67,54,0.02))",
+            border: `1px solid ${isUp ? "rgba(76,175,80,0.25)" : "rgba(244,67,54,0.25)"}`,
+          }}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-medium" style={{ color: "#9aa3b0" }}>
+              Unrealized P&amp;L
+            </span>
+            <div className="flex items-center gap-1 text-xs font-bold" style={{ color: pnlColor }}>
+              <Icon icon={isUp ? "mdi:trending-up" : "mdi:trending-down"} width={14} />
+              {isUp ? "+" : ""}
+              {trade.pnlPercent.toFixed(2)}%
+            </div>
+          </div>
+          <p className="text-2xl font-extrabold mt-1" style={{ color: pnlColor }}>
+            {isUp ? "+" : ""}
+            {formatCurrency(trade.pnl)}
           </p>
-          <p className="text-xs" style={{ color: trade.pnlPercent >= 0 ? "#4CAF50" : "#F44336" }}>
-            {trade.pnlPercent >= 0 ? "+" : ""}{trade.pnlPercent.toFixed(2)}%
-          </p>
+
+          {/* Profit bar */}
+          <div className="mt-3 h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
+            <motion.div
+              className="h-full rounded-full"
+              initial={{ width: 0 }}
+              animate={{ width: `${profitFill}%` }}
+              transition={{ duration: 0.5, ease: "easeOut" }}
+              style={{ background: pnlColor }}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Stat grid */}
+      <div className="grid grid-cols-3 gap-2 px-4 py-3">
+        <div className="text-center">
+          <p className="text-[10px]" style={{ color: "#6b7785" }}>Invested</p>
+          <p className="text-sm font-bold text-white mt-0.5">{formatCurrency(trade.investedAmount)}</p>
+        </div>
+        <div className="text-center border-x" style={{ borderColor: "#252f45" }}>
+          <p className="text-[10px]" style={{ color: "#6b7785" }}>Current Value</p>
+          <p className="text-sm font-bold text-white mt-0.5">{formatCurrency(currentValue)}</p>
+        </div>
+        <div className="text-center">
+          <p className="text-[10px]" style={{ color: "#6b7785" }}>Trades</p>
+          <p className="text-sm font-bold text-white mt-0.5">{trade.lastTrades.length}</p>
         </div>
       </div>
 
       {/* Last Trades Toggle */}
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full px-4 pb-3 flex items-center justify-between"
+        className="w-full px-4 py-2.5 flex items-center justify-between cursor-pointer"
+        style={{ borderTop: "1px solid #1d2639" }}
       >
         <span className="text-xs font-semibold" style={{ color: "#9aa3b0" }}>
           Last Trades ({trade.lastTrades.length})
@@ -96,7 +166,7 @@ function ActiveCopyTradeCard({ trade, onStop, onPause, onResume }: {
         <Icon icon={expanded ? "mdi:chevron-up" : "mdi:chevron-down"} width={16} style={{ color: "#9aa3b0" }} />
       </button>
 
-      <AnimatePresence>
+      <AnimatePresence initial={false}>
         {expanded && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
@@ -105,19 +175,25 @@ function ActiveCopyTradeCard({ trade, onStop, onPause, onResume }: {
             className="overflow-hidden"
           >
             <div className="px-4 pb-4 space-y-2">
-              {trade.lastTrades.map((t) => (
-                <div key={t.id} className="flex items-center justify-between p-2.5 rounded-lg" style={{ background: "#0d1624" }}>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: t.type === "buy" ? "rgba(0,212,161,0.12)" : "rgba(244,67,54,0.12)", color: t.type === "buy" ? "#00d4a1" : "#F44336" }}>
-                      {t.type.toUpperCase()}
+              {trade.lastTrades.length === 0 ? (
+                <p className="text-xs text-center py-3" style={{ color: "#6b7785" }}>
+                  No trades executed yet.
+                </p>
+              ) : (
+                trade.lastTrades.map((t) => (
+                  <div key={t.id} className="flex items-center justify-between p-2.5 rounded-lg" style={{ background: "#0d1624" }}>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: t.type === "buy" ? "rgba(0,212,161,0.12)" : "rgba(244,67,54,0.12)", color: t.type === "buy" ? "#00d4a1" : "#F44336" }}>
+                        {t.type.toUpperCase()}
+                      </span>
+                      <span className="text-xs text-white">{t.amount.toFixed(4)} {t.coinSymbol}</span>
+                    </div>
+                    <span className="text-[10px] font-semibold" style={{ color: t.profitLoss >= 0 ? "#4CAF50" : "#F44336" }}>
+                      {t.profitLoss >= 0 ? "+" : ""}{formatCurrency(t.profitLoss)}
                     </span>
-                    <span className="text-xs text-white">{t.amount.toFixed(4)} {t.coinSymbol}</span>
                   </div>
-                  <span className="text-[10px]" style={{ color: t.profitLoss >= 0 ? "#4CAF50" : "#F44336" }}>
-                    {t.profitLoss >= 0 ? "+" : ""}{formatCurrency(t.profitLoss)}
-                  </span>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </motion.div>
         )}
@@ -125,16 +201,16 @@ function ActiveCopyTradeCard({ trade, onStop, onPause, onResume }: {
 
       {/* Actions */}
       <div className="px-4 pb-4 flex gap-2">
-        {trade.status === "active" ? (
-          <button onClick={onPause} className="flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer" style={{ background: "#0d1624", color: "#9aa3b0", border: "1px solid #252f45" }}>
-            Pause
-          </button>
-        ) : (
-          <button onClick={onResume} className="flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer" style={{ background: "rgba(76,175,80,0.12)", color: "#4CAF50" }}>
+        {isPaused ? (
+          <button onClick={onResume} className="flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer transition-transform active:scale-95" style={{ background: "rgba(76,175,80,0.12)", color: "#4CAF50", border: "1px solid rgba(76,175,80,0.25)" }}>
             Resume
           </button>
+        ) : (
+          <button onClick={onPause} className="flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer transition-transform active:scale-95" style={{ background: "#0d1624", color: "#9aa3b0", border: "1px solid #252f45" }}>
+            Pause
+          </button>
         )}
-        <button onClick={onStop} className="flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer" style={{ background: "rgba(244,67,54,0.12)", color: "#F44336" }}>
+        <button onClick={onStop} className="flex-1 py-2.5 rounded-xl text-sm font-semibold cursor-pointer transition-transform active:scale-95" style={{ background: "rgba(244,67,54,0.12)", color: "#F44336", border: "1px solid rgba(244,67,54,0.2)" }}>
           Stop &amp; Exit
         </button>
       </div>

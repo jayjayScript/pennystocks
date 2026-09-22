@@ -3,6 +3,7 @@
 import React, { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Icon } from "@iconify/react";
+import { useQueryClient } from "@tanstack/react-query";
 import Logo from "@/components/logo/Logo";
 import Link from "next/link";
 import { adminApi } from "@/lib/api/backend";
@@ -10,6 +11,7 @@ import { ApiError } from "@/lib/api/client";
 
 function AdminLoginForm() {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const nextUrl = searchParams.get("next") || "/admin/overview";
 
@@ -18,7 +20,7 @@ function AdminLoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  
+
 
   const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
@@ -31,9 +33,17 @@ function AdminLoginForm() {
   setSubmitting(true);
   try {
     const res = await adminApi.adminLogin({ email: email.trim(), password });
+    // Store the admin-namespaced tokens AND the regular tokens. Some routes
+    // (e.g. /transactions/*, /stocks) are shared between users and admins and
+    // read the regular token, and AuthContext bootstraps the session from it.
     localStorage.setItem("adminAccessToken", res.accessToken);
     localStorage.setItem("adminRefreshToken", res.refreshToken);
+    localStorage.setItem("accessToken", res.accessToken);
+    localStorage.setItem("refreshToken", res.refreshToken);
     localStorage.setItem("isAdmin", "true");
+    // Drop any cached queries from a previous (user) session before navigating,
+    // so the admin dashboard doesn't fire stale requests with the wrong scope.
+    queryClient.clear();
     router.replace(nextUrl);
   } catch (err) {
     setError(err instanceof ApiError ? err.message : "Login failed. Please check your credentials and try again.");

@@ -63,6 +63,7 @@ export interface CopyTrading {
   purchases: number;
   totalAssets: number;
   percentage: number;
+  copyTradePrice: number;
   currency: string;
   isActive?: boolean;
   createdAt: string;

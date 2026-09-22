@@ -6,11 +6,18 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import DepositModal from "@/components/modals/DepositModal";
 import WithdrawModal from "@/components/modals/WithdrawModal";
-
-const MOCK_BALANCE = 12450.0;
-const MOCK_DEPOSIT_TOTAL = 10000;
+import { usePortfolio } from "@/context/PortfolioContext";
+import { useUserProfile } from "@/hooks/queries";
 
 export default function OverviewScreen() {
+  const { accountBalance } = usePortfolio();
+  const { data: profile } = useUserProfile();
+  const totalDeposit = profile?.totalDeposit ?? 0;
+
+  // Growth of the current balance relative to everything the user has deposited.
+  const growthPct =
+    totalDeposit > 0 ? ((accountBalance - totalDeposit) / totalDeposit) * 100 : 0;
+  const growthLabel = `${growthPct >= 0 ? "+" : ""}${growthPct.toFixed(1)}%`;
   const [depositOpen, setDepositOpen] = useState(false);
   const [depositKey, setDepositKey] = useState(0);
   const [withdrawOpen, setWithdrawOpen] = useState(false);
@@ -38,12 +45,12 @@ export default function OverviewScreen() {
       <div className="flex items-center justify-between">
         <p className="text-sm text-penny-text-muted">Total Assets</p>
         <Badge variant="accent" icon="mdi:trending-up">
-          {MOCK_DEPOSIT_TOTAL > 0 ? "+18.4%" : "0%"}
+          {totalDeposit > 0 ? growthLabel : "0%"}
         </Badge>
       </div>
 
       <p className="text-[56px] md:text-[67px] font-extrabold text-white my-4 leading-none">
-        {formatUSD(MOCK_BALANCE)}
+        {formatUSD(accountBalance)}
       </p>
 
       <p className="text-sm text-penny-text-muted mb-4">

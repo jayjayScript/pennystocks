@@ -5,10 +5,12 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { usePortfolio } from "@/context/PortfolioContext";
 
 export default function TopNav() {
   const pathname = usePathname();
-  const unreadCount = 2;
+  const { notifications } = usePortfolio();
+  const unreadCount = notifications.filter((n) => !n.read).length;
 
   if (pathname === "/dashboard/marketplace/copy-trading") {
     return null;
