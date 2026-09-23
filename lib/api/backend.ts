@@ -1,4 +1,4 @@
-import type { AdminCopyTradePurchaseQuery, AdminStockPurchaseQuery, AdminUserStockProposalQuery, ApiUser, ApproveStockProposalPayload, AuthResponse, CopyTradePurchase, CopyTrading, CopyTradingPortfolio, CopyTradingPortfolioTransferPayload, CopyTradingPortfolioTransferResponse, CreateCopyTradingPayload, CreateDepositOrderPayload, CreateStockPayload, CreateStockProposalPayload, CreateWithdrawOrderPayload, Paginated, PaymentOrder, PaymentOrderStatus, ProposalStatus, Stock, StockProposal, StockPurchase, Transaction, TransactionStatus, UpdateCopyTradingPayload, UpdateStockPayload } from "@/types/api";
+import type { AdminCopyTradePurchaseQuery, AdminStockPurchaseQuery, AdminUserStockProposalQuery, ApiUser, ApproveStockProposalPayload, AuthResponse, CopyTradePurchase, CopyTrading, CopyTradingPortfolio, CopyTradingPortfolioTransferPayload, CopyTradingPortfolioTransferResponse, CreateCopyTradingPayload, CreateDepositOrderPayload, CreateStockPayload, CreateStockProposalPayload, CreateWithdrawOrderPayload, Paginated, PaymentOrder, PaymentOrderStatus, ProposalStatus, Stock, StockProposal, StockPurchase, Transaction, TransactionStatus, UpdateCopyTradingPayload, UpdateCopyTradingPortfolioPayload, UpdateStockPayload } from "@/types/api";
 import { api } from "./client";
 
 export const authApi = {
@@ -138,6 +138,17 @@ export const adminApi = {
     if (status) query.set("status", status);
     return api<Paginated<CopyTradePurchase>>(`/admin/copy-trade-purchases?${query}`);
   },
+  copyTradingPortfolios: (page = 1, limit = 20) =>
+    api<Paginated<CopyTradingPortfolio>>(`/admin/copy-trading-portfolios?page=${page}&limit=${limit}`),
+  copyTradingPortfolio: (id: string) =>
+    api<CopyTradingPortfolio>(`/admin/copy-trading-portfolios/${id}`),
+  updateCopyTradingPortfolio: (id: string, data: UpdateCopyTradingPortfolioPayload) =>
+    api<CopyTradingPortfolio>(`/admin/copy-trading-portfolios/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  removeCopyTradingPortfolio: (id: string) =>
+    api<{ message: string }>(`/admin/copy-trading-portfolios/${id}`, { method: "DELETE" }),
   userStockPurchases: (userId: string, { page = 1, limit = 20, status }: Omit<AdminStockPurchaseQuery, "userId"> = {}) => {
     const query = new URLSearchParams({ page: String(page), limit: String(limit) });
     if (status) query.set("status", status);

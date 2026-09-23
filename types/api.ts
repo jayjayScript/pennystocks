@@ -75,7 +75,7 @@ export type UpdateCopyTradingPayload = Partial<CreateCopyTradingPayload>;
 
 export interface CopyTradingPortfolio {
   _id: string;
-  userId: string;
+  userId: string | PurchaseUser;
   balance: number;
   currency: string;
   totalDeposited: number;
@@ -84,6 +84,16 @@ export interface CopyTradingPortfolio {
   totalLiquidated: number;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface UpdateCopyTradingPortfolioPayload {
+  userId?: string;
+  balance?: number;
+  currency?: string;
+  totalDeposited?: number;
+  totalWithdrawn?: number;
+  totalInvested?: number;
+  totalLiquidated?: number;
 }
 
 export interface CopyTradingPortfolioTransferPayload {
