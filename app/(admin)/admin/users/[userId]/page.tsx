@@ -180,7 +180,7 @@ export default function UserDetailPage() {
       //    Writing to the user record alone does NOT change the portfolio balance
       //    because resolvedCopyTradeBalance prefers the portfolio record.
       try {
-        const portfolio = await adminApi.userCopyTradePortfolio(userId);
+        const portfolio = await adminApi.copyTradingPortfolio(userId);
         if (portfolio?._id) {
           await adminApi.updateCopyTradingPortfolio(portfolio._id, {
             balance: newCopyTradeBalance,

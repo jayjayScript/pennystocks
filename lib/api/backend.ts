@@ -141,8 +141,8 @@ export const adminApi = {
   },
   copyTradingPortfolios: (page = 1, limit = 20) =>
     api<Paginated<CopyTradingPortfolio>>(`/admin/copy-trading-portfolios?page=${page}&limit=${limit}`),
-  copyTradingPortfolio: (id: string) =>
-    api<CopyTradingPortfolio>(`/admin/copy-trading-portfolios/${id}`),
+  copyTradingPortfolio: (userId: string) =>
+    api<CopyTradingPortfolio>(`/admin/copy-trading-portfolios/${userId}`),
   updateCopyTradingPortfolio: (id: string, data: UpdateCopyTradingPortfolioPayload) =>
     api<CopyTradingPortfolio>(`/admin/copy-trading-portfolios/${id}`, {
       method: "PATCH",
@@ -160,8 +160,6 @@ export const adminApi = {
     if (status) query.set("status", status);
     return api<Paginated<CopyTradePurchase>>(`/admin/users/${userId}/copy-trade-purchases?${query}`);
   },
-  userCopyTradePortfolio: (userId: string) =>
-    api<CopyTradingPortfolio>(`/copy-trading/portfolio/${userId}`),
   userStockProposals: (userId: string, { page = 1, limit = 20, status }: AdminUserStockProposalQuery = {}) => {
     const query = new URLSearchParams({ page: String(page), limit: String(limit) });
     if (status) query.set("status", status);
