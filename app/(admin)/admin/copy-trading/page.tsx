@@ -32,7 +32,6 @@ const emptyForm = (): CreateCopyTradingPayload => ({
   totalAssets: 0,
   percentage: 0,
   copyTradePrice: 0,
-  isActive: true,
 });
 
 export default function CopyTradingAdminPage() {
@@ -71,7 +70,6 @@ export default function CopyTradingAdminPage() {
       totalAssets: setup.totalAssets,
       percentage: setup.percentage,
       copyTradePrice: setup.copyTradePrice,
-      isActive: setup.isActive ?? true,
     });
     setFormErrors({});
     setShowModal(true);
@@ -115,7 +113,15 @@ export default function CopyTradingAdminPage() {
   const toggleActive = async (setup: CopyTrading) => {
     setActionError("");
     try {
-      await updateMut.mutateAsync({ id: setup._id, data: { isActive: !(setup.isActive ?? true) } });
+      // The backend PATCH /copy-trading/:id endpoint does NOT accept `isActive`.
+      // Instead, we update a non-isActive field as a no-op workaround while
+      // toggling the local cache optimistically, OR the backend may expose a
+      // separate activate/deactivate endpoint in the future.
+      // For now, surface a clear error so the developer knows.
+      setActionError(
+        `The backend does not support toggling active status via the PATCH endpoint (isActive is not an accepted field). ` +
+        `Ask the backend developer to add a dedicated PATCH /copy-trading/${setup._id}/toggle-active endpoint.`
+      );
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Failed to update setup.");
     }

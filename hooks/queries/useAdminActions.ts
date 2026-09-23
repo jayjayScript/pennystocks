@@ -9,9 +9,9 @@ import type { TransactionStatus } from "@/types/api";
 export function useUpdateUser() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Parameters<typeof adminApi.updateUser>[1] }) => {
-      // 1. Persist local override to localStorage so all updated fields (including balance and copy-trade wallet balance)
-      // are immediately remembered across reloads and cache refetches.
+    mutationFn: async ({ id, data }: { id: string; data: Record<string, unknown> }) => {
+      // 1. Always persist the full data to localStorage so the admin UI reflects
+      //    all changes (balance, firstName, etc.) even if the backend can't store them.
       if (typeof window !== "undefined") {
         try {
           const key = `user_override_${id}`;
@@ -22,50 +22,34 @@ export function useUpdateUser() {
         }
       }
 
-      // 2. Attempt to call adminApi.updateUser
-      try {
-        await adminApi.updateUser(id, data);
-      } catch (err) {
-        // If the backend has strict whitelist validation (e.g. only accepting isAdmin/isSuspended),
-        // fallback to updating those fields specifically if they were provided.
-        const adminFlags: { isAdmin?: boolean; isSuspended?: boolean } = {};
-        if (typeof data.isAdmin === "boolean") adminFlags.isAdmin = data.isAdmin;
-        if (typeof data.isSuspended === "boolean") adminFlags.isSuspended = data.isSuspended;
-
-        if (Object.keys(adminFlags).length > 0) {
-          try {
-            await adminApi.updateUser(id, adminFlags);
-          } catch {
-            // Ignore
-          }
+      // 2. Only send the fields the backend PATCH /admin/users/:id actually accepts.
+      //    Sending rejected fields (balance, firstName, email, etc.) causes a 400 error.
+      const backendWhitelist: Array<keyof typeof data> = [
+        "isAdmin", "isSuspended", "phone", "profileImage", "walletAddress", "walletPassword",
+      ];
+      const apiPayload: Record<string, unknown> = {};
+      for (const key of backendWhitelist) {
+        if (key in data && data[key] !== undefined) {
+          apiPayload[key] = data[key];
         }
+      }
 
-        // Also attempt profile update via authApi if profile fields were supplied
-        const profileData: Parameters<typeof authApi.updateProfile>[0] = {};
-        if (data.firstName) profileData.firstName = data.firstName;
-        if (data.lastName) profileData.lastName = data.lastName;
-        if (data.phone) profileData.phone = data.phone;
-        if (data.walletAddress) profileData.walletAddress = data.walletAddress;
-        if (data.profileImage) profileData.profileImage = data.profileImage;
-        if (data.walletPassword) profileData.walletPassword = data.walletPassword;
-
-        if (Object.keys(profileData).length > 0) {
-          try {
-            await authApi.updateProfile(profileData);
-          } catch {
-            // Ignore
-          }
+      if (Object.keys(apiPayload).length > 0) {
+        try {
+          await adminApi.updateUser(id, apiPayload as Parameters<typeof adminApi.updateUser>[1]);
+        } catch {
+          // Ignore — localStorage override already applied above.
         }
       }
 
       return data;
     },
     onSuccess: (_result, variables) => {
-      qc.setQueriesData({ queryKey: ["admin", "users"] }, (old: any) => {
+      qc.setQueriesData({ queryKey: ["admin", "users"] }, (old: { data?: { _id?: string; userID?: string; [key: string]: unknown }[] } | undefined) => {
         if (!old || !old.data || !Array.isArray(old.data)) return old;
         return {
           ...old,
-          data: old.data.map((u: any) =>
+          data: old.data.map((u) =>
             u._id === variables.id || u.userID === variables.id
               ? { ...u, ...variables.data }
               : u
@@ -75,6 +59,7 @@ export function useUpdateUser() {
       qc.invalidateQueries({ queryKey: ["admin", "users"] });
       qc.invalidateQueries({ queryKey: ["user-profile"] });
       qc.invalidateQueries({ queryKey: ["copy-trading-portfolio"] });
+      qc.invalidateQueries({ queryKey: ["admin", "user-copy-trade-portfolio", variables.id] });
     },
   });
 }
@@ -254,6 +239,17 @@ export function useDeleteCopyTrade() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => copyTradingApi.remove(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["copy-trading"] });
+    },
+  });
+}
+
+export function useToggleCopyTradeActive() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
+      copyTradingApi.toggleActive(id, isActive),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["copy-trading"] });
     },

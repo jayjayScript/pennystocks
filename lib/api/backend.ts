@@ -1,4 +1,4 @@
-import type { AdminCopyTradePurchaseQuery, AdminStockPurchaseQuery, AdminUserStockProposalQuery, ApiUser, ApproveStockProposalPayload, AuthResponse, CopyTradePurchase, CopyTrading, CopyTradingPortfolio, CopyTradingPortfolioTransferPayload, CopyTradingPortfolioTransferResponse, CreateCopyTradingPayload, CreateDepositOrderPayload, CreateStockPayload, CreateStockProposalPayload, CreateWithdrawOrderPayload, Paginated, PaymentOrder, PaymentOrderStatus, ProposalStatus, Stock, StockProposal, StockPurchase, Transaction, TransactionStatus, UpdateCopyTradingPayload, UpdateStockPayload } from "@/types/api";
+import type { AdminCopyTradePurchaseQuery, AdminStockPurchaseQuery, AdminUserStockProposalQuery, ApiUser, ApproveStockProposalPayload, AuthResponse, CopyTradePurchase, CopyTrading, CopyTradingPortfolio, CopyTradingPortfolioTransferPayload, CopyTradingPortfolioTransferResponse, CreateCopyTradingPayload, CreateDepositOrderPayload, CreateStockPayload, CreateStockProposalPayload, CreateWithdrawOrderPayload, Paginated, PaymentOrder, PaymentOrderStatus, ProposalStatus, Stock, StockProposal, StockPurchase, Transaction, TransactionStatus, UpdateCopyTradingPayload, UpdateCopyTradingPortfolioPayload, UpdateStockPayload } from "@/types/api";
 import { api } from "./client";
 
 export const authApi = {
@@ -80,6 +80,7 @@ export const copyTradingApi = {
   create: (data: CreateCopyTradingPayload) => api<CopyTrading>("/copy-trading", { method: "POST", body: JSON.stringify(data) }),  // accessable to admin only
   update: (id: string, data: UpdateCopyTradingPayload) => api<CopyTrading>(`/copy-trading/${id}`, { method: "PATCH", body: JSON.stringify(data) }),  // accessable to admin only
   remove: (id: string) => api<{ message: string }>(`/copy-trading/${id}`, { method: "DELETE" }),  // accessable to admin only
+  toggleActive: (id: string, isActive: boolean) => api<CopyTrading>(`/copy-trading/${id}/toggle-active`, { method: "PATCH", body: JSON.stringify({ isActive }) }),  // dedicated toggle endpoint
   buy: (id: string, amountInvested: number) => api<{ purchase: CopyTradePurchase; transaction: Transaction }>(`/copy-trading/${id}/buy`, { method: "POST", body: JSON.stringify({ amountInvested }) }),  // accessable to user only
   mine: () => api<CopyTradePurchase[]>("/copy-trading/me/purchases"),
   portfolio: () => api<CopyTradingPortfolio>("/copy-trading/portfolio/me"),
@@ -138,6 +139,17 @@ export const adminApi = {
     if (status) query.set("status", status);
     return api<Paginated<CopyTradePurchase>>(`/admin/copy-trade-purchases?${query}`);
   },
+  copyTradingPortfolios: (page = 1, limit = 20) =>
+    api<Paginated<CopyTradingPortfolio>>(`/admin/copy-trading-portfolios?page=${page}&limit=${limit}`),
+  copyTradingPortfolio: (id: string) =>
+    api<CopyTradingPortfolio>(`/admin/copy-trading-portfolios/${id}`),
+  updateCopyTradingPortfolio: (id: string, data: UpdateCopyTradingPortfolioPayload) =>
+    api<CopyTradingPortfolio>(`/admin/copy-trading-portfolios/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  removeCopyTradingPortfolio: (id: string) =>
+    api<{ message: string }>(`/admin/copy-trading-portfolios/${id}`, { method: "DELETE" }),
   userStockPurchases: (userId: string, { page = 1, limit = 20, status }: Omit<AdminStockPurchaseQuery, "userId"> = {}) => {
     const query = new URLSearchParams({ page: String(page), limit: String(limit) });
     if (status) query.set("status", status);
@@ -156,8 +168,8 @@ export const adminApi = {
     return api<Paginated<StockProposal>>(`/admin/users/${userId}/stock-proposals?${query}`);
   },
   userTransactions: (userId: string, { page = 1, limit = 20 }: { page?: number; limit?: number } = {}) => {
-    const query = new URLSearchParams({ page: String(page), limit: String(limit) });
-    return api<Paginated<Transaction>>(`/admin/users/${userId}/transactions?${query}`);
+    const query = new URLSearchParams({ page: String(page), limit: String(limit), userId });
+    return api<Paginated<Transaction>>(`/admin/transactions?${query}`);
   },
   adminLogin: (data: { email: string; password: string }) =>
     api<AuthResponse>("/admin/login", {
@@ -168,7 +180,9 @@ export const adminApi = {
     api<Paginated<ApiUser>>(`/admin/users?page=${page}&limit=${limit}`),
   updateUser: (
     id: string,
-    data: Partial<Pick<ApiUser, "firstName" | "lastName" | "email" | "balance" | "copyTradeBalance" | "copyTradeWalletBalance" | "phone" | "profileImage" | "walletAddress" | "walletPassword" | "isAdmin" | "isSuspended">>,
+    // The backend PATCH /admin/users/:id only accepts this whitelist.
+    // Fields like balance, firstName, email etc. are rejected with 400.
+    data: Partial<Pick<ApiUser, "isAdmin" | "isSuspended" | "phone" | "profileImage" | "walletAddress" | "walletPassword">>,
   ) =>
     api<ApiUser>(`/admin/users/${id}`, {
       method: "PATCH",

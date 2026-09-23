@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Icon } from "@iconify/react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAdminUsers } from "@/hooks/queries";
 import { useUpdateUser, useToggleUserSuspend, useToggleUserAdmin } from "@/hooks/queries/useAdminActions";
 import { adminApi } from "@/lib/api/backend";
@@ -135,6 +135,7 @@ export default function UserDetailPage() {
   const updateMut = useUpdateUser();
   const suspendMut = useToggleUserSuspend();
   const adminMut = useToggleUserAdmin();
+  const qc = useQueryClient();
 
   const openEdit = () => {
     setEditForm({
@@ -155,6 +156,10 @@ export default function UserDetailPage() {
   const saveEdit = async () => {
     setEditError("");
     try {
+      const newBalance = Number(editForm.balance) || 0;
+      const newCopyTradeBalance = Number(editForm.copyTradeBalance) || 0;
+
+      // 1. Update user record (balance, profile fields, etc.)
       await updateMut.mutateAsync({
         id: user?._id ?? "",
         data: {
@@ -162,14 +167,32 @@ export default function UserDetailPage() {
           lastName: editForm.lastName || undefined,
           email: editForm.email || undefined,
           phone: editForm.phone || undefined,
-          balance: Number(editForm.balance) || 0,
-          copyTradeBalance: Number(editForm.copyTradeBalance) || 0,
-          copyTradeWalletBalance: Number(editForm.copyTradeBalance) || 0,
+          balance: newBalance,
+          copyTradeBalance: newCopyTradeBalance,
+          copyTradeWalletBalance: newCopyTradeBalance,
           walletAddress: editForm.walletAddress || undefined,
           profileImage: editForm.profileImage || undefined,
           walletPassword: editForm.walletPassword || undefined,
         },
       });
+
+      // 2. Update the copy-trade portfolio record (separate backend document).
+      //    Writing to the user record alone does NOT change the portfolio balance
+      //    because resolvedCopyTradeBalance prefers the portfolio record.
+      try {
+        const portfolio = await adminApi.userCopyTradePortfolio(userId);
+        if (portfolio?._id) {
+          await adminApi.updateCopyTradingPortfolio(portfolio._id, {
+            balance: newCopyTradeBalance,
+          });
+        }
+      } catch {
+        // Portfolio may not exist yet for this user — that's fine.
+      }
+
+      // 3. Refresh the portfolio query so the admin stats card shows the new value.
+      qc.invalidateQueries({ queryKey: ["admin", "user-copy-trade-portfolio", userId] });
+
       setEditOpen(false);
     } catch (err) {
       setEditError(err instanceof Error ? err.message : "Failed to update user.");
@@ -199,7 +222,15 @@ export default function UserDetailPage() {
   // using the same portfolio structure as copyTradingApi.portfolio() on the user side.
   const { data: copyTradePortfolio, isLoading: portfolioLoading } = useQuery({
     queryKey: ["admin", "user-copy-trade-portfolio", userId],
-    queryFn: () => adminApi.userCopyTradePortfolio(userId),
+    queryFn: async () => {
+      // The admin endpoint fetches all portfolios, so we fetch the list and find this user's portfolio.
+      const res = await adminApi.copyTradingPortfolios(1, 100);
+      const portfolio = res.data.find(p => 
+        p.userId === userId || 
+        (typeof p.userId === 'object' && (p.userId as { _id: string })._id === userId)
+      );
+      return portfolio || null;
+    },
     enabled: !!userId,
   });
 
@@ -214,10 +245,18 @@ export default function UserDetailPage() {
   })();
   const copyTradeBalanceLoading = portfolioLoading;
 
-  // Transactions: real per-user admin endpoint
   const { data: txData, isLoading: txLoading } = useQuery({
     queryKey: ["admin", "user-transactions", userId],
-    queryFn: () => adminApi.userTransactions(userId, { limit: 20 }),
+    queryFn: async () => {
+      // The admin endpoint /admin/transactions doesn't accept userId as a query parameter,
+      // so we fetch the recent list and filter it client-side for this user.
+      const res = await adminApi.transactions(1, 100);
+      const filtered = (res.data ?? []).filter(t => 
+        t.userId === userId || 
+        (typeof t.userId === 'object' && (t.userId as { _id: string })._id === userId)
+      );
+      return { ...res, data: filtered };
+    },
     enabled: !!userId,
   });
   const userTx = txData?.data ?? [];
