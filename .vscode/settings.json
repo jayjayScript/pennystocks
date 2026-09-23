@@ -1,5 +1,6 @@
 {
     "terminal.integrated.cursorStyle": "line",
     "terminal.integrated.cursorBlinking": true,
-    "CodeGPT.apiKey": "CodeGPT Plus Beta"
+    "CodeGPT.apiKey": "CodeGPT Plus Beta",
+    "java.debug.settings.hotCodeReplace": "auto"
 }
