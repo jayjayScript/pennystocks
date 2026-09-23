@@ -1,82 +1,34 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Icon } from "@iconify/react";
 import DepositModal from "@/components/modals/DepositModal";
-
-type AppNotification = {
-  id: string;
-  type: "success" | "deposit_details" | "info" | "warning" | "error";
-  title: string;
-  message: string;
-  icon: string;
-  read: boolean;
-  createdAt: string;
-  adminPaymentDetails?: string;
-  orderId?: string;
-};
-
-const MOCK_NOTIFICATIONS: AppNotification[] = [
-  {
-    id: "1",
-    type: "success",
-    title: "Deposit Approved",
-    message: "Your deposit of $2,000.00 via bank transfer has been approved and credited to your account.",
-    icon: "mdi:check-circle-outline",
-    read: false,
-    createdAt: new Date(Date.now() - 5 * 60000).toISOString(),
-  },
-  {
-    id: "2",
-    type: "deposit_details",
-    title: "Payment Details Ready",
-    message: "Your deposit of $500.00 is ready. Tap to view payment details and upload proof.",
-    icon: "mdi:bank-outline",
-    read: false,
-    createdAt: new Date(Date.now() - 30 * 60000).toISOString(),
-    adminPaymentDetails: "Bank: Access Bank\nAccount: 0123456789\nName: Penny Stocks Ltd",
-    orderId: "order-mock-1",
-  },
-  {
-    id: "3",
-    type: "info",
-    title: "Trade Executed",
-    message: "Your buy order for 5 shares of AAPL at $175.20 has been executed successfully.",
-    icon: "mdi:chart-line",
-    read: true,
-    createdAt: new Date(Date.now() - 2 * 3600000).toISOString(),
-  },
-  {
-    id: "4",
-    type: "warning",
-    title: "Withdrawal Pending",
-    message: "Your withdrawal request of $300.00 is under review. Expected processing: 1-2 business days.",
-    icon: "mdi:clock-outline",
-    read: true,
-    createdAt: new Date(Date.now() - 6 * 3600000).toISOString(),
-  },
-];
+import { usePortfolio } from "@/context/PortfolioContext";
 
 export default function NotificationsPage() {
-  const [notifications, setNotifications] = useState<AppNotification[]>(MOCK_NOTIFICATIONS);
+  const {
+    notifications,
+    markNotificationRead,
+    markAllNotificationsRead,
+    ordersLoading,
+  } = usePortfolio();
   const [filter, setFilter] = useState<"all" | "unread">("all");
   const [depositOpen, setDepositOpen] = useState(false);
   const [depositKey, setDepositKey] = useState(0);
   const [selectedOrderId, setSelectedOrderId] = useState<string | undefined>(undefined);
+  // A ticking "now" kept in state so relative timestamps stay pure during render.
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   const filteredNotifications = filter === "unread"
     ? notifications.filter((n) => !n.read)
     : notifications;
-
-  const markNotificationRead = (id: string) => {
-    setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n));
-  };
-
-  const markAllNotificationsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-  };
 
   const handleNotificationClick = (n: AppNotification) => {
     markNotificationRead(n.id);
@@ -105,7 +57,7 @@ export default function NotificationsPage() {
   };
 
   const formatTime = (iso: string) => {
-    const diff = Date.now() - new Date(iso).getTime();
+    const diff = now - new Date(iso).getTime();
     const minutes = Math.floor(diff / 60000);
     if (minutes < 1) return "Just now";
     if (minutes < 60) return `${minutes}m ago`;
@@ -178,7 +130,22 @@ export default function NotificationsPage() {
 
       {/* Notifications List */}
       <div className="space-y-3">
-        {filteredNotifications.length === 0 ? (
+        {ordersLoading ? (
+          Array.from({ length: 4 }).map((_, i) => (
+            <div
+              key={i}
+              className="rounded-xl p-4 flex gap-3 animate-pulse"
+              style={{ background: "#151d2d", border: "1px solid #252f45" }}
+            >
+              <div className="w-11 h-11 rounded-full shrink-0" style={{ background: "#1d2639" }} />
+              <div className="flex-1 min-w-0">
+                <div className="h-3.5 w-2/5 rounded bg-white/10" />
+                <div className="h-2.5 w-4/5 rounded bg-white/10 mt-2.5" />
+                <div className="h-2.5 w-1/3 rounded bg-white/10 mt-2" />
+              </div>
+            </div>
+          ))
+        ) : filteredNotifications.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 rounded-2xl" style={{ background: "#151d2d", border: "1px dashed #252f45" }}>
             <Icon icon="mdi:bell-off-outline" width={48} className="mb-3" style={{ color: "#6b7785" }} />
             <p className="text-white font-semibold">All caught up!</p>

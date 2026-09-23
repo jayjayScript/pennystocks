@@ -22,6 +22,7 @@ const INITIAL_MOCK_SETUPS: CopyTrading[] = [
     purchases: 128,
     totalAssets: 450000,
     percentage: 5,
+    copyTradePrice: 500,
     currency: "USD",
     isActive: true,
     createdAt: new Date().toISOString(),
@@ -37,6 +38,7 @@ const INITIAL_MOCK_SETUPS: CopyTrading[] = [
     purchases: 84,
     totalAssets: 820000,
     percentage: 3,
+    copyTradePrice: 200,
     currency: "USD",
     isActive: true,
     createdAt: new Date().toISOString(),
@@ -52,6 +54,7 @@ const INITIAL_MOCK_SETUPS: CopyTrading[] = [
     purchases: 52,
     totalAssets: 190000,
     percentage: 10,
+    copyTradePrice: 1000,
     currency: "USD",
     isActive: true,
     createdAt: new Date().toISOString(),
@@ -74,6 +77,7 @@ export default function CopyTradingAdminPage() {
     purchases: 0,
     totalAssets: 0,
     percentage: 0,
+    copyTradePrice: 0,
     isActive: true,
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -94,6 +98,7 @@ export default function CopyTradingAdminPage() {
       purchases: 0,
       totalAssets: 0,
       percentage: 0,
+      copyTradePrice: 0,
       isActive: true,
     });
     setFormErrors({});
@@ -111,6 +116,7 @@ export default function CopyTradingAdminPage() {
       purchases: setup.purchases,
       totalAssets: setup.totalAssets,
       percentage: setup.percentage,
+      copyTradePrice: setup.copyTradePrice,
       isActive: setup.isActive ?? true,
     });
     setFormErrors({});

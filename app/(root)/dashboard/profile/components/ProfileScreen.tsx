@@ -1,46 +1,105 @@
 "use client";
 
 import { Icon } from "@iconify/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import ChangePasswordModal from "@/components/modals/ChangePasswordModal";
 import DepositModal from "@/components/modals/DepositModal";
+import { useUserProfile } from "@/hooks/queries";
+import { authApi } from "@/lib/api/backend";
 
-const MOCK_PROFILE = {
-  firstName: "John",
-  lastName: "Doe",
-  email: "john.doe@example.com",
-  phone: "+1 (555) 012-3456",
-  walletAddress: "0x1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b",
-  userID: "USR-84291",
-  balance: 12450.00,
-  verified: true,
-};
+const formatUSD = (n: number) =>
+  new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+  }).format(n);
 
 export default function ProfileScreen() {
+  const { data: profile, isLoading } = useUserProfile();
+  const queryClient = useQueryClient();
+
   const [editMode, setEditMode] = useState(false);
-  const [firstName, setFirstName] = useState(MOCK_PROFILE.firstName);
-  const [lastName, setLastName] = useState(MOCK_PROFILE.lastName);
-  const [phone, setPhone] = useState(MOCK_PROFILE.phone);
-  const [walletAddress, setWalletAddress] = useState(MOCK_PROFILE.walletAddress);
+  const [saving, setSaving] = useState(false);
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [walletAddress, setWalletAddress] = useState("");
   const [saveMsg, setSaveMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [openModal, setOpenModal] = useState<"change-pw" | "deposit" | null>(null);
 
-  const handleSave = () => {
-    setSaveMsg({ kind: "ok", text: "Profile updated." });
-    setEditMode(false);
-    setTimeout(() => setSaveMsg(null), 3000);
+  // Seed the editable fields from the real profile once it loads / updates.
+  useEffect(() => {
+    if (!profile) return;
+    setFirstName(profile.firstName ?? "");
+    setLastName(profile.lastName ?? "");
+    setPhone(profile.phone ?? "");
+    setWalletAddress(profile.walletAddress ?? "");
+  }, [profile]);
+
+  const resetFieldsFromProfile = () => {
+    if (!profile) return;
+    setFirstName(profile.firstName ?? "");
+    setLastName(profile.lastName ?? "");
+    setPhone(profile.phone ?? "");
+    setWalletAddress(profile.walletAddress ?? "");
   };
 
-  const displayName = `${firstName} ${lastName}`.trim() || MOCK_PROFILE.email;
-  const initials = (firstName[0] ?? MOCK_PROFILE.email[0] ?? "U").toUpperCase();
+  const handleSave = async () => {
+    setSaving(true);
+    setSaveMsg(null);
+    try {
+      await authApi.updateProfile({
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        phone: phone.trim(),
+        walletAddress: walletAddress.trim(),
+      });
+      await queryClient.invalidateQueries({ queryKey: ["user-profile"] });
+      setSaveMsg({ kind: "ok", text: "Profile updated." });
+      setEditMode(false);
+      setTimeout(() => setSaveMsg(null), 3000);
+    } catch (err) {
+      setSaveMsg({
+        kind: "err",
+        text: err instanceof Error ? err.message : "Failed to update profile.",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const email = profile?.email ?? "";
+  const userID = profile?.userID ?? "";
+  const balance = profile?.balance ?? 0;
+  const isActive = !profile?.isSuspended;
+
+  const displayName = `${firstName} ${lastName}`.trim() || email;
+  const initials = ((firstName[0] ?? lastName[0] ?? email[0]) ?? "U").toUpperCase();
 
   const fields = [
     { label: "First Name",     value: firstName,     set: setFirstName,     icon: "mdi:account-outline",   readOnly: false },
     { label: "Last Name",      value: lastName,      set: setLastName,      icon: "mdi:account-outline",   readOnly: false },
-    { label: "Email",          value: MOCK_PROFILE.email, set: () => {},    icon: "mdi:email-outline",      readOnly: true  },
-    { label: "Phone",          value: phone,          set: setPhone,        icon: "mdi:phone-outline",      readOnly: false },
-    { label: "Wallet Address", value: walletAddress,  set: setWalletAddress,icon: "mdi:wallet-outline",     readOnly: false },
+    { label: "Email",          value: email,         set: () => {},         icon: "mdi:email-outline",     readOnly: true  },
+    { label: "Phone",          value: phone,         set: setPhone,         icon: "mdi:phone-outline",     readOnly: false },
+    { label: "Wallet Address", value: walletAddress, set: setWalletAddress, icon: "mdi:wallet-outline",    readOnly: false },
   ];
+
+  if (isLoading) {
+    return (
+      <div className="p-4 md:p-8 space-y-6">
+        <div className="animate-pulse space-y-6">
+          <div className="h-8 w-40 rounded-lg bg-white/10" />
+          <div className="h-40 rounded-2xl bg-white/5" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="h-20 rounded-xl bg-white/5" />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 md:p-8 space-y-6">
@@ -52,25 +111,26 @@ export default function ProfileScreen() {
         {editMode ? (
           <div className="flex gap-2">
             <button
-              onClick={() => { setEditMode(false); setSaveMsg(null); }}
-              className="px-4 py-2 rounded-xl text-sm font-semibold"
+              onClick={() => { setEditMode(false); setSaveMsg(null); resetFieldsFromProfile(); }}
+              className="px-4 py-2 rounded-xl text-sm font-semibold cursor-pointer"
               style={{ background: "#151d2d", color: "#9aa3b0", border: "1px solid #252f45" }}
             >
               Cancel
             </button>
             <button
               onClick={handleSave}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold cursor-pointer"
+              disabled={saving}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
               style={{ background: "#00d4a1", color: "#0d1624" }}
             >
-              <Icon icon="mdi:check" width={16} />
-              Save
+              <Icon icon={saving ? "mdi:loading" : "mdi:check"} width={16} className={saving ? "animate-spin" : undefined} />
+              {saving ? "Saving..." : "Save"}
             </button>
           </div>
         ) : (
           <button
             onClick={() => setEditMode(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-150"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-150 cursor-pointer"
             style={{ background: "#151d2d", color: "#9aa3b0", border: "1px solid #252f45" }}
           >
             <Icon icon="mdi:pencil-outline" width={16} />
@@ -105,21 +165,28 @@ export default function ProfileScreen() {
         </div>
         <div className="text-center md:text-left flex-1">
           <h2 className="text-lg font-bold text-white">{displayName}</h2>
-          <p className="text-sm mt-0.5" style={{ color: "#9aa3b0" }}>{MOCK_PROFILE.email}</p>
-          <p className="text-xs mt-0.5" style={{ color: "#6b7785" }}>ID: {MOCK_PROFILE.userID}</p>
+          <p className="text-sm mt-0.5" style={{ color: "#9aa3b0" }}>{email}</p>
+          {userID && <p className="text-xs mt-0.5" style={{ color: "#6b7785" }}>ID: {userID}</p>}
           <div className="flex items-center gap-2 mt-2 justify-center md:justify-start">
             <div className="flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold" style={{ background: "rgba(0,212,161,0.12)", color: "#00d4a1" }}>
               <Icon icon="mdi:shield-check" width={12} />
               Verified
             </div>
-            <div className="flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold" style={{ background: "rgba(76,175,80,0.12)", color: "#4CAF50" }}>
-              Active
+            <div
+              className="flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold"
+              style={
+                isActive
+                  ? { background: "rgba(76,175,80,0.12)", color: "#4CAF50" }
+                  : { background: "rgba(244,67,54,0.12)", color: "#F44336" }
+              }
+            >
+              {isActive ? "Active" : "Suspended"}
             </div>
           </div>
         </div>
         <div className="text-right">
           <p className="text-xs" style={{ color: "#6b7785" }}>Balance</p>
-          <p className="text-2xl font-extrabold text-white">${MOCK_PROFILE.balance.toLocaleString("en-US", { minimumFractionDigits: 2 })}</p>
+          <p className="text-2xl font-extrabold text-white">{formatUSD(balance)}</p>
         </div>
       </div>
 
@@ -164,7 +231,7 @@ export default function ProfileScreen() {
             </div>
             <div className="text-right">
               <p className="text-[10px]" style={{ color: "#9aa3b0" }}>Status</p>
-              <p className="text-sm font-bold" style={{ color: "#4CAF50" }}>Active</p>
+              <p className="text-sm font-bold" style={{ color: isActive ? "#4CAF50" : "#F44336" }}>{isActive ? "Active" : "Suspended"}</p>
             </div>
           </div>
         </div>

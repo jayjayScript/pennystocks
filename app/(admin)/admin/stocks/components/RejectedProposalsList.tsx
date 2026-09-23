@@ -98,7 +98,7 @@ export default function RejectedProposalsList() {
                   <div className="flex items-center justify-between lg:block lg:text-right">
                     <span className="text-[10px] lg:hidden" style={{ color: "#6b7785" }}>Proposed Price</span>
                     <p className="text-xs sm:text-sm font-semibold text-white">
-                      ${(stock.proposedPrice ?? 0).toFixed(2)}
+                      ${(stock.initialListingPrice ?? 0).toFixed(2)}
                     </p>
                   </div>
 

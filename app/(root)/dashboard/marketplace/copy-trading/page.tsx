@@ -107,7 +107,7 @@ export default function CopyTradingDetailPage() {
             ? p.copyTradingId
             : (p.copyTradingId?._id ?? p._id);
         const pnlPercent = p.rateOfChange ?? 0;
-        const invested = p.amountInvested ?? p.copyTradePrice ?? 0;
+        const invested = p.amountInvested ?? 0;
         const pnl = (invested * pnlPercent) / 100;
         const isPaused = pausedTradeIds.includes(p._id);
 
@@ -443,58 +443,64 @@ export default function CopyTradingDetailPage() {
                         </div>
                       </div>
 
-                      <div className="flex gap-2">
+                      <div className="space-y-2">
                         <button
                           onClick={() => setAddFundsTrade(trade)}
-                          className="flex-1 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5"
+                          className="w-full h-10 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer hover:brightness-125 active:scale-[0.98]"
                           style={{
                             background: "rgba(0,212,161,0.12)",
                             color: "#00d4a1",
+                            border: "1px solid rgba(0,212,161,0.25)",
                           }}
                         >
-                          <Icon icon="mdi:plus-circle" width={14} />
+                          <Icon icon="mdi:plus-circle" width={16} />
                           Add Funds
                         </button>
-                        {trade.status === "active" ? (
+
+                        <div className="flex items-stretch gap-2">
+                          {trade.status === "active" ? (
+                            <button
+                              onClick={() => pauseCopyTrade(trade.id)}
+                              className="flex-1 h-10 rounded-xl text-xs font-bold transition-all cursor-pointer hover:bg-white/5 active:scale-[0.97]"
+                              style={{
+                                background: "#0d1624",
+                                color: "#9aa3b0",
+                                border: "1px solid #252f45",
+                              }}
+                            >
+                              Pause
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => resumeCopyTrade(trade.id)}
+                              className="flex-1 h-10 rounded-xl text-xs font-bold transition-all cursor-pointer hover:brightness-125 active:scale-[0.97]"
+                              style={{
+                                background: "rgba(76,175,80,0.12)",
+                                color: "#4CAF50",
+                                border: "1px solid rgba(76,175,80,0.25)",
+                              }}
+                            >
+                              Resume
+                            </button>
+                          )}
                           <button
-                            onClick={() => pauseCopyTrade(trade.id)}
-                            className="flex-1 py-2 rounded-xl text-xs font-bold"
+                            onClick={async () => {
+                              const result = await stopCopyTrade(trade.id);
+                              showNotification(
+                                result.success ? "success" : "error",
+                                result.message,
+                              );
+                            }}
+                            className="flex-1 h-10 rounded-xl text-xs font-bold transition-all cursor-pointer hover:brightness-125 active:scale-[0.97]"
                             style={{
-                              background: "#0d1624",
-                              color: "#9aa3b0",
-                              border: "1px solid #252f45",
+                              background: "rgba(244,67,54,0.12)",
+                              color: "#F44336",
+                              border: "1px solid rgba(244,67,54,0.25)",
                             }}
                           >
-                            Pause
+                            Stop
                           </button>
-                        ) : (
-                          <button
-                            onClick={() => resumeCopyTrade(trade.id)}
-                            className="flex-1 py-2 rounded-xl text-xs font-bold"
-                            style={{
-                              background: "rgba(76,175,80,0.12)",
-                              color: "#4CAF50",
-                            }}
-                          >
-                            Resume
-                          </button>
-                        )}
-                        <button
-                          onClick={async () => {
-                            const result = await stopCopyTrade(trade.id);
-                            showNotification(
-                              result.success ? "success" : "error",
-                              result.message,
-                            );
-                          }}
-                          className="flex-1 py-2 rounded-xl text-xs font-bold"
-                          style={{
-                            background: "rgba(244,67,54,0.12)",
-                            color: "#F44336",
-                          }}
-                        >
-                          Stop
-                        </button>
+                        </div>
                       </div>
                     </div>
                   );

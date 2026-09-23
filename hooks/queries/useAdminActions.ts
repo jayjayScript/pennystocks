@@ -1,8 +1,8 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { adminApi, stocksApi, copyTradingApi, transactionsApi, authApi } from "@/lib/api/backend";
-import type { TransactionStatus, Stock } from "@/types/api";
+import { adminApi, stocksApi, copyTradingApi, transactionsApi, authApi, stockProposalsApi } from "@/lib/api/backend";
+import type { TransactionStatus } from "@/types/api";
 
 // ── User mutations ────────────────────────────────────────────────────────────
 
@@ -148,10 +148,11 @@ export function useDeleteStock() {
 export function useApproveStock() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<Pick<Stock, "lastPrice" | "name" | "acronym" | "change24h" | "rateOfChange" | "description" | "exchange" | "type" | "supply" | "totalVolume">> }) =>
-      adminApi.approveStock(id, data),
+    mutationFn: ({ id, data }: { id: string; data: Parameters<typeof stockProposalsApi.approve>[1] }) =>
+      stockProposalsApi.approve(id, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["stocks"] });
+      qc.invalidateQueries({ queryKey: ["stock-proposals"] });
     },
   });
 }
@@ -159,21 +160,11 @@ export function useApproveStock() {
 export function useRejectStock() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => adminApi.rejectStock(id),
+    mutationFn: ({ id, rejectionReason }: { id: string; rejectionReason?: string }) =>
+      stockProposalsApi.reject(id, rejectionReason),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["stocks"] });
-    },
-  });
-}
-
-// ── Copy trading mutations ────────────────────────────────────────────────────
-
-export function useCreateCopyTrade() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: copyTradingApi.create,
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["copy-trading"] });
+      qc.invalidateQueries({ queryKey: ["stock-proposals"] });
     },
   });
 }

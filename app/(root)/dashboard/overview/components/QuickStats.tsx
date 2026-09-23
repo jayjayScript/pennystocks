@@ -1,6 +1,7 @@
 "use client";
 
 import { Icon } from "@iconify/react";
+import { useUserProfile } from "@/hooks/queries";
 
 interface StatRow {
   label: string;
@@ -10,14 +11,36 @@ interface StatRow {
   icon: string;
 }
 
-const MOCK_STATS: StatRow[] = [
-  { label: "Balance",            value: "$12,450.00", change: "+18.4%", up: true,  icon: "mdi:wallet-outline" },
-  { label: "Total Deposits",     value: "$10,500.00", change: "—",      up: true,  icon: "mdi:arrow-down-bold-circle-outline" },
-  { label: "Total Withdrawals",  value: "$1,200.00",  change: "—",      up: false, icon: "mdi:arrow-up-bold-circle-outline" },
-  { label: "Transactions",       value: "34",         change: "—",      up: true,  icon: "mdi:receipt-text-outline" },
-];
+function formatUSD(n: number): string {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(n);
+}
 
 export default function QuickStats() {
+  const { data: profile, isLoading } = useUserProfile();
+
+  const balance = profile?.balance ?? 0;
+  const totalDeposits = profile?.totalDeposit ?? 0;
+  const totalWithdrawals = profile?.totalWithdraw ?? 0;
+  const transactionCount = profile?.transactionCount ?? 0;
+
+  // Growth of the current balance relative to everything the user has deposited.
+  // Positive => balance grew beyond deposits (profit/net gains); negative => drawn down.
+  const growthPct =
+    totalDeposits > 0 ? ((balance - totalDeposits) / totalDeposits) * 100 : 0;
+  const growthLabel = `${growthPct >= 0 ? "+" : ""}${growthPct.toFixed(1)}%`;
+
+  const stats: StatRow[] = [
+    { label: "Balance",           value: formatUSD(balance),          change: growthLabel, up: growthPct >= 0, icon: "mdi:wallet-outline" },
+    { label: "Total Deposits",    value: formatUSD(totalDeposits),    change: "—",         up: true,           icon: "mdi:arrow-down-bold-circle-outline" },
+    { label: "Total Withdrawals", value: formatUSD(totalWithdrawals), change: "—",         up: false,          icon: "mdi:arrow-up-bold-circle-outline" },
+    { label: "Transactions",      value: String(transactionCount),    change: "—",         up: true,           icon: "mdi:receipt-text-outline" },
+  ];
+
   return (
     <div
       className="rounded-2xl p-6 h-full border border-[#252f45] flex flex-col"
@@ -31,7 +54,23 @@ export default function QuickStats() {
       </div>
 
       <div className="flex flex-col gap-3 flex-1">
-        {MOCK_STATS.map((stat, i) => (
+        {isLoading
+          ? Array.from({ length: 4 }).map((_, i) => (
+              <div
+                key={i}
+                className="flex items-center justify-between p-3 rounded-xl border border-white/5 bg-white/[0.03] animate-pulse"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-white/10 shrink-0" />
+                  <div>
+                    <div className="h-2.5 w-16 rounded bg-white/10 mb-2" />
+                    <div className="h-3.5 w-20 rounded bg-white/10" />
+                  </div>
+                </div>
+                <div className="h-5 w-12 rounded-full bg-white/10" />
+              </div>
+            ))
+          : stats.map((stat, i) => (
           <div
             key={i}
             className="flex items-center justify-between p-3 rounded-xl border border-white/5 bg-white/[0.03] hover:bg-white/[0.06] transition-colors"
@@ -63,7 +102,7 @@ export default function QuickStats() {
       </div>
 
       <p className="text-[11px] text-penny-text-muted mt-4 text-center">
-        Mock data · pre-integration state
+        Updated live from your account
       </p>
     </div>
   );

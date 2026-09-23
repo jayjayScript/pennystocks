@@ -55,7 +55,7 @@ export default function ProposalDetailModal({
     if (isOpen && proposal) {
       // Pre-fill from proposal
       setForm({
-        initialListingPrice: proposal.proposedPrice ?? 0,
+        initialListingPrice: proposal.initialListingPrice ?? 0,
         companyName: proposal.companyName ?? "",
         ticker: proposal.ticker ?? "",
         exchange: proposal.exchange ?? "",
@@ -153,19 +153,14 @@ export default function ProposalDetailModal({
             </div>
             <div>
               <p className="text-penny-text-muted text-[10px]">Proposed Price</p>
-              <p className="text-[#00d4a1] font-bold mt-0.5">${(proposal.proposedPrice ?? 0).toFixed(2)}</p>
+              <p className="text-[#00d4a1] font-bold mt-0.5">${(proposal.initialListingPrice ?? 0).toFixed(2)}</p>
             </div>
             <div>
               <p className="text-penny-text-muted text-[10px]">Submitted</p>
               <p className="text-white font-semibold mt-0.5">{new Date(proposal.createdAt).toLocaleDateString()}</p>
             </div>
           </div>
-          {proposal.description && (
-            <div className="mt-3 pt-3 border-t border-[#1d2639]">
-              <p className="text-penny-text-muted text-[10px] mb-1">Description</p>
-              <p className="text-xs text-penny-text-secondary leading-relaxed">{proposal.description}</p>
-            </div>
-          )}
+
         </div>
 
         {showRejectConfirm ? (
@@ -267,9 +262,9 @@ export default function ProposalDetailModal({
                   style={{ ...inputStyles, borderColor: (form.initialListingPrice ?? 0) > 0 ? "#00d4a1" : "#F44336" }}
                   required
                 />
-                {proposal.proposedPrice != null && form.initialListingPrice !== proposal.proposedPrice && (
+                {proposal.initialListingPrice != null && form.initialListingPrice !== proposal.initialListingPrice && (
                   <p className="text-[10px] mt-1" style={{ color: "#F5C518" }}>
-                    User proposed ${proposal.proposedPrice.toFixed(2)} — you&apos;re setting a different price.
+                    User proposed ${proposal.initialListingPrice.toFixed(2)} — you&apos;re setting a different price.
                   </p>
                 )}
               </div>

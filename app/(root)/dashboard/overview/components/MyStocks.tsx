@@ -70,7 +70,7 @@ const MyStocks = ({ stocks: _stocks }: { stocks?: unknown[] }) => {
         ) : (
           <div className="flex flex-col gap-2">
             {stockRequests.slice(0, 4).map((request) => {
-              const isApproved = request.status === "completed" || request.status === "approved";
+              const isApproved = request.status === "completed";
               const content = (
                 <>
                   <div className="flex items-center gap-3">

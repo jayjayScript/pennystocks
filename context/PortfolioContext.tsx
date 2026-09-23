@@ -1,9 +1,19 @@
 "use client";
 
 import React, { createContext, useCallback, useContext, useMemo } from "react";
+import { usePathname } from "next/navigation";
 import { usePaymentOrders, useTransactions, useUserProfile } from "@/hooks/queries";
 import { transactionsApi, paymentOrdersApi, adminApi, authApi } from "@/lib/api/backend";
 import type { Transaction, PaymentOrder, PaymentMethod } from "@/types/api";
+
+/**
+ * True when the current route is part of the admin panel. Used to avoid firing
+ * user-scoped API calls (which use the regular token) on admin routes.
+ */
+function useIsAdminRoute(): boolean {
+  const pathname = usePathname();
+  return pathname?.startsWith("/admin") ?? false;
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -68,9 +78,15 @@ function generateId(): string {
 const PortfolioContext = createContext<PortfolioContextValue | null>(null);
 
 export function PortfolioProvider({ children }: { children: React.ReactNode }) {
-  const { data: profile, isLoading: profileLoading, refetch: refetchProfile } = useUserProfile();
-  const { data: txData, isLoading: transactionsLoading, refetch: refetchTransactions } = useTransactions();
-  const { data: ordersData, isLoading: ordersLoading, error: ordersQueryError, refetch: refetchOrders } = usePaymentOrders();
+  // User-scoped queries must NOT run on admin routes — the admin token lives in a
+  // different namespace and hitting user endpoints there can 401 and tear down the
+  // admin session. Only the client dashboard needs these.
+  const isAdminRoute = useIsAdminRoute();
+  const userQueriesEnabled = !isAdminRoute;
+
+  const { data: profile, isLoading: profileLoading, refetch: refetchProfile } = useUserProfile(userQueriesEnabled);
+  const { data: txData, isLoading: transactionsLoading, refetch: refetchTransactions } = useTransactions(1, 50, userQueriesEnabled);
+  const { data: ordersData, isLoading: ordersLoading, error: ordersQueryError, refetch: refetchOrders } = usePaymentOrders(userQueriesEnabled);
 
   const accountBalance = profile?.balance ?? 0;
 

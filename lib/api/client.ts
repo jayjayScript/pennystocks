@@ -21,13 +21,16 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   if (!response.ok) {
     if (response.status === 401 && typeof window !== "undefined") {
       const isAdminRoute = window.location.pathname.startsWith("/admin");
-      if (isAdminRoute) {
+      const isAdminEndpoint = path.startsWith("/admin");
+      if (isAdminRoute && isAdminEndpoint) {
+        // Only clear the admin session when an ADMIN endpoint rejects the token.
         localStorage.removeItem("adminAccessToken");
         localStorage.removeItem("adminRefreshToken");
+        localStorage.removeItem("isAdmin");
         if (window.location.pathname !== "/admin/login") {
           window.location.replace("/admin/login");
         }
-      } else {
+      } else if (!isAdminRoute) {
         localStorage.removeItem("accessToken");
         localStorage.removeItem("refreshToken");
         if (window.location.pathname !== "/") {
