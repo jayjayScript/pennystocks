@@ -98,7 +98,7 @@ export default function AddFundsModal({ isOpen, onClose, trade, onSuccess }: Add
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center md:p-4 bg-black/80 backdrop-blur-md"
+      className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
       onClick={handleBackdrop}
     >
       <div

@@ -310,7 +310,7 @@ export default function CopyTradingDetailPage() {
             </span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap justify-end">
             <div
               className="px-4 py-2 rounded-xl"
               style={{ background: "#151d2d", border: "1px solid #252f45" }}
@@ -343,7 +343,7 @@ export default function CopyTradingDetailPage() {
 
         <div className="flex-1 flex flex-col items-center justify-center mb-4 px-2">
           <div className="text-center space-y-3 mb-8">
-            <h1 className="text-5xl font-black text-white tracking-tighter">
+            <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tighter">
               Copy Trading
             </h1>
             <p className="text-penny-text-muted text-sm max-w-sm mx-auto leading-relaxed">
@@ -631,7 +631,7 @@ export default function CopyTradingDetailPage() {
 
                               <div className="space-y-3">
                                 <div
-                                  className="text-6xl font-black tracking-tighter"
+                                  className="text-4xl sm:text-6xl font-black tracking-tighter"
                                   style={{
                                     color:
                                       (trader.rateOfChange ?? 0) >= 0
@@ -731,7 +731,7 @@ export default function CopyTradingDetailPage() {
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 50 }}
-            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-2xl shadow-xl"
+            className="fixed bottom-24 md:bottom-6 left-1/2 -translate-x-1/2 z-[70] px-5 py-3 rounded-2xl shadow-xl"
             style={{
               background:
                 notification.type === "success" ? "#1B4D3E" : "#4D1B1B",
@@ -758,7 +758,7 @@ export default function CopyTradingDetailPage() {
       {/* Confirmation Modal */}
       <AnimatePresence>
         {isModalOpen && selectedTrader && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -771,7 +771,7 @@ export default function CopyTradingDetailPage() {
               initial={{ scale: 0.9, opacity: 0, y: 30 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 30 }}
-              className="relative w-full max-w-[420px] bg-[#141C2D] border border-white/5 rounded-[40px] p-8 space-y-8 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.6)] overflow-hidden"
+              className="relative w-full max-w-[420px] bg-[#141C2D] border border-white/5 rounded-3xl sm:rounded-[40px] p-6 sm:p-8 space-y-6 sm:space-y-8 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.6)] overflow-hidden max-h-[90vh] overflow-y-auto"
             >
               <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 bg-penny-accent opacity-[0.05] blur-[80px] pointer-events-none" />
 

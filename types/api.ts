@@ -14,6 +14,8 @@ export interface ApiUser {
   firstName: string;
   lastName: string;
   balance: number;
+  copyTradeBalance?: number;
+  copyTradeWalletBalance?: number;
   totalWithdraw: number;
   totalDeposit: number;
   transactionCount: number;

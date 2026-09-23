@@ -36,7 +36,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const displayName = "Administrator";
 
   return (
-    <div className="flex min-h-screen" style={{ background: "#0d1624" }}>
+    <div className="flex min-h-screen overflow-x-hidden" style={{ background: "#0d1624" }}>
         {/* Mobile Header */}
         <header
           className="md:hidden fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-3"
@@ -230,7 +230,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 md:ml-64 pt-16 md:pt-0 p-4 md:p-6">
+        <main className="flex-1 min-w-0 overflow-hidden md:ml-64 pt-16 md:pt-0 p-4 md:p-6">
           {children}
         </main>
       </div>

@@ -86,7 +86,7 @@ export default function ProposeStockModal({ isOpen, onClose }: ProposeStockModal
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-[60] flex items-center justify-center p-4"
       style={{ background: "rgba(6,10,18,0.88)", backdropFilter: "blur(10px)" }}
       onClick={handleBackdrop}
     >

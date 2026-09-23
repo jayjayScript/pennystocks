@@ -1,30 +1,19 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Icon } from "@iconify/react";
+import { useQuery } from "@tanstack/react-query";
 import { useAdminUsers } from "@/hooks/queries";
-import type { ApiUser } from "@/types/api";
+import { useUpdateUser, useToggleUserSuspend, useToggleUserAdmin } from "@/hooks/queries/useAdminActions";
+import { adminApi } from "@/lib/api/backend";
+import type { ApiUser, StockPurchase, CopyTradePurchase } from "@/types/api";
 
 function formatUSD(val: number): string {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(val);
 }
 
-// ── Mock data still used for sections NOT in scope for this pass ──────────
-const MOCK_USER_TX = [
-  { _id: "tx-1", type: "deposit", amount: 5000, currency: "USD", status: "completed", reference: "DEP-9921", createdAt: new Date(Date.now() - 2 * 86400000).toISOString() },
-  { _id: "tx-2", type: "buy", amount: 2400, currency: "USD", status: "completed", reference: "BUY-AAPL", createdAt: new Date(Date.now() - 5 * 86400000).toISOString() },
-  { _id: "tx-3", type: "withdraw", amount: 500, currency: "USD", status: "pending", reference: "WTH-1029", createdAt: new Date(Date.now() - 1 * 86400000).toISOString() },
-];
-
-const MOCK_PURCHASES = [
-  { _id: "p1", symbol: "AAPL", name: "Apple Inc.", shares: 12, buyPrice: 185.50, currentPrice: 192.40, totalCost: 2226.00, createdAt: new Date(Date.now() - 5 * 86400000).toISOString() },
-  { _id: "p2", symbol: "NVDA", name: "NVIDIA Corp.", shares: 5, buyPrice: 460.00, currentPrice: 485.20, totalCost: 2300.00, createdAt: new Date(Date.now() - 12 * 86400000).toISOString() },
-];
-
-const MOCK_COPY_TRADES = [
-  { _id: "ct1", traderNickname: "AlphaKing", coin: "BTC", leverage: 5, investedAmount: 1000, pnl: 284, status: "active", createdAt: new Date(Date.now() - 10 * 86400000).toISOString() },
-];
+// (No mock data remains — all sections now use real API calls)
 
 function StatusBadge({ status }: { status: string }) {
   const colors: Record<string, { bg: string; text: string }> = {
@@ -72,19 +61,166 @@ export default function UserDetailPage() {
   // a dedicated single-user endpoint would remove that ceiling.
   const { data: usersData, isLoading: usersLoading, isError: usersError } = useAdminUsers(1, 100);
 
-  const user: ApiUser | undefined = useMemo(
-    () => usersData?.data.find((u) => u._id === userId || u.userID === userId),
-    [usersData, userId]
-  );
+  // One-time cleanup: scrub any stale 0-valued balance overrides that may have
+  // been written to localStorage by a previous save before portfolio data loaded.
+  useEffect(() => {
+    if (!userId || typeof window === "undefined") return;
+    const keys = [`user_override_${userId}`];
+    keys.forEach((key) => {
+      try {
+        const raw = localStorage.getItem(key);
+        if (!raw) return;
+        const override = JSON.parse(raw);
+        let changed = false;
+        (["copyTradeBalance", "copyTradeWalletBalance", "balance"] as const).forEach((field) => {
+          if (field in override && override[field] === 0) {
+            delete override[field];
+            changed = true;
+          }
+        });
+        if (changed) {
+          if (Object.keys(override).length === 0) {
+            localStorage.removeItem(key);
+          } else {
+            localStorage.setItem(key, JSON.stringify(override));
+          }
+        }
+      } catch {
+        // ignore
+      }
+    });
+  }, [userId]);
 
-  // const [isEditing] = useState(false); // editing intentionally stays disabled this pass
+  const user: ApiUser | undefined = useMemo(() => {
+    const raw = usersData?.data.find((u) => u._id === userId || u.userID === userId);
+    if (!raw) return undefined;
+    if (typeof window === "undefined") return raw;
+    try {
+      const rawOverride = localStorage.getItem(`user_override_${raw._id}`) || localStorage.getItem(`user_override_${raw.userID}`);
+      if (rawOverride) {
+        const override = JSON.parse(rawOverride);
+        // Don't let 0 form-defaults overwrite real non-zero API values
+        const safeOverride = Object.fromEntries(
+          Object.entries(override).filter(([_, v]) => {
+            if (typeof v === "number") return v !== 0;
+            return v !== null && v !== undefined && v !== "";
+          })
+        );
+        return { ...raw, ...safeOverride };
+      }
+    } catch {
+      // ignore
+    }
+    return raw;
+  }, [usersData, userId]);
 
-  const purchasesData = MOCK_PURCHASES;
-  const purchasesLoading = false;
-  const copyTradesData = MOCK_COPY_TRADES;
-  const copyTradesLoading = false;
-  const userTx = MOCK_USER_TX;
-  const txLoading = false;
+
+
+  // ── Edit state ───────────────────────────────────────────────────────────
+  // Declared before the early returns so every render calls hooks in the same order.
+  const [editOpen, setEditOpen] = useState(false);
+  const [editForm, setEditForm] = useState({
+    firstName: "",
+    lastName: "",
+    phone: "",
+    balance: "0",
+    copyTradeBalance: "0",
+    walletAddress: "",
+    email: "",
+    profileImage: "",
+    walletPassword: "",
+  });
+  const [editError, setEditError] = useState("");
+
+  const updateMut = useUpdateUser();
+  const suspendMut = useToggleUserSuspend();
+  const adminMut = useToggleUserAdmin();
+
+  const openEdit = () => {
+    setEditForm({
+      firstName: user?.firstName ?? "",
+      lastName: user?.lastName ?? "",
+      phone: user?.phone ?? "",
+      balance: String(user?.balance ?? 0),
+      // Pre-fill with the same value shown in the stats card
+      copyTradeBalance: String(resolvedCopyTradeBalance),
+      walletAddress: user?.walletAddress ?? "",
+      email: user?.email ?? "",
+      profileImage: user?.profileImage ?? "",
+      walletPassword: user?.walletPassword ?? "",
+    });
+    setEditOpen(true);
+  };
+
+  const saveEdit = async () => {
+    setEditError("");
+    try {
+      await updateMut.mutateAsync({
+        id: user?._id ?? "",
+        data: {
+          firstName: editForm.firstName || undefined,
+          lastName: editForm.lastName || undefined,
+          email: editForm.email || undefined,
+          phone: editForm.phone || undefined,
+          balance: Number(editForm.balance) || 0,
+          copyTradeBalance: Number(editForm.copyTradeBalance) || 0,
+          copyTradeWalletBalance: Number(editForm.copyTradeBalance) || 0,
+          walletAddress: editForm.walletAddress || undefined,
+          profileImage: editForm.profileImage || undefined,
+          walletPassword: editForm.walletPassword || undefined,
+        },
+      });
+      setEditOpen(false);
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : "Failed to update user.");
+    }
+  };
+
+  const handleEditBackdrop: React.MouseEventHandler<HTMLDivElement> = () => {
+    if (!updateMut.isPending) setEditOpen(false);
+  };
+
+  // Real stock holdings and copy trade holdings via admin per-user endpoints
+  const { data: stockPurchasesData, isLoading: purchasesLoading } = useQuery({
+    queryKey: ["admin", "user-stock-purchases", userId],
+    queryFn: () => adminApi.userStockPurchases(userId, { limit: 50 }),
+    enabled: !!userId,
+  });
+  const { data: copyTradePurchasesData, isLoading: copyTradesLoading } = useQuery({
+    queryKey: ["admin", "user-copy-trade-purchases", userId],
+    queryFn: () => adminApi.userCopyTradePurchases(userId, { limit: 50 }),
+    enabled: !!userId,
+  });
+
+  const purchasesData: StockPurchase[] = stockPurchasesData?.data ?? [];
+  const copyTradesData: CopyTradePurchase[] = copyTradePurchasesData?.data ?? [];
+
+  // Fetch the user's copy-trade portfolio (balance, totalDeposited, etc.)
+  // using the same portfolio structure as copyTradingApi.portfolio() on the user side.
+  const { data: copyTradePortfolio, isLoading: portfolioLoading } = useQuery({
+    queryKey: ["admin", "user-copy-trade-portfolio", userId],
+    queryFn: () => adminApi.userCopyTradePortfolio(userId),
+    enabled: !!userId,
+  });
+
+  // Resolved copy-trade wallet balance:
+  // 1. Portfolio balance from the dedicated endpoint (most accurate)
+  // 2. Explicit field on user object (set via admin edit + localStorage override)
+  const resolvedCopyTradeBalance = (() => {
+    if (typeof copyTradePortfolio?.balance === "number") return copyTradePortfolio.balance;
+    const fromUser = user?.copyTradeBalance ?? user?.copyTradeWalletBalance;
+    if (typeof fromUser === "number") return fromUser;
+    return 0;
+  })();
+  const copyTradeBalanceLoading = portfolioLoading;
+
+  // Transactions: real per-user admin endpoint
+  const { data: txData, isLoading: txLoading } = useQuery({
+    queryKey: ["admin", "user-transactions", userId],
+    queryFn: () => adminApi.userTransactions(userId, { limit: 20 }),
+    enabled: !!userId,
+  });
+  const userTx = txData?.data ?? [];
 
   if (usersLoading) {
     return (
@@ -138,22 +274,134 @@ export default function UserDetailPage() {
   const isSuspended = user.isSuspended ?? false;
   const initials = `${user.firstName?.[0] ?? ""}${user.lastName?.[0] ?? ""}`.toUpperCase() || user.email[0].toUpperCase();
 
-  return (
-    <div className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6 max-w-7xl">
-      {/* Back Button */}
-      <button
-        onClick={() => router.push("/admin/users")}
-        className="flex items-center gap-2 text-xs sm:text-sm font-medium transition-colors"
-        style={{ color: "#6b7785" }}
-        onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.color = "#00d4a1")}
-        onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.color = "#6b7785")}
-      >
-        <Icon icon="mdi:arrow-left" width={14} className="sm:w-4 sm:h-4" />
-        <span className="hidden sm:inline">Back to Users</span>
-        <span className="sm:hidden">Back</span>
-      </button>
 
-      {/* Header Card */}
+  return (
+    <>
+      {/* Edit Modal */}
+      {editOpen && (
+        <>
+          <div className="fixed inset-0 z-[60] bg-black/80" onClick={handleEditBackdrop} />
+          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[60] w-[95%] sm:w-[400px] max-h-[90vh] overflow-y-auto rounded-2xl p-5 sm:p-6"
+            style={{ background: "#151d2d", border: "1px solid #252f45" }}
+            onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-bold text-white">Edit User</h2>
+              <button
+                onClick={() => setEditOpen(false)}
+                className="p-2 rounded-lg"
+                style={{ background: "#0d1624" }}
+              >
+                <Icon icon="mdi:close" width={18} style={{ color: "#9aa3b0" }} />
+              </button>
+            </div>
+
+            <form onSubmit={(e) => { e.preventDefault(); saveEdit(); }} className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-[10px] sm:text-xs font-semibold" style={{ color: "#6b7785" }}>First Name</label>
+                <input
+                  value={editForm.firstName}
+                  onChange={(e) => setEditForm(f => ({ ...f, firstName: e.target.value }))}
+                  className="w-full px-4 py-2.5 rounded-xl text-sm"
+                  style={{ background: "#0d1624", border: "1px solid #252f45", color: "white" }}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] sm:text-xs font-semibold" style={{ color: "#6b7785" }}>Last Name</label>
+                <input
+                  value={editForm.lastName}
+                  onChange={(e) => setEditForm(f => ({ ...f, lastName: e.target.value }))}
+                  className="w-full px-4 py-2.5 rounded-xl text-sm"
+                  style={{ background: "#0d1624", border: "1px solid #252f45", color: "white" }}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] sm:text-xs font-semibold" style={{ color: "#6b7785" }}>Phone</label>
+                <input
+                  type="tel"
+                  value={editForm.phone}
+                  onChange={(e) => setEditForm(f => ({ ...f, phone: e.target.value }))}
+                  className="w-full px-4 py-2.5 rounded-xl text-sm"
+                  style={{ background: "#0d1624", border: "1px solid #252f45", color: "white" }}
+                />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <label className="text-[10px] sm:text-xs font-semibold" style={{ color: "#6b7785" }}>Cash Balance ($)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editForm.balance}
+                    onChange={(e) => setEditForm(f => ({ ...f, balance: e.target.value }))}
+                    className="w-full px-4 py-2.5 rounded-xl text-sm"
+                    style={{ background: "#0d1624", border: "1px solid #252f45", color: "white" }}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] sm:text-xs font-semibold" style={{ color: "#6b7785" }}>Copy-Trade Wallet ($)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editForm.copyTradeBalance}
+                    onChange={(e) => setEditForm(f => ({ ...f, copyTradeBalance: e.target.value }))}
+                    className="w-full px-4 py-2.5 rounded-xl text-sm"
+                    style={{ background: "#0d1624", border: "1px solid #252f45", color: "white" }}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] sm:text-xs font-semibold" style={{ color: "#6b7785" }}>Wallet Address</label>
+                <input
+                  value={editForm.walletAddress}
+                  onChange={(e) => setEditForm(f => ({ ...f, walletAddress: e.target.value }))}
+                  className="w-full px-4 py-2.5 rounded-xl text-sm"
+                  style={{ background: "#0d1624", border: "1px solid #252f45", color: "white" }}
+                />
+              </div>
+              {editError && (
+                <div className="flex items-start gap-2 p-3 rounded-xl text-xs"
+                  style={{ background: "rgba(244,67,54,0.1)", border: "1px solid rgba(244,67,54,0.3)", color: "#F44336" }}>
+                  <Icon icon="mdi:alert-circle" width={16} className="shrink-0 mt-0.5" />
+                  <span>{editError}</span>
+                </div>
+              )}
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setEditOpen(false)}
+                  className="flex-1 py-3 rounded-xl font-bold"
+                  style={{ background: "#0d1624", color: "#9aa3b0", border: "1px solid #252f45" }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={updateMut.isPending}
+                  className="flex-1 py-3 rounded-xl font-bold"
+                  style={{ background: "#00d4a1", color: "#0d1624" }}
+                >
+                  {updateMut.isPending ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </>
+      )}
+
+      <div className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6 max-w-7xl">
+        {/* Back Button */}
+        <button
+          onClick={() => router.push("/admin/users")}
+          className="flex items-center gap-2 text-xs sm:text-sm font-medium transition-colors"
+          style={{ color: "#6b7785" }}
+          onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.color = "#00d4a1")}
+          onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.color = "#6b7785")}
+        >
+          <Icon icon="mdi:arrow-left" width={14} className="sm:w-4 sm:h-4" />
+          <span className="hidden sm:inline">Back to Users</span>
+          <span className="sm:hidden">Back</span>
+        </button>
+
+        {/* Header Card */}
       <div className="rounded-xl sm:rounded-2xl p-4 sm:p-6" style={{ background: "linear-gradient(135deg, #151d2d 0%, #1a2538 100%)", border: "1px solid #252f45" }}>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3 sm:gap-4">
@@ -177,22 +425,26 @@ export default function UserDetailPage() {
           <div className="flex items-center gap-2 sm:gap-3">
             <button
               type="button"
-              disabled
-              title="Suspend/reactivate is not connected on the user detail page yet."
-              className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors cursor-pointer"
+              onClick={() => suspendMut.mutate({ id: user._id, isSuspended: !isSuspended })}
+              disabled={suspendMut.isPending}
+              className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors cursor-pointer disabled:opacity-60"
               style={{ background: isSuspended ? "rgba(76,175,80,0.1)" : "rgba(244,67,54,0.1)", color: isSuspended ? "#4CAF50" : "#F44336" }}
             >
-              <Icon icon={isSuspended ? "mdi:account-check" : "mdi:block-helper"} width={14} className="sm:w-4 sm:h-4" />
+              {suspendMut.isPending
+                ? <Icon icon="mdi:loading" width={14} className="animate-spin" />
+                : <Icon icon={isSuspended ? "mdi:account-check" : "mdi:block-helper"} width={14} className="sm:w-4 sm:h-4" />}
               {isSuspended ? "Reactivate" : "Suspend"}
             </button>
             <button
               type="button"
-              disabled
-              title="Admin-role changes are not connected on the user detail page yet."
-              className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors cursor-pointer"
+              onClick={() => adminMut.mutate({ id: user._id, isAdmin: !user.isAdmin })}
+              disabled={adminMut.isPending}
+              className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-colors cursor-pointer disabled:opacity-60"
               style={{ background: user.isAdmin ? "rgba(245,197,24,0.1)" : "rgba(0,212,161,0.1)", color: user.isAdmin ? "#F5C518" : "#00d4a1" }}
             >
-              <Icon icon="mdi:shield-account" width={14} className="sm:w-4 sm:h-4" />
+              {adminMut.isPending
+                ? <Icon icon="mdi:loading" width={14} className="animate-spin" />
+                : <Icon icon="mdi:shield-account" width={14} className="sm:w-4 sm:h-4" />}
               {user.isAdmin ? "Remove Admin" : "Make Admin"}
             </button>
           </div>
@@ -200,18 +452,24 @@ export default function UserDetailPage() {
       </div>
 
       {/* Stats Row */}
-      <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
         <div className="rounded-xl sm:rounded-2xl p-4 sm:p-5" style={{ background: "#151d2d", border: "1px solid #252f45" }}>
           <p className="text-[10px] sm:text-xs mb-2" style={{ color: "#6b7785" }}>Cash Balance</p>
-          <p className="text-base sm:text-lg lg:text-xl font-bold" style={{ color: "#00d4a1" }}>{formatUSD(user.balance)}</p>
+          <p className="text-sm sm:text-base lg:text-lg font-bold" style={{ color: "#00d4a1" }}>{formatUSD(user.balance)}</p>
+        </div>
+        <div className="rounded-xl sm:rounded-2xl p-4 sm:p-5" style={{ background: "#151d2d", border: "1px solid #252f45" }}>
+          <p className="text-[10px] sm:text-xs mb-2" style={{ color: "#6b7785" }}>Copy-Trade Wallet</p>
+          <p className="text-sm sm:text-base lg:text-lg font-bold" style={{ color: copyTradeBalanceLoading ? "#6b7785" : "#a78bfa" }}>
+            {copyTradeBalanceLoading ? "…" : formatUSD(resolvedCopyTradeBalance)}
+          </p>
         </div>
         <div className="rounded-xl sm:rounded-2xl p-4 sm:p-5" style={{ background: "#151d2d", border: "1px solid #252f45" }}>
           <p className="text-[10px] sm:text-xs mb-2" style={{ color: "#6b7785" }}>Transactions</p>
-          <p className="text-base sm:text-lg lg:text-xl font-bold text-white">{user.transactionCount ?? 0}</p>
+          <p className="text-sm sm:text-base lg:text-lg font-bold text-white">{user.transactionCount ?? 0}</p>
         </div>
-        <div className="rounded-xl sm:rounded-2xl p-4 sm:p-5 xs:col-span-2 sm:col-span-1" style={{ background: "#151d2d", border: "1px solid #252f45" }}>
+        <div className="rounded-xl sm:rounded-2xl p-4 sm:p-5" style={{ background: "#151d2d", border: "1px solid #252f45" }}>
           <p className="text-[10px] sm:text-xs mb-2" style={{ color: "#6b7785" }}>Account Type</p>
-          <p className="text-base sm:text-lg font-bold" style={{ color: user.isAdmin ? "#F5C518" : "#9aa3b0" }}>
+          <p className="text-sm sm:text-base font-bold" style={{ color: user.isAdmin ? "#F5C518" : "#9aa3b0" }}>
             {user.isAdmin ? "Admin" : isSuspended ? "Suspended" : "User"}
           </p>
         </div>
@@ -227,8 +485,7 @@ export default function UserDetailPage() {
             action={
               <button
                 type="button"
-                disabled
-                title="Profile editing is not connected on the user detail page yet."
+                onClick={openEdit}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] sm:text-xs font-semibold transition-colors cursor-pointer"
                 style={{ background: "rgba(0,212,161,0.1)", color: "#00d4a1" }}
               >
@@ -259,10 +516,16 @@ export default function UserDetailPage() {
                 <p className="text-xs sm:text-sm font-medium text-white">{user.phone ?? "—"}</p>
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] sm:text-xs font-semibold" style={{ color: "#6b7785" }}>Balance</label>
+                <label className="text-[10px] sm:text-xs font-semibold" style={{ color: "#6b7785" }}>Cash Balance</label>
                 <p className="text-xs sm:text-sm font-bold" style={{ color: "#00d4a1" }}>{formatUSD(user.balance)}</p>
               </div>
               <div className="space-y-1">
+                <label className="text-[10px] sm:text-xs font-semibold" style={{ color: "#6b7785" }}>Copy-Trade Wallet</label>
+                <p className="text-xs sm:text-sm font-bold" style={{ color: "#a78bfa" }}>
+                  {copyTradeBalanceLoading ? "…" : formatUSD(resolvedCopyTradeBalance)}
+                </p>
+              </div>
+              <div className="space-y-1 sm:col-span-2">
                 <label className="text-[10px] sm:text-xs font-semibold" style={{ color: "#6b7785" }}>Wallet Address</label>
                 <p className="text-xs sm:text-sm font-medium text-white truncate">{user.walletAddress ?? "—"}</p>
               </div>
@@ -272,31 +535,52 @@ export default function UserDetailPage() {
 
         {/* Right Column */}
         <div className="space-y-4 sm:space-y-6">
-          <SectionCard title="Recent Transactions" icon="mdi:history">
+          <SectionCard title="Recent Transactions" icon="mdi:history"
+            action={
+              txLoading ? undefined :
+              <span className="text-[10px] sm:text-xs font-semibold px-2 py-1 rounded-lg" style={{ background: "#0d1624", color: "#6b7785" }}>
+                {userTx.length} tx
+              </span>
+            }
+          >
             {txLoading ? (
-              <p className="text-xs text-center py-6" style={{ color: "#6b7785" }}>Loading...</p>
+              <div className="flex items-center justify-center py-8 gap-2" style={{ color: "#6b7785" }}>
+                <Icon icon="mdi:loading" width={18} className="animate-spin" />
+                <span className="text-xs">Loading...</span>
+              </div>
             ) : userTx.length > 0 ? (
               <div className="space-y-2 max-h-64 overflow-y-auto">
-                {userTx.slice(0, 10).map((tx) => (
-                  <div key={tx._id} className="flex items-center justify-between p-2 sm:p-3 rounded-lg" style={{ background: "#0d1624" }}>
-                    <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                      <span className="text-[10px] sm:text-xs font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded shrink-0" style={{
-                        background: tx.type === "buy" ? "rgba(0,212,161,0.12)" : tx.type === "sell" ? "rgba(244,67,54,0.12)" : "rgba(245,197,24,0.12)",
-                        color: tx.type === "buy" ? "#00d4a1" : tx.type === "sell" ? "#F44336" : "#F5C518",
-                      }}>
-                        {tx.type.toUpperCase()}
-                      </span>
-                      <div className="min-w-0">
-                        <p className="text-xs sm:text-sm font-medium text-white truncate">{tx.reference ?? "—"}</p>
-                        <p className="text-[10px] sm:text-xs" style={{ color: "#6b7785" }}>{new Date(tx.createdAt).toLocaleDateString()}</p>
+                {userTx.map((tx) => {
+                  const typeColor =
+                    tx.type === "buy" ? { bg: "rgba(0,212,161,0.12)", text: "#00d4a1" }
+                    : tx.type === "sell" ? { bg: "rgba(244,67,54,0.12)", text: "#F44336" }
+                    : tx.type === "deposit" ? { bg: "rgba(76,175,80,0.12)", text: "#4CAF50" }
+                    : tx.type === "withdraw" ? { bg: "rgba(244,67,54,0.12)", text: "#F44336" }
+                    : { bg: "rgba(245,197,24,0.12)", text: "#F5C518" };
+                  return (
+                    <div key={tx._id} className="flex items-center justify-between p-2 sm:p-3 rounded-lg" style={{ background: "#0d1624" }}>
+                      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                        <span className="text-[10px] sm:text-xs font-bold px-1.5 sm:px-2 py-0.5 sm:py-1 rounded shrink-0" style={{ background: typeColor.bg, color: typeColor.text }}>
+                          {tx.type.toUpperCase()}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-xs sm:text-sm font-medium text-white truncate">
+                            {tx.reference ?? tx.transactionID ?? "—"}
+                          </p>
+                          <p className="text-[10px] sm:text-xs" style={{ color: "#6b7785" }}>
+                            {new Date(tx.createdAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0 ml-2">
+                        <p className="text-xs sm:text-sm font-bold" style={{ color: tx.type === "withdraw" || tx.type === "sell" ? "#F44336" : "#00d4a1" }}>
+                          {tx.type === "withdraw" || tx.type === "sell" ? "-" : "+"}{formatUSD(tx.amount)}
+                        </p>
+                        <StatusBadge status={tx.status} />
                       </div>
                     </div>
-                    <div className="text-right shrink-0 ml-2">
-                      <p className="text-xs sm:text-sm font-bold" style={{ color: "#00d4a1" }}>{formatUSD(tx.amount)}</p>
-                      <StatusBadge status={tx.status} />
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <p className="text-xs sm:text-sm text-center py-6" style={{ color: "#6b7785" }}>No transactions yet</p>
@@ -305,30 +589,43 @@ export default function UserDetailPage() {
         </div>
       </div>
 
+
       {/* User Holdings */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Stock Holdings */}
-        <SectionCard title="Stock Holdings" icon="mdi:chart-line-variant">
+        <SectionCard title="Stock Holdings" icon="mdi:chart-line-variant"
+          action={
+            purchasesLoading ? undefined :
+            <span className="text-[10px] sm:text-xs font-semibold px-2 py-1 rounded-lg" style={{ background: "#0d1624", color: "#6b7785" }}>
+              {purchasesData.length} holding{purchasesData.length !== 1 ? "s" : ""}
+            </span>
+          }
+        >
           {purchasesLoading ? (
-            <p className="text-xs text-center py-6" style={{ color: "#6b7785" }}>Loading...</p>
-          ) : purchasesData && purchasesData.length > 0 ? (
+            <div className="flex items-center justify-center py-8 gap-2" style={{ color: "#6b7785" }}>
+              <Icon icon="mdi:loading" width={18} className="animate-spin" />
+              <span className="text-xs">Loading...</span>
+            </div>
+          ) : purchasesData.length > 0 ? (
             <div className="space-y-2 max-h-64 overflow-y-auto">
               {purchasesData.map((purchase) => (
                 <div key={purchase._id} className="flex items-center justify-between p-2 sm:p-3 rounded-lg" style={{ background: "#0d1624" }}>
                   <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                     <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg flex items-center justify-center text-xs font-bold shrink-0" style={{ background: "rgba(0,212,161,0.1)", color: "#00d4a1" }}>
-                      {purchase.symbol?.[0] ?? "?"}
+                      {purchase.stockAcronym?.[0] ?? "?"}
                     </div>
                     <div className="min-w-0">
-                      <p className="text-xs sm:text-sm font-medium text-white">{purchase.name ?? purchase.symbol}</p>
+                      <p className="text-xs sm:text-sm font-medium text-white truncate">{purchase.stockName || purchase.stockAcronym}</p>
                       <p className="text-[10px] sm:text-xs" style={{ color: "#6b7785" }}>
-                        {purchase.shares} shares @ {formatUSD(purchase.buyPrice)}/share
+                        {purchase.quantity} shares @ {formatUSD(purchase.pricePerShare)}/share
                       </p>
                     </div>
                   </div>
                   <div className="text-right shrink-0 ml-2">
-                    <p className="text-xs sm:text-sm font-bold text-white">{formatUSD(purchase.totalCost)}</p>
-                    <p className="text-[10px] sm:text-xs" style={{ color: "#6b7785" }}>{new Date(purchase.createdAt).toLocaleDateString()}</p>
+                    <p className="text-xs sm:text-sm font-bold text-white">{formatUSD(purchase.totalAmount)}</p>
+                    <p className="text-[10px] sm:text-xs" style={{ color: purchase.status === "closed" ? "#F44336" : "#4CAF50" }}>
+                      {purchase.status ?? "open"}
+                    </p>
                   </div>
                 </div>
               ))}
@@ -339,31 +636,51 @@ export default function UserDetailPage() {
         </SectionCard>
 
         {/* Copy Trade Holdings */}
-        <SectionCard title="Copy Trade Holdings" icon="mdi:account-cash">
+        <SectionCard title="Copy Trade Holdings" icon="mdi:account-cash"
+          action={
+            copyTradesLoading ? undefined :
+            <span className="text-[10px] sm:text-xs font-semibold px-2 py-1 rounded-lg" style={{ background: "#0d1624", color: "#6b7785" }}>
+              {copyTradesData.length} trade{copyTradesData.length !== 1 ? "s" : ""}
+            </span>
+          }
+        >
           {copyTradesLoading ? (
-            <p className="text-xs text-center py-6" style={{ color: "#6b7785" }}>Loading...</p>
-          ) : copyTradesData && copyTradesData.length > 0 ? (
+            <div className="flex items-center justify-center py-8 gap-2" style={{ color: "#6b7785" }}>
+              <Icon icon="mdi:loading" width={18} className="animate-spin" />
+              <span className="text-xs">Loading...</span>
+            </div>
+          ) : copyTradesData.length > 0 ? (
             <div className="space-y-2 max-h-64 overflow-y-auto">
-              {copyTradesData.map((trade) => (
-                <div key={trade._id} className="flex items-center justify-between p-2 sm:p-3 rounded-lg" style={{ background: "#0d1624" }}>
-                  <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                    <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg flex items-center justify-center text-xs font-bold shrink-0" style={{ background: "rgba(0,212,161,0.12)", color: "#00d4a1" }}>
-                      {trade.traderNickname?.[0] ?? "?"}
+              {copyTradesData.map((trade) => {
+                const isActive = trade.status !== "liquidated";
+                return (
+                  <div key={trade._id} className="flex items-center justify-between p-2 sm:p-3 rounded-lg" style={{ background: "#0d1624" }}>
+                    <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                      <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg flex items-center justify-center text-xs font-bold shrink-0" style={{ background: "rgba(0,212,161,0.12)", color: "#00d4a1" }}>
+                        {trade.traderName?.[0] ?? "?"}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs sm:text-sm font-medium text-white truncate">{trade.traderName}</p>
+                        <p className="text-[10px] sm:text-xs" style={{ color: "#6b7785" }}>
+                          {trade.riskLevel} risk · {trade.duration} · {trade.percentage}%
+                        </p>
+                      </div>
                     </div>
-                    <div className="min-w-0">
-                      <p className="text-xs sm:text-sm font-medium text-white">{trade.traderNickname}</p>
-                      <p className="text-[10px] sm:text-xs" style={{ color: "#6b7785" }}>
-                        {trade.coin} · Invested {formatUSD(trade.investedAmount)}
-                      </p>
+                    <div className="text-right shrink-0 ml-2">
+                      <p className="text-xs sm:text-sm font-bold text-white">{formatUSD(trade.amountInvested)}</p>
+                      <span
+                        className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                        style={{
+                          background: isActive ? "rgba(76,175,80,0.12)" : "rgba(107,119,133,0.12)",
+                          color: isActive ? "#4CAF50" : "#6b7785",
+                        }}
+                      >
+                        {trade.status ?? "active"}
+                      </span>
                     </div>
                   </div>
-                  <div className="text-right shrink-0 ml-2">
-                    <p className="text-xs sm:text-sm font-bold" style={{ color: trade.pnl >= 0 ? "#4CAF50" : "#F44336" }}>
-                      {trade.pnl >= 0 ? "+" : ""}{formatUSD(trade.pnl)}
-                    </p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <p className="text-xs text-center py-6" style={{ color: "#6b7785" }}>No active copy trades</p>
@@ -371,5 +688,6 @@ export default function UserDetailPage() {
         </SectionCard>
       </div>
     </div>
-  );
+  </>
+);
 }

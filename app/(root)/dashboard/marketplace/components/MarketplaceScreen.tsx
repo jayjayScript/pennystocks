@@ -140,15 +140,25 @@ export default function MarketplaceScreen() {
               </div>
             </Link>
 
-            {/* Mobile: price + pct */}
-            <div className="flex flex-col items-end shrink-0 ml-3 md:hidden">
-              <p className="text-[15px] font-bold text-white leading-tight">{asset.price}</p>
-              <span
-                className="mt-1 text-[12px] font-bold px-2.5 py-0.5 rounded-full"
-                style={{ background: asset.up ? "rgba(76,175,80,0.15)" : "rgba(244,67,54,0.15)", color: asset.up ? "#4CAF50" : "#F44336" }}
+            {/* Mobile: price + pct + trade */}
+            <div className="flex items-center gap-3 shrink-0 ml-3 md:hidden">
+              <div className="flex flex-col items-end">
+                <p className="text-[15px] font-bold text-white leading-tight">{asset.price}</p>
+                <span
+                  className="mt-1 text-[12px] font-bold px-2.5 py-0.5 rounded-full"
+                  style={{ background: asset.up ? "rgba(76,175,80,0.15)" : "rgba(244,67,54,0.15)", color: asset.up ? "#4CAF50" : "#F44336" }}
+                >
+                  {asset.pct}
+                </span>
+              </div>
+              <button
+                onClick={() => openBuy(asset)}
+                aria-label={`Trade ${asset.symbol}`}
+                className="shrink-0 px-3.5 py-2 rounded-xl text-xs font-bold transition-all duration-150 hover:opacity-90 active:scale-95"
+                style={{ background: "#00d4a1", color: "#0d1624" }}
               >
-                {asset.pct}
-              </span>
+                Trade
+              </button>
             </div>
 
             {/* Desktop columns */}

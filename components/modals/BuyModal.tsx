@@ -117,13 +117,25 @@ export default function BuyModal({ stock, isOpen, onClose }: BuyModalProps) {
 
   // ─── Render ───────────────────────────────────────────────────────────────
 
-  const accentColor = stock.bgColor
-    ? stock.bgColor.replace("0.1)", "1)")
-    : "#00d4a1";
+  // Convert the stock's translucent accent (e.g. "rgba(0,212,161,0.15)") into a
+  // solid colour so dark CTA text stays readable on it. Falls back to the
+  // brand accent when the value isn't a parseable rgba/rgb string.
+  const accentColor = (() => {
+    const raw = stock.bgColor;
+    if (raw) {
+      const match = raw.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+      if (match) {
+        return `rgb(${match[1]}, ${match[2]}, ${match[3]})`;
+      }
+      // Already a solid hex/name — use as-is.
+      if (!raw.startsWith("rgba")) return raw;
+    }
+    return "#00d4a1";
+  })();
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-[60] flex items-center justify-center p-4"
       style={{ background: "rgba(6,10,18,0.88)", backdropFilter: "blur(10px)" }}
       onClick={handleBackdrop}
     >

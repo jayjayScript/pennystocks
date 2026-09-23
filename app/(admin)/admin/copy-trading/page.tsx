@@ -3,7 +3,12 @@
 import React, { useState } from "react";
 import { Icon } from "@iconify/react";
 import { Button } from "@/components/ui/Button";
-import { Card } from "@/components/ui/Card";
+import { useCopyTrading } from "@/hooks/queries";
+import {
+  useCreateCopyTrade,
+  useUpdateCopyTrade,
+  useDeleteCopyTrade,
+} from "@/hooks/queries/useAdminActions";
 import type { CopyTrading, CreateCopyTradingPayload, RiskLevel } from "@/types/api";
 
 const formatUSD = (n: number) =>
@@ -11,96 +16,45 @@ const formatUSD = (n: number) =>
 
 const RISK_OPTIONS: RiskLevel[] = ["low", "medium", "high"];
 
-const INITIAL_MOCK_SETUPS: CopyTrading[] = [
-  {
-    _id: "setup-1",
-    traderName: "Alpha Momentum",
-    riskLevel: "medium",
-    rateOfChange: 42.8,
-    duration: "14 days",
-    averageDailyProfit: 3.2,
-    purchases: 128,
-    totalAssets: 450000,
-    percentage: 5,
-    copyTradePrice: 500,
-    currency: "USD",
-    isActive: true,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    _id: "setup-2",
-    traderName: "Quantum Blue",
-    riskLevel: "low",
-    rateOfChange: 18.5,
-    duration: "30 days",
-    averageDailyProfit: 1.1,
-    purchases: 84,
-    totalAssets: 820000,
-    percentage: 3,
-    copyTradePrice: 200,
-    currency: "USD",
-    isActive: true,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    _id: "setup-3",
-    traderName: "Crypto Apex",
-    riskLevel: "high",
-    rateOfChange: 76.4,
-    duration: "7 days",
-    averageDailyProfit: 6.8,
-    purchases: 52,
-    totalAssets: 190000,
-    percentage: 10,
-    copyTradePrice: 1000,
-    currency: "USD",
-    isActive: true,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-];
+const RISK_STYLES: Record<RiskLevel, { bg: string; color: string }> = {
+  low: { bg: "rgba(0,212,161,0.1)", color: "#00d4a1" },
+  medium: { bg: "rgba(245,197,24,0.1)", color: "#F5C518" },
+  high: { bg: "rgba(244,67,54,0.1)", color: "#F44336" },
+};
+
+const emptyForm = (): CreateCopyTradingPayload => ({
+  traderName: "",
+  riskLevel: "low",
+  rateOfChange: 0,
+  duration: "7 days",
+  averageDailyProfit: 0,
+  purchases: 0,
+  totalAssets: 0,
+  percentage: 0,
+  copyTradePrice: 0,
+  isActive: true,
+});
 
 export default function CopyTradingAdminPage() {
-  const [setups, setSetups] = useState<CopyTrading[]>(INITIAL_MOCK_SETUPS);
-  const isLoading = false;
+  const { data: setupsData, isLoading, error } = useCopyTrading();
+  const setups: CopyTrading[] = Array.isArray(setupsData)
+    ? setupsData
+    : ((setupsData as unknown as { data?: CopyTrading[] })?.data ?? []);
+
+  const createMut = useCreateCopyTrade();
+  const updateMut = useUpdateCopyTrade();
+  const deleteMut = useDeleteCopyTrade();
 
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState<CreateCopyTradingPayload>({
-    traderName: "",
-    riskLevel: "low",
-    rateOfChange: 0,
-    duration: "7 days",
-    averageDailyProfit: 0,
-    purchases: 0,
-    totalAssets: 0,
-    percentage: 0,
-    copyTradePrice: 0,
-    isActive: true,
-  });
+  const [formData, setFormData] = useState<CreateCopyTradingPayload>(emptyForm());
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [actionError, setActionError] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-
-  const createMut = { isPending: false }; // This is a Temporary placeholder for mutation state. Replace with actual mutation logic
-  const updateMut = { isPending: false }; // This is a Temporary placeholder for mutation state. Replace with actual mutation logic
-  const deleteMut = { isPending: false }; // This is a Temporary placeholder for mutation state. Replace with actual mutation logic
 
   const openAdd = () => {
     setEditingId(null);
-    setFormData({
-      traderName: "",
-      riskLevel: "low",
-      rateOfChange: 0,
-      duration: "7 days",
-      averageDailyProfit: 0,
-      purchases: 0,
-      totalAssets: 0,
-      percentage: 0,
-      copyTradePrice: 0,
-      isActive: true,
-    });
+    setFormData(emptyForm());
     setFormErrors({});
     setShowModal(true);
   };
@@ -131,40 +85,44 @@ export default function CopyTradingAdminPage() {
     return Object.keys(errs).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
-
-    if (editingId) {
-      setSetups((prev) =>
-        prev.map((s) => (s._id === editingId ? { ...s, ...formData, updatedAt: new Date().toISOString() } : s))
-      );
-    } else {
-      const newSetup: CopyTrading = {
-        ...formData,
-        _id: `setup-${Date.now()}`,
-        currency: "USD",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      setSetups((prev) => [newSetup, ...prev]);
+    setActionError("");
+    try {
+      if (editingId) {
+        await updateMut.mutateAsync({ id: editingId, data: formData });
+      } else {
+        await createMut.mutateAsync(formData);
+      }
+      setShowModal(false);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to save setup.");
     }
-    setShowModal(false);
   };
 
-  const handleDelete = (id: string) => {
-    setSetups((prev) => prev.filter((s) => s._id !== id));
-    setDeleteConfirm(null);
+  const handleDelete = async (id: string) => {
+    setActionError("");
+    try {
+      await deleteMut.mutateAsync(id);
+      setDeleteConfirm(null);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to delete setup.");
+      setDeleteConfirm(null);
+    }
   };
 
-  const toggleActive = (setup: CopyTrading) => {
-    setSetups((prev) =>
-      prev.map((s) => (s._id === setup._id ? { ...s, isActive: !(s.isActive ?? true) } : s))
-    );
+  const toggleActive = async (setup: CopyTrading) => {
+    setActionError("");
+    try {
+      await updateMut.mutateAsync({ id: setup._id, data: { isActive: !(setup.isActive ?? true) } });
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to update setup.");
+    }
   };
 
   return (
-    <div className="p-4 sm:p-6 space-y-5 sm:space-y-6">
+    <div className="px-0 py-4 sm:px-1 sm:py-5 space-y-5">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
@@ -206,119 +164,157 @@ export default function CopyTradingAdminPage() {
       </div>
 
       {/* Setups List */}
-      <div className="rounded-xxl sm:rounded-2xl overflow-hidden">
-        <div className="px-4 sm:px-6 py-3 sm:py-4" style={{ borderBottom: "1px solid #1d2639" }}>
+      <div className="rounded-2xl overflow-hidden" style={{ background: "#151d2d", border: "1px solid #252f45" }}>
+        <div className="flex items-center justify-between gap-3 px-4 sm:px-6 py-3 sm:py-4" style={{ borderBottom: "1px solid #1d2639" }}>
           <h2 className="text-base sm:text-lg font-bold text-white">Available Copy Trade Setups</h2>
+          {!isLoading && (
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full shrink-0" style={{ background: "rgba(0,212,161,0.1)", color: "#00d4a1" }}>
+              {setups.length} total
+            </span>
+          )}
         </div>
 
+        {actionError && (
+          <div className="flex items-start justify-between gap-3 mx-4 sm:mx-6 mt-4 rounded-xl px-4 py-3 text-xs font-medium" style={{ background: "rgba(244,67,54,0.1)", border: "1px solid rgba(244,67,54,0.3)", color: "#F44336" }}>
+            <span>{actionError}</span>
+            <button type="button" onClick={() => setActionError("")} className="shrink-0 hover:text-white transition-colors cursor-pointer" aria-label="Dismiss error">
+              <Icon icon="mdi:close" width={16} />
+            </button>
+          </div>
+        )}
+
         {isLoading ? (
-          <div className="py-16 text-center text-penny-text-muted">Loading...</div>
+          <div className="p-4 sm:p-5 grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="rounded-2xl p-5 animate-pulse" style={{ background: "#0d1624", border: "1px solid #1d2639" }}>
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-white/10 shrink-0" />
+                  <div className="flex-1">
+                    <div className="h-4 w-1/2 rounded bg-white/10" />
+                    <div className="h-3 w-1/3 rounded bg-white/10 mt-2" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-3 mt-5">
+                  {Array.from({ length: 3 }).map((_, j) => (
+                    <div key={j} className="h-12 rounded-xl bg-white/5" />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : error ? (
+          <div className="py-16 text-center">
+            <Icon icon="mdi:alert-circle-outline" width={48} className="mx-auto" style={{ color: "#F44336" }} />
+            <p className="text-sm font-medium mt-3 text-white">Could not load copy trade setups</p>
+            <p className="text-xs mt-1" style={{ color: "#6b7785" }}>
+              {error instanceof Error ? error.message : "Please try again."}
+            </p>
+          </div>
         ) : setups.length === 0 ? (
-          <div className="py-16 text-center text-penny-text-muted">
-            No copy trading setups. Click &quot;Add Setup&quot; to create one.
+          <div className="py-16 text-center">
+            <Icon icon="mdi:account-group-outline" width={48} className="mx-auto" style={{ color: "#6b7785" }} />
+            <p className="text-sm font-medium mt-3 text-white">No copy trading setups yet</p>
+            <p className="text-xs mt-1" style={{ color: "#4a5568" }}>
+              Click &quot;Add Setup&quot; to create your first trader.
+            </p>
           </div>
         ) : (
-          <div className="divide-y" style={{ borderColor: "#1d2639" }}>
-            {setups.map((setup) => (
-              <div key={setup._id} className="p-4 sm:p-5">
-                <Card className="mb-4" variant="default" padding="md">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <div className="flex items-center gap-3 sm:gap-4 flex-1">
+          <div className="p-4 sm:p-5 grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {setups.map((setup) => {
+              const risk = RISK_STYLES[setup.riskLevel] ?? RISK_STYLES.low;
+              const isActive = setup.isActive !== false;
+              return (
+                <div
+                  key={setup._id}
+                  className="rounded-2xl overflow-hidden transition-colors"
+                  style={{
+                    background: "linear-gradient(180deg, #151d2d 0%, #0d1624 100%)",
+                    border: `1px solid ${isActive ? "#252f45" : "#3a2020"}`,
+                  }}
+                >
+                  {/* Header */}
+                  <div className="p-4 sm:p-5 flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
                       <div
                         className="w-12 h-12 rounded-xl flex items-center justify-center text-sm font-bold shrink-0"
-                        style={{
-                          background: setup.riskLevel === "low" ? "rgba(0,212,161,0.1)"
-                            : setup.riskLevel === "medium" ? "rgba(245,197,24,0.1)"
-                            : "rgba(244,67,54,0.1)",
-                          color: setup.riskLevel === "low" ? "#00d4a1"
-                            : setup.riskLevel === "medium" ? "#F5C518"
-                            : "#F44336",
-                        }}
+                        style={{ background: risk.bg, color: risk.color, border: `1px solid ${risk.color}33` }}
                       >
                         {setup.traderName.substring(0, 2).toUpperCase()}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h3 className="text-sm sm:text-base font-semibold text-white">{setup.traderName}</h3>
-                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full capitalize"
-                            style={{
-                              background: setup.riskLevel === "low" ? "rgba(0,212,161,0.1)"
-                                : setup.riskLevel === "medium" ? "rgba(245,197,24,0.1)"
-                                : "rgba(244,67,54,0.1)",
-                              color: setup.riskLevel === "low" ? "#00d4a1"
-                                : setup.riskLevel === "medium" ? "#F5C518"
-                                : "#F44336",
-                            }}
-                          >
-                            {setup.riskLevel}
+                      <div className="min-w-0">
+                        <h3 className="text-sm sm:text-base font-semibold text-white truncate">{setup.traderName}</h3>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full capitalize" style={{ background: risk.bg, color: risk.color }}>
+                            {setup.riskLevel} risk
                           </span>
-                        </div>
-                        <div className="flex items-center gap-2 sm:gap-3 mt-1 flex-wrap">
-                          <span className="text-[10px] sm:text-xs" style={{ color: "#6b7785" }}>
-                            {setup.duration}
-                          </span>
-                          <span className="text-[10px] sm:text-xs" style={{ color: "#6b7785" }}>
-                            Win: {setup.rateOfChange.toFixed(2)}%
-                          </span>
+                          <span className="text-[10px] sm:text-xs" style={{ color: "#6b7785" }}>{setup.duration}</span>
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-4 sm:gap-6 flex-wrap">
-                      <div className="text-center">
-                        <p className="text-[10px] sm:text-xs" style={{ color: "#6b7785" }}>Daily Profit</p>
-                        <p className="text-sm sm:text-base lg:text-lg font-bold" style={{ color: "#00d4a1" }}>
-                          {formatUSD(setup.averageDailyProfit)}
-                        </p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-[10px] sm:text-xs" style={{ color: "#6b7785" }}>Liquidation Fee</p>
-                        <p className="text-sm sm:text-base lg:text-lg font-bold" style={{ color: "#F5C518" }}>
-                          {setup.percentage}%
-                        </p>
-                      </div>
-                      <div className="text-center">
-                        <p className="text-[10px] sm:text-xs" style={{ color: "#6b7785" }}>Purchases</p>
-                        <p className="text-sm sm:text-base font-bold text-white">{setup.purchases}</p>
-                      </div>
+                    <span
+                      className="flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-full shrink-0"
+                      style={{
+                        background: isActive ? "rgba(0,212,161,0.12)" : "rgba(244,67,54,0.12)",
+                        color: isActive ? "#00d4a1" : "#F44336",
+                      }}
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: isActive ? "#00d4a1" : "#F44336" }} />
+                      {isActive ? "Active" : "Inactive"}
+                    </span>
+                  </div>
+
+                  {/* Metrics grid */}
+                  <div className="grid grid-cols-2 xs:grid-cols-4 gap-px mx-4 sm:mx-5 rounded-xl overflow-hidden" style={{ background: "#1d2639" }}>
+                    <div className="p-3" style={{ background: "#0d1624" }}>
+                      <p className="text-[10px]" style={{ color: "#6b7785" }}>Win Rate</p>
+                      <p className="text-sm font-bold mt-0.5" style={{ color: "#00d4a1" }}>{setup.rateOfChange.toFixed(2)}%</p>
                     </div>
-                    <div className="flex items-center gap-2 sm:ml-4">
-                      <span
-                        className="text-[10px] font-bold px-2 py-1 rounded-full"
-                        style={{
-                          background: setup.isActive !== false ? "rgba(0,212,161,0.12)" : "rgba(244,67,54,0.12)",
-                          color: setup.isActive !== false ? "#00d4a1" : "#F44336",
-                        }}
-                      >
-                        {setup.isActive !== false ? "Active" : "Inactive"}
-                      </span>
-                      <Button
-                        onClick={() => toggleActive(setup)}
-                        className="p-2 rounded-lg"
-                        title={setup.isActive !== false ? "Deactivate" : "Activate"}
-                        style={{ background: "#0d1624", color: setup.isActive !== false ? "#9aa3b0" : "#00d4a1" }}
-                      >
-                        <Icon icon={setup.isActive !== false ? "mdi:pause" : "mdi:play"} width={16} />
-                      </Button>
-                      <Button
-                        onClick={() => openEdit(setup)}
-                        className="p-2 rounded-lg"
-                        style={{ background: "rgba(0,212,161,0.1)", color: "#00d4a1" }}
-                      >
-                        <Icon icon="mdi:pencil" width={16} />
-                      </Button>
-                      <Button
-                        onClick={() => setDeleteConfirm(setup._id)}
-                        className="p-2 rounded-lg"
-                        style={{ background: "rgba(244,67,54,0.1)", color: "#F44336" }}
-                        aria-label="Delete setup"
-                      >
-                        <Icon icon="mdi:delete" width={16} />
-                      </Button>
+                    <div className="p-3" style={{ background: "#0d1624" }}>
+                      <p className="text-[10px]" style={{ color: "#6b7785" }}>Daily Profit</p>
+                      <p className="text-sm font-bold text-white mt-0.5">{formatUSD(setup.averageDailyProfit)}</p>
+                    </div>
+                    <div className="p-3" style={{ background: "#0d1624" }}>
+                      <p className="text-[10px]" style={{ color: "#6b7785" }}>Fee</p>
+                      <p className="text-sm font-bold mt-0.5" style={{ color: "#F5C518" }}>{setup.percentage}%</p>
+                    </div>
+                    <div className="p-3" style={{ background: "#0d1624" }}>
+                      <p className="text-[10px]" style={{ color: "#6b7785" }}>Copies</p>
+                      <p className="text-sm font-bold text-white mt-0.5">{setup.purchases.toLocaleString()}</p>
                     </div>
                   </div>
-                </Card>
-              </div>
-            ))}
+
+                  {/* Actions */}
+                  <div className="p-4 sm:p-5 flex items-stretch gap-2">
+                    <button
+                      onClick={() => toggleActive(setup)}
+                      disabled={updateMut.isPending}
+                      className="flex-1 h-9 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                      style={{ background: "#0d1624", color: isActive ? "#9aa3b0" : "#00d4a1", border: "1px solid #252f45" }}
+                    >
+                      <Icon icon={isActive ? "mdi:pause" : "mdi:play"} width={14} />
+                      {isActive ? "Pause" : "Activate"}
+                    </button>
+                    <button
+                      onClick={() => openEdit(setup)}
+                      className="flex-1 h-9 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer"
+                      style={{ background: "rgba(0,212,161,0.12)", color: "#00d4a1", border: "1px solid rgba(0,212,161,0.25)" }}
+                    >
+                      <Icon icon="mdi:pencil" width={14} />
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => setDeleteConfirm(setup._id)}
+                      className="flex-1 h-9 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer"
+                      style={{ background: "rgba(244,67,54,0.12)", color: "#F44336", border: "1px solid rgba(244,67,54,0.25)" }}
+                      aria-label="Delete setup"
+                    >
+                      <Icon icon="mdi:delete" width={14} />
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
@@ -326,8 +322,8 @@ export default function CopyTradingAdminPage() {
       {/* Add/Edit Modal */}
       {showModal && (
         <>
-          <div className="fixed inset-0 z-50 bg-black/80" onClick={() => setShowModal(false)} />
-          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[95%] sm:w-125 max-h-[90vh] overflow-y-auto rounded-2xl p-5 sm:p-6"
+          <div className="fixed inset-0 z-[60] bg-black/80" onClick={() => setShowModal(false)} />
+          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[60] w-[95%] sm:w-125 max-h-[90vh] overflow-y-auto rounded-2xl p-5 sm:p-6"
             style={{ background: "#151d2d", border: "1px solid #252f45" }}
           >
             <div className="flex items-center justify-between mb-6">
@@ -462,8 +458,8 @@ export default function CopyTradingAdminPage() {
       {/* Delete Confirm */}
       {deleteConfirm && (
         <>
-          <div className="fixed inset-0 z-50 bg-black/80" onClick={() => setDeleteConfirm(null)} />
-          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[90%] max-w-sm rounded-2xl p-6"
+          <div className="fixed inset-0 z-[60] bg-black/80" onClick={() => setDeleteConfirm(null)} />
+          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[60] w-[90%] max-w-sm rounded-2xl p-6"
             style={{ background: "#151d2d", border: "1px solid #252f45" }}
           >
             <h3 className="text-lg font-bold text-white mb-3">Delete Setup?</h3>

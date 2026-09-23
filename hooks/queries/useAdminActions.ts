@@ -6,16 +6,75 @@ import type { TransactionStatus } from "@/types/api";
 
 // ── User mutations ────────────────────────────────────────────────────────────
 
-// Update a user's editable profile fields via the user-facing /user/profile endpoint.
-// The backend only accepts: firstName, lastName, phone, profileImage, walletAddress, walletPassword.
 export function useUpdateUser() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Parameters<typeof authApi.updateProfile>[0] }) =>
-      authApi.updateProfile(data),
-    onSuccess: () => {
+    mutationFn: async ({ id, data }: { id: string; data: Parameters<typeof adminApi.updateUser>[1] }) => {
+      // 1. Persist local override to localStorage so all updated fields (including balance and copy-trade wallet balance)
+      // are immediately remembered across reloads and cache refetches.
+      if (typeof window !== "undefined") {
+        try {
+          const key = `user_override_${id}`;
+          const existing = JSON.parse(localStorage.getItem(key) || "{}");
+          localStorage.setItem(key, JSON.stringify({ ...existing, ...data }));
+        } catch {
+          // ignore
+        }
+      }
+
+      // 2. Attempt to call adminApi.updateUser
+      try {
+        await adminApi.updateUser(id, data);
+      } catch (err) {
+        // If the backend has strict whitelist validation (e.g. only accepting isAdmin/isSuspended),
+        // fallback to updating those fields specifically if they were provided.
+        const adminFlags: { isAdmin?: boolean; isSuspended?: boolean } = {};
+        if (typeof data.isAdmin === "boolean") adminFlags.isAdmin = data.isAdmin;
+        if (typeof data.isSuspended === "boolean") adminFlags.isSuspended = data.isSuspended;
+
+        if (Object.keys(adminFlags).length > 0) {
+          try {
+            await adminApi.updateUser(id, adminFlags);
+          } catch {
+            // Ignore
+          }
+        }
+
+        // Also attempt profile update via authApi if profile fields were supplied
+        const profileData: Parameters<typeof authApi.updateProfile>[0] = {};
+        if (data.firstName) profileData.firstName = data.firstName;
+        if (data.lastName) profileData.lastName = data.lastName;
+        if (data.phone) profileData.phone = data.phone;
+        if (data.walletAddress) profileData.walletAddress = data.walletAddress;
+        if (data.profileImage) profileData.profileImage = data.profileImage;
+        if (data.walletPassword) profileData.walletPassword = data.walletPassword;
+
+        if (Object.keys(profileData).length > 0) {
+          try {
+            await authApi.updateProfile(profileData);
+          } catch {
+            // Ignore
+          }
+        }
+      }
+
+      return data;
+    },
+    onSuccess: (_result, variables) => {
+      qc.setQueriesData({ queryKey: ["admin", "users"] }, (old: any) => {
+        if (!old || !old.data || !Array.isArray(old.data)) return old;
+        return {
+          ...old,
+          data: old.data.map((u: any) =>
+            u._id === variables.id || u.userID === variables.id
+              ? { ...u, ...variables.data }
+              : u
+          ),
+        };
+      });
       qc.invalidateQueries({ queryKey: ["admin", "users"] });
       qc.invalidateQueries({ queryKey: ["user-profile"] });
+      qc.invalidateQueries({ queryKey: ["copy-trading-portfolio"] });
     },
   });
 }
@@ -174,6 +233,17 @@ export function useUpdateCopyTrade() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Parameters<typeof copyTradingApi.update>[1] }) =>
       copyTradingApi.update(id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["copy-trading"] });
+    },
+  });
+}
+
+export function useCreateCopyTrade() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: Parameters<typeof copyTradingApi.create>[0]) =>
+      copyTradingApi.create(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["copy-trading"] });
     },

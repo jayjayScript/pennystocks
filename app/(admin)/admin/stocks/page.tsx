@@ -35,9 +35,9 @@ export default function StockManagementPage() {
   ];
 
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div className="w-full min-w-0 px-0 py-4 sm:px-1 sm:py-5 space-y-4 sm:space-y-6">
       {/* Header */}
-      <div>
+      <div className="min-w-0">
         <h1 className="text-xl sm:text-2xl font-bold text-white">Stock Management</h1>
         <p className="text-xs sm:text-sm mt-1" style={{ color: "#9aa3b0" }}>
           Review user proposals and manage all stock listings
@@ -51,8 +51,8 @@ export default function StockManagementPage() {
         </p>
       </div>
 
-      {/* Tab Navigation */}
-      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+      {/* Tab Navigation — horizontally scrollable on narrow screens */}
+      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 w-full max-w-full">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.key;
           return (

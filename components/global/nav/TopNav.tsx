@@ -6,11 +6,19 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { usePortfolio } from "@/context/PortfolioContext";
+import { useUserProfile } from "@/hooks/queries";
 
 export default function TopNav() {
   const pathname = usePathname();
   const { notifications } = usePortfolio();
+  const { data: profile } = useUserProfile();
   const unreadCount = notifications.filter((n) => !n.read).length;
+
+  const displayName =
+    profile?.firstName?.trim() ||
+    [profile?.firstName, profile?.lastName].filter(Boolean).join(" ").trim() ||
+    profile?.email?.split("@")[0] ||
+    "My Account";
 
   if (pathname === "/dashboard/marketplace/copy-trading") {
     return null;
@@ -39,7 +47,7 @@ export default function TopNav() {
       case pathname === "/dashboard/overview":
         return {
           subtitle: "",
-          title: "Godian",
+          title: displayName,
           rightSlot: (
             <div className="flex items-center gap-2">
               {notificationBell}

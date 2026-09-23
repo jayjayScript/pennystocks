@@ -110,7 +110,7 @@ export default function SellModal({ asset, isOpen, onClose, onSuccess }: SellMod
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-[60] flex items-center justify-center p-4"
       style={{ background: "rgba(6,10,18,0.88)", backdropFilter: "blur(10px)" }}
       onClick={handleBackdrop}
     >
@@ -282,9 +282,11 @@ export default function SellModal({ asset, isOpen, onClose, onSuccess }: SellMod
               <button
                 onClick={handleConfirm}
                 disabled={isInvalid || isSubmitting}
-                className="w-full py-3.5 rounded-xl font-bold text-sm text-white transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                className="w-full py-3.5 rounded-xl font-bold text-sm transition-all disabled:cursor-not-allowed cursor-pointer hover:-translate-y-0.5 active:translate-y-0 disabled:hover:translate-y-0"
                 style={{
-                  background: isInvalid ? "#252f45" : "#F44336",
+                  background: isInvalid ? "#1a2438" : "#F44336",
+                  color: isInvalid ? "#6b7785" : "#ffffff",
+                  boxShadow: !isInvalid ? "0 12px 30px -8px rgba(244,67,54,0.55)" : "none",
                 }}
               >
                 {isSubmitting ? "Executing Sale..." : `Sell ${asset.symbol}`}

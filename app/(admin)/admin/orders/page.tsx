@@ -259,7 +259,7 @@ export default function OrdersPage() {
                       <img
                         src={order.proofPaymentDocument}
                         alt="Payment proof"
-                        className="w-44 h-28 object-cover rounded-xl border hover:opacity-80 transition-opacity"
+                        className="w-full max-w-[220px] h-40 sm:h-32 object-cover rounded-xl border hover:opacity-80 transition-opacity"
                         style={{ borderColor: "#252f45" }}
                       />
                     </a>
@@ -311,11 +311,11 @@ export default function OrdersPage() {
 
                     {/* Approve / Reject — for both deposits (after proof) and withdrawals (any time) */}
                     {(tab === "awaiting_proof" || !isDeposit) && (
-                      <div className="flex gap-2">
+                      <div className="flex flex-col xs:flex-row gap-2">
                         <button
                           onClick={() => handleApprove(order._id)}
                           disabled={processingOrder?.id === order._id}
-                          className="flex-1 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95 disabled:opacity-50"
+                          className="flex-1 py-2.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95 disabled:opacity-50 whitespace-nowrap"
                           style={{ background: "rgba(76,175,80,0.15)", color: "#4CAF50", border: "1px solid rgba(76,175,80,0.3)" }}
                         >
                           <Icon icon="mdi:check" width={14} />
@@ -328,7 +328,7 @@ export default function OrdersPage() {
                         <button
                           onClick={() => handleReject(order._id)}
                           disabled={processingOrder?.id === order._id}
-                          className="flex-1 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95 disabled:opacity-50"
+                          className="flex-1 py-2.5 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95 disabled:opacity-50 whitespace-nowrap"
                           style={{ background: "rgba(244,67,54,0.1)", color: "#F44336", border: "1px solid rgba(244,67,54,0.25)" }}
                         >
                           <Icon icon="mdi:close" width={14} />

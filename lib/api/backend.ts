@@ -148,10 +148,16 @@ export const adminApi = {
     if (status) query.set("status", status);
     return api<Paginated<CopyTradePurchase>>(`/admin/users/${userId}/copy-trade-purchases?${query}`);
   },
+  userCopyTradePortfolio: (userId: string) =>
+    api<CopyTradingPortfolio>(`/copy-trading/portfolio/${userId}`),
   userStockProposals: (userId: string, { page = 1, limit = 20, status }: AdminUserStockProposalQuery = {}) => {
     const query = new URLSearchParams({ page: String(page), limit: String(limit) });
     if (status) query.set("status", status);
     return api<Paginated<StockProposal>>(`/admin/users/${userId}/stock-proposals?${query}`);
+  },
+  userTransactions: (userId: string, { page = 1, limit = 20 }: { page?: number; limit?: number } = {}) => {
+    const query = new URLSearchParams({ page: String(page), limit: String(limit) });
+    return api<Paginated<Transaction>>(`/admin/users/${userId}/transactions?${query}`);
   },
   adminLogin: (data: { email: string; password: string }) =>
     api<AuthResponse>("/admin/login", {
@@ -162,7 +168,7 @@ export const adminApi = {
     api<Paginated<ApiUser>>(`/admin/users?page=${page}&limit=${limit}`),
   updateUser: (
     id: string,
-    data: Partial<Pick<ApiUser, "firstName" | "lastName" | "email" | "balance" | "phone" | "profileImage" | "walletAddress" | "walletPassword" | "isAdmin" | "isSuspended">>,
+    data: Partial<Pick<ApiUser, "firstName" | "lastName" | "email" | "balance" | "copyTradeBalance" | "copyTradeWalletBalance" | "phone" | "profileImage" | "walletAddress" | "walletPassword" | "isAdmin" | "isSuspended">>,
   ) =>
     api<ApiUser>(`/admin/users/${id}`, {
       method: "PATCH",

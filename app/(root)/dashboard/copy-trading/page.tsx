@@ -287,7 +287,7 @@ function BuyConfirmModal({ setup, onConfirm, onClose }: {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-[60] flex items-center justify-center p-4"
     >
       <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
       <motion.div
@@ -475,7 +475,7 @@ export default function CopyTradingPage() {
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 50 }}
-            className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-2xl shadow-xl"
+            className="fixed bottom-24 md:bottom-6 left-1/2 -translate-x-1/2 z-[70] px-5 py-3 rounded-2xl shadow-xl"
             style={{ background: notification.type === "success" ? "#1B4D3E" : "#4D1B1B", color: notification.type === "success" ? "#4CAF50" : "#F44336" }}
           >
             <div className="flex items-center gap-2">

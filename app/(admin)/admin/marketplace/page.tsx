@@ -154,8 +154,8 @@ export default function MarketplacePage() {
       {/* Delete Confirm */}
       {deleteConfirm && (
         <>
-          <div className="fixed inset-0 z-50 bg-black/80" onClick={() => setDeleteConfirm(null)} />
-          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[90%] max-w-sm rounded-2xl p-6"
+          <div className="fixed inset-0 z-[60] bg-black/80" onClick={() => setDeleteConfirm(null)} />
+          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[60] w-[90%] max-w-sm rounded-2xl p-6"
             style={{ background: "#151d2d", border: "1px solid #252f45" }}
           >
             <h3 className="text-lg font-bold text-white mb-3">Remove Stock?</h3>

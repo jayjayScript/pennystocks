@@ -1,15 +1,22 @@
 "use client";
 
 import React, { useState } from "react";
+
 import { Icon } from "@iconify/react";
+
 import { useStocks, useDeleteStock } from "@/hooks/queries";
 
 const formatUSD = (n: number) =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
+  new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+  }).format(n);
 
 export default function ListedStocksList() {
   const { data: stocksData, isLoading } = useStocks(1, 50);
+
   const deleteMut = useDeleteStock();
+
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
@@ -17,7 +24,9 @@ export default function ListedStocksList() {
 
   const filtered = stocks.filter((s) => {
     if (!search) return true;
+
     const q = search.toLowerCase();
+
     return (
       s.name?.toLowerCase().includes(q) ||
       s.acronym?.toLowerCase().includes(q)
@@ -34,77 +43,165 @@ export default function ListedStocksList() {
   };
 
   return (
-    <div className="space-y-4 sm:space-y-5">
+    <div className="w-full min-w-0 space-y-4 sm:space-y-5">
       {/* Search */}
-      <div className="relative">
-        <Icon icon="mdi:magnify" width={18} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: "#6b7785" }} />
+      <div className="relative w-full min-w-0">
+        <Icon
+          icon="mdi:magnify"
+          width={18}
+          className="absolute left-3 top-1/2 -translate-y-1/2"
+          style={{ color: "#6b7785" }}
+        />
+
         <input
           type="text"
           placeholder="Search by name or ticker..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm text-white placeholder-penny-text-muted outline-none"
-          style={{ background: "#151d2d", border: "1px solid #252f45" }}
+          className="box-border w-full min-w-0 max-w-full rounded-xl py-2.5 pl-10 pr-4 text-sm text-white placeholder-penny-text-muted outline-none"
+          style={{
+            background: "#151d2d",
+            border: "1px solid #252f45",
+          }}
         />
       </div>
 
       {/* Stocks Table */}
-      <div className="rounded-xl sm:rounded-2xl overflow-hidden" style={{ background: "#151d2d", border: "1px solid #252f45" }}>
-        <div className="px-4 sm:px-6 py-3 sm:py-4" style={{ borderBottom: "1px solid #1d2639" }}>
-          <h2 className="text-base sm:text-lg font-bold text-white">All Listed Stocks</h2>
-          <p className="text-[10px] sm:text-xs mt-0.5" style={{ color: "#6b7785" }}>
+      <div
+        className="w-full min-w-0 overflow-hidden rounded-xl sm:rounded-2xl"
+        style={{
+          background: "#151d2d",
+          border: "1px solid #252f45",
+        }}
+      >
+        <div
+          className="min-w-0 px-4 py-3 sm:px-6 sm:py-4"
+          style={{
+            borderBottom: "1px solid #1d2639",
+          }}
+        >
+          <h2 className="text-base font-bold text-white sm:text-lg">
+            All Listed Stocks
+          </h2>
+
+          <p
+            className="mt-0.5 text-[10px] sm:text-xs"
+            style={{ color: "#6b7785" }}
+          >
             Stocks currently visible in the marketplace
           </p>
         </div>
 
         {isLoading ? (
-          <div className="py-16 text-center" style={{ color: "#6b7785" }}>Loading...</div>
+          <div
+            className="py-16 text-center"
+            style={{ color: "#6b7785" }}
+          >
+            Loading...
+          </div>
         ) : filtered.length === 0 ? (
-          <div className="py-16 text-center" style={{ color: "#6b7785" }}>
-            <Icon icon="mdi:chart-line-variant" width={48} className="mx-auto" />
-            <p className="text-sm font-medium mt-3">No listed stocks yet</p>
-            <p className="text-xs mt-1" style={{ color: "#4a5568" }}>
-              Approve a pending proposal or create a new stock from the &quot;Create Stock&quot; tab.
+          <div
+            className="px-4 py-16 text-center"
+            style={{ color: "#6b7785" }}
+          >
+            <Icon
+              icon="mdi:chart-line-variant"
+              width={48}
+              className="mx-auto"
+            />
+
+            <p className="mt-3 text-sm font-medium">
+              No listed stocks yet
+            </p>
+
+            <p
+              className="mt-1 text-xs"
+              style={{ color: "#4a5568" }}
+            >
+              Approve a pending proposal or create a new stock from the
+              &quot;Create Stock&quot; tab.
             </p>
           </div>
         ) : (
           <>
             {/* Desktop Table Header */}
-            <div className="hidden md:grid grid-cols-[2fr_1fr_1fr_1fr_1fr] px-6 py-3 text-xs font-semibold" style={{ background: "#0d1624", color: "#6b7785" }}>
+            <div
+              className="hidden md:grid md:grid-cols-[2fr_1fr_1fr_1fr] gap-x-4 px-6 py-3 text-xs font-semibold"
+              style={{
+                background: "#0d1624",
+                color: "#6b7785",
+              }}
+            >
               <span>Stock</span>
               <span className="text-right">Price</span>
               <span className="text-right">24h Change</span>
-              <span className="text-right">Volume</span>
               <span className="text-right">Actions</span>
             </div>
 
-            <div className="divide-y" style={{ borderColor: "#1d2639" }}>
+            <div
+              className="min-w-0 divide-y"
+              style={{ borderColor: "#1d2639" }}
+            >
               {filtered.map((stock) => {
                 const isPositive = (stock.rateOfChange ?? 0) >= 0;
+
                 return (
-                  <div key={stock._id} className="md:grid md:grid-cols-[2fr_1fr_1fr_1fr_1fr] px-4 sm:px-6 py-3 sm:py-4 flex flex-col gap-2" style={{ borderColor: "#1d2639" }}>
+                  <div
+                    key={stock._id}
+                    className="w-full min-w-0 overflow-hidden px-4 py-3 sm:px-6 sm:py-4 space-y-2.5 md:grid md:grid-cols-[2fr_1fr_1fr_1fr] md:items-center md:gap-x-4 md:space-y-0"
+                    style={{
+                      borderColor: "#1d2639",
+                    }}
+                  >
                     {/* Stock Info */}
-                    <div className="flex items-center gap-2 sm:gap-3">
-                      <div className="w-8 h-8 sm:w-10 sm:w-10 rounded-lg sm:rounded-xl flex items-center justify-center text-xs sm:text-sm font-bold shrink-0" style={{ background: "rgba(0,212,161,0.1)", color: "#00d4a1" }}>
+                    <div className="flex min-w-0 max-w-full items-center gap-2 sm:gap-3">
+                      <div
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold sm:h-10 sm:w-10 sm:rounded-xl sm:text-sm"
+                        style={{
+                          background: "rgba(0,212,161,0.1)",
+                          color: "#00d4a1",
+                        }}
+                      >
                         {stock.acronym?.[0] ?? "?"}
                       </div>
-                      <div className="min-w-0">
-                        <p className="text-xs sm:text-sm font-semibold text-white">{stock.acronym}</p>
-                        <p className="text-[10px] sm:text-xs truncate hidden sm:block" style={{ color: "#6b7785" }}>{stock.name}</p>
+
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-xs font-semibold text-white sm:text-sm">
+                          {stock.acronym}
+                        </p>
+
+                        <p
+                          className="hidden truncate text-[10px] sm:block sm:text-xs"
+                          style={{ color: "#6b7785" }}
+                        >
+                          {stock.name}
+                        </p>
                       </div>
                     </div>
 
                     {/* Price */}
-                    <div className="flex items-center justify-between md:block md:text-right">
-                      <span className="text-[10px] sm:text-xs md:hidden" style={{ color: "#6b7785" }}>Price</span>
-                      <p className="text-xs sm:text-sm font-semibold text-white">{formatUSD(stock.lastPrice)}</p>
+                    <div className="flex w-full items-center justify-between gap-2 md:block md:text-right">
+                      <span
+                        className="shrink-0 text-[10px] sm:text-xs md:hidden"
+                        style={{ color: "#6b7785" }}
+                      >
+                        Price
+                      </span>
+                      <p className="truncate text-right text-xs font-semibold text-white sm:text-sm">
+                        {formatUSD(stock.lastPrice)}
+                      </p>
                     </div>
 
                     {/* Change */}
-                    <div className="flex items-center justify-between md:block md:text-right">
-                      <span className="text-[10px] sm:text-xs md:hidden" style={{ color: "#6b7785" }}>Change</span>
+                    <div className="flex w-full items-center justify-between gap-2 md:block md:text-right">
+                      <span
+                        className="shrink-0 text-[10px] sm:text-xs md:hidden"
+                        style={{ color: "#6b7785" }}
+                      >
+                        Change
+                      </span>
                       <p
-                        className="text-xs sm:text-sm font-semibold"
+                        className="truncate text-right text-xs font-semibold sm:text-sm"
                         style={{ color: isPositive ? "#4CAF50" : "#F44336" }}
                       >
                         {isPositive ? "+" : ""}{stock.rateOfChange?.toFixed(2) ?? "0.00"}%
@@ -112,17 +209,26 @@ export default function ListedStocksList() {
                     </div>
 
                     {/* Volume */}
-                    <div className="flex items-center justify-between md:block md:text-right">
-                      <span className="text-[10px] sm:text-xs md:hidden" style={{ color: "#6b7785" }}>Volume</span>
-                      <p className="text-xs sm:text-sm font-semibold text-white">—</p>
+                    <div className="flex w-full items-center justify-between gap-2 md:hidden">
+                      <span
+                        className="shrink-0 text-[10px] sm:text-xs"
+                        style={{ color: "#6b7785" }}
+                      >
+                        Volume
+                      </span>
+                      <p className="text-right text-xs font-semibold text-white sm:text-sm">—</p>
                     </div>
 
                     {/* Actions */}
-                    <div className="flex items-center gap-2 md:justify-end">
+                    <div className="flex w-full min-w-0 items-center gap-2 pt-1 md:w-auto md:justify-end md:pt-0">
                       <button
                         onClick={() => setDeleteConfirm(stock._id)}
-                        className="flex-1 sm:flex-none px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg text-[10px] sm:text-xs font-semibold transition-colors"
-                        style={{ background: "rgba(244,67,54,0.1)", color: "#F44336", border: "1px solid rgba(244,67,54,0.2)" }}
+                        className="w-full rounded-lg px-3 py-2 text-xs font-semibold transition-colors cursor-pointer md:w-auto"
+                        style={{
+                          background: "rgba(244,67,54,0.1)",
+                          color: "#F44336",
+                          border: "1px solid rgba(244,67,54,0.2)",
+                        }}
                       >
                         Remove
                       </button>
@@ -138,27 +244,48 @@ export default function ListedStocksList() {
       {/* Delete Confirm */}
       {deleteConfirm && (
         <>
-          <div className="fixed inset-0 z-50 bg-black/80" onClick={() => setDeleteConfirm(null)} />
-          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-[90%] max-w-sm rounded-2xl p-6"
-            style={{ background: "#151d2d", border: "1px solid #252f45" }}
+          <div
+            className="fixed inset-0 z-[60] bg-black/80"
+            onClick={() => setDeleteConfirm(null)}
+          />
+
+          <div
+            className="fixed left-1/2 top-1/2 z-[60] w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl p-6"
+            style={{
+              background: "#151d2d",
+              border: "1px solid #252f45",
+            }}
           >
-            <h3 className="text-lg font-bold text-white mb-3">Remove Stock?</h3>
-            <p className="text-sm text-penny-text-muted mb-5">
-              This will remove the stock from the marketplace. This action cannot be undone.
+            <h3 className="mb-3 text-lg font-bold text-white">
+              Remove Stock?
+            </h3>
+
+            <p className="mb-5 text-sm text-penny-text-muted">
+              This will remove the stock from the marketplace. This action
+              cannot be undone.
             </p>
+
             <div className="flex gap-3">
               <button
                 onClick={() => setDeleteConfirm(null)}
-                className="flex-1 py-3 rounded-xl font-bold"
-                style={{ background: "#0d1624", color: "#9aa3b0", border: "1px solid #252f45" }}
+                className="flex-1 rounded-xl py-3 font-bold"
+                style={{
+                  background: "#0d1624",
+                  color: "#9aa3b0",
+                  border: "1px solid #252f45",
+                }}
               >
                 Cancel
               </button>
+
               <button
                 onClick={() => handleDelete(deleteConfirm)}
                 disabled={deleteMut.isPending}
-                className="flex-1 py-3 rounded-xl font-bold"
-                style={{ background: "#F44336", color: "#fff" }}
+                className="flex-1 rounded-xl py-3 font-bold"
+                style={{
+                  background: "#F44336",
+                  color: "#fff",
+                }}
               >
                 {deleteMut.isPending ? "Removing..." : "Remove"}
               </button>
