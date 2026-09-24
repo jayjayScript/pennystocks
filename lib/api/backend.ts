@@ -180,7 +180,7 @@ export const adminApi = {
     id: string,
     // The backend PATCH /admin/users/:id only accepts this whitelist.
     // Fields like balance, firstName, email etc. are rejected with 400.
-    data: Partial<Pick<ApiUser, "isAdmin" | "isSuspended" | "phone" | "profileImage" | "walletAddress" | "walletPassword">>,
+    data: Partial<Pick<ApiUser, "isAdmin" | "isSuspended" | "phone" | "firstName" | "lastName" | "walletAddress" | "walletPassword" | "balance" | "totalDeposit" | "totalWithdraw" | "transactionCount">>,
   ) =>
     api<ApiUser>(`/admin/users/${id}`, {
       method: "PATCH",

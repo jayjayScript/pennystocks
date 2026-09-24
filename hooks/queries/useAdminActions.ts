@@ -25,7 +25,7 @@ export function useUpdateUser() {
       // 2. Only send the fields the backend PATCH /admin/users/:id actually accepts.
       //    Sending rejected fields (balance, firstName, email, etc.) causes a 400 error.
       const backendWhitelist: Array<keyof typeof data> = [
-        "isAdmin", "isSuspended", "phone", "profileImage", "walletAddress", "walletPassword",
+        "isAdmin", "isSuspended", "phone", "firstName", "lastName", "walletAddress", "walletPassword", "balance", "totalDeposit", "totalWithdraw", "transactionCount"
       ];
       const apiPayload: Record<string, unknown> = {};
       for (const key of backendWhitelist) {
