@@ -8,21 +8,97 @@ import type { EmblaCarouselType } from "embla-carousel";
 import { useCopyTrading } from "@/hooks/queries";
 import type { CopyTrading } from "@/types/api";
 
-function formatUSD(n: number) {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
+function formatInitials(name?: string): string {
+  if (!name) return "??";
+  return (
+    name
+      .split(" ")
+      .map((n) => n[0] ?? "")
+      .join("")
+      .substring(0, 2)
+      .toUpperCase() || "??"
+  );
 }
 
-const riskColors: Record<string, string> = {
-  low: "text-sky-400 bg-sky-400/10 border-sky-400/30",
-  medium: "text-amber-400 bg-amber-400/10 border-amber-400/30",
-  high: "text-penny-error bg-red-500/10 border-red-500/30",
-};
+// Country flags cycled for display — the backend trader record has no country field.
+const COUNTRY_FLAGS = ["🇺🇸", "🇬🇧", "🇯🇵", "🇩🇪", "🇸🇬", "🇦🇪", "🇨🇦", "🇦🇺"];
 
-const riskDot: Record<string, Record<string, string>> = {
-  Low:    { Low: "bg-sky-400",      Medium: "bg-sky-400/30",   High: "bg-sky-400/30" },
-  Medium: { Low: "bg-amber-400/30", Medium: "bg-amber-400",    High: "bg-amber-400/30" },
-  High:   { Low: "bg-red-500/30",   Medium: "bg-red-500/30",   High: "bg-red-500" },
-};
+/** Deterministic pseudo-random in [0, 1) seeded by a string — keeps mock stats stable across renders. */
+function seededUnit(seed: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i++) {
+    h ^= seed.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return ((h >>> 0) % 100000) / 100000;
+}
+
+function flagFor(seed: string): string {
+  return COUNTRY_FLAGS[Math.floor(seededUnit(seed) * COUNTRY_FLAGS.length) % COUNTRY_FLAGS.length];
+}
+
+/** Stable list of the last N trade profit percentages (as shown in the reference design). */
+function mockTradeHistory(seed: string, count = 6): number[] {
+  return Array.from({ length: count }, (_, i) => {
+    const u = seededUnit(`${seed}-${i}`);
+    return u > 0.85 ? -+(u * 4).toFixed(1) : +(1 + u * 35).toFixed(1);
+  });
+}
+
+function winRateFor(seed: string): number {
+  const u = seededUnit(`win-${seed}`);
+  return Math.round(65 + u * 34);
+}
+
+// ─── Shared trading-card atoms (mirrors the reference design) ────────────────
+
+function VerifiedBadge() {
+  return (
+    <span
+      className="inline-flex items-center justify-center rounded-full shrink-0"
+      style={{ width: 15, height: 15, background: "var(--penny-warning)" }}
+      title="Verified trader"
+    >
+      <Icon icon="mdi:check-bold" width={10} style={{ color: "var(--penny-bg-base)" }} />
+    </span>
+  );
+}
+
+function TraderAvatar({ seed, label }: { seed: string; label: string }) {
+  return (
+    <div className="relative shrink-0">
+      <div
+        className="w-12 h-12 rounded-xl flex items-center justify-center text-base font-extrabold text-white shadow-inner"
+        style={{ background: "var(--penny-surface-2)", border: "1px solid var(--penny-border-strong)" }}
+      >
+        {label}
+      </div>
+      <span
+        className="absolute -bottom-1.5 -right-1.5 w-6 h-6 rounded-lg flex items-center justify-center text-[13px]"
+        style={{ background: "var(--penny-bg-base)", border: "1px solid var(--penny-border-strong)" }}
+      >
+        {flagFor(seed)}
+      </span>
+    </div>
+  );
+}
+
+function TradePill({ value }: { value: number }) {
+  const up = value >= 0;
+  return (
+    <span
+      className="text-[11px] font-bold px-1.5 py-1 rounded-md text-center"
+      style={{
+        background: up ? "rgba(0,212,161,0.10)" : "rgba(244,67,54,0.10)",
+        color: up ? "var(--penny-accent)" : "var(--penny-error)",
+        border: `1px solid ${up ? "rgba(0,212,161,0.35)" : "rgba(244,67,54,0.35)"}`,
+      }}
+    >
+      {up ? "+" : ""}
+      {value.toFixed(1)}%
+    </span>
+  );
+}
 
 export default function CopyTradingCarousel() {
   const { data: rawSetups, isLoading } = useCopyTrading();
@@ -126,7 +202,7 @@ export default function CopyTradingCarousel() {
           {[1, 2, 3].map((i) => (
             <div
               key={i}
-              className="flex-[0_0_85%] sm:flex-[0_0_46%] lg:flex-[0_0_31%] h-56 rounded-2xl border border-penny-border-default bg-penny-bg-mid animate-pulse"
+              className="flex-[0_0_88%] sm:flex-[0_0_70%] lg:flex-[0_0_48%] h-56 rounded-2xl border border-penny-border-default bg-penny-bg-mid animate-pulse"
             />
           ))}
         </div>
@@ -140,70 +216,79 @@ export default function CopyTradingCarousel() {
           <div className="overflow-hidden px-4 sm:px-6 md:px-8" ref={emblaRef}>
             <div className="flex">
               {traders.map((trader) => {
-                const riskKey = (trader.riskLevel ?? "low").charAt(0).toUpperCase() + (trader.riskLevel ?? "low").slice(1);
-                const dots = riskDot[riskKey] || riskDot["Low"];
                 return (
                   <div
                     key={trader._id}
-                    className="flex-[0_0_85%] min-w-0 pr-4 sm:flex-[0_0_46%] lg:flex-[0_0_31%]"
+                    className="flex-[0_0_88%] min-w-0 pr-4 sm:flex-[0_0_70%] lg:flex-[0_0_48%]"
                   >
-                    <div className="h-full rounded-2xl border border-penny-border-default bg-penny-bg-mid p-6 flex flex-col gap-4 relative overflow-hidden group hover:border-penny-accent/30 transition-colors duration-300">
+                    <div className="h-full rounded-2xl border border-penny-border-default bg-penny-bg-mid p-5 flex flex-col gap-4 relative overflow-hidden group hover:border-penny-accent/30 transition-colors duration-300">
                       <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-penny-accent opacity-[0.03] blur-3xl pointer-events-none group-hover:opacity-10 transition-opacity" />
 
-                      <div className="flex items-center justify-between relative z-10">
-                        <div className="flex items-center gap-3">
-                          <div className="w-11 h-11 rounded-full bg-penny-surface-3 border border-penny-border-subtle flex items-center justify-center text-sm font-bold text-white shadow-sm ring-2 ring-transparent group-hover:ring-penny-accent/20 transition-all">
-                            {(trader.traderName ?? "??").substring(0, 2).toUpperCase()}
+                      {/* Header: avatar + name + verified */}
+                      <div className="flex items-center gap-3.5 relative z-10">
+                        <TraderAvatar
+                          seed={trader.traderName}
+                          label={formatInitials(trader.traderName)}
+                        />
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-white font-bold text-lg leading-tight truncate">
+                              {trader.traderName}
+                            </p>
+                            <VerifiedBadge />
                           </div>
-                          <div>
-                            <p className="text-white font-bold text-base leading-tight">{trader.traderName}</p>
-                            <div className="flex items-center gap-1.5 mt-1">
-                              <span className={`text-[10px] uppercase tracking-wider font-black px-2 py-0.5 rounded-md border ${riskColors[trader.riskLevel ?? "low"] || riskColors["low"]}`}>
-                                {riskKey}
-                              </span>
-                            </div>
-                          </div>
+                          <p className="text-xs mt-0.5 text-penny-text-muted">
+                            Leverage{" "}
+                            <span className="text-white font-semibold">
+                              {Math.max(1, Math.round((trader.percentage ?? 0) * 5))}x
+                            </span>
+                          </p>
                         </div>
                       </div>
 
-                      <div className="space-y-1 relative z-10">
-                        <p className="text-penny-text-muted text-[10px] uppercase font-bold tracking-widest">Performance Stats</p>
-                        <p
-                          className="text-4xl font-black tracking-tighter"
-                          style={{ color: (trader.rateOfChange ?? 0) >= 0 ? "var(--penny-accent)" : "var(--penny-error)" }}
+                      {/* Coin pill + win rate */}
+                      <div className="flex items-center justify-between gap-3 relative z-10">
+                        <span
+                          className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold text-white"
+                          style={{ background: "var(--penny-bg-base)", border: "1px solid var(--penny-border-default)" }}
                         >
-                          {(trader.rateOfChange ?? 0) >= 0 ? "+" : ""}{(trader.rateOfChange ?? 0).toFixed(2)}%
-                        </p>
+                          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: "var(--penny-warning)" }} />
+                          {trader.currency || "USD"}/USDT
+                        </span>
+                        <span className="text-sm font-bold text-penny-accent">
+                          {winRateFor(trader.traderName)}% win rate
+                        </span>
                       </div>
 
-                      <div className="flex items-center justify-between relative z-10">
-                        <span className="text-[11px] font-bold px-3 py-1 rounded-lg bg-penny-surface-2 border border-penny-border-subtle text-penny-text-muted">
-                          {trader.duration || "N/A"}
-                        </span>
-                        <div className="flex gap-1">
-                          {(["Low", "Medium", "High"] as const).map((lvl) => (
-                            <div key={lvl} className={`w-1.5 h-1.5 rounded-full ${dots[lvl]}`} />
+                      {/* Last trades */}
+                      <div className="pt-4 border-t border-penny-border-subtle relative z-10">
+                        <p className="text-penny-text-disabled text-[10px] font-bold uppercase tracking-widest mb-2.5">
+                          Last 6 Trades
+                        </p>
+                        <div className="grid grid-cols-6 gap-1.5">
+                          {mockTradeHistory(trader.traderName, 6).map((v, i) => (
+                            <TradePill key={i} value={v} />
                           ))}
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4 items-center pt-4 border-t border-penny-border-subtle relative z-10 mt-auto">
-                        <div className="space-y-0.5">
-                          <p className="text-penny-text-disabled text-[10px] font-medium leading-none">Avg daily profit</p>
-                          <p className="text-white font-bold text-sm">{formatUSD(trader.averageDailyProfit ?? 0)}</p>
+                      {/* Trade percent + copy */}
+                      <div className="pt-4 border-t border-penny-border-subtle flex items-end justify-between gap-4 mt-auto relative z-10">
+                        <div>
+                          <p className="text-penny-text-disabled text-[10px] font-bold uppercase tracking-widest mb-1">
+                            Trade Percent
+                          </p>
+                          <p className="text-2xl font-black text-white tracking-tight">
+                            {Math.max(1, Math.round(trader.percentage ?? 0))}%
+                          </p>
                         </div>
-                        <div className="space-y-0.5 text-right">
-                          <p className="text-penny-text-disabled text-[10px] font-medium leading-none">Purchases</p>
-                          <p className="text-white font-bold text-sm">{(trader.purchases ?? 0).toLocaleString()}</p>
-                        </div>
+                        <Link
+                          href="/dashboard/marketplace/copy-trading"
+                          className="h-12 px-6 rounded-2xl bg-white text-black font-black text-sm hover:bg-gray-100 transition-all active:scale-[0.98] shadow-lg shadow-black/20 flex items-center"
+                        >
+                          Copy Trade
+                        </Link>
                       </div>
-
-                      <Link
-                        href="/dashboard/marketplace/copy-trading"
-                        className="w-full py-3 rounded-xl bg-penny-accent text-penny-bg-base text-sm font-black uppercase tracking-wider text-center transition-all hover:scale-[1.02] hover:shadow-[0_4px_12px_rgba(0,212,161,0.3)] active:scale-[0.98] relative z-10"
-                      >
-                        Copy Trade
-                      </Link>
                     </div>
                   </div>
                 );
