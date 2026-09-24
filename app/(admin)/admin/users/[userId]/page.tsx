@@ -115,7 +115,6 @@ export default function UserDetailPage() {
   }, [usersData, userId]);
 
 
-
   // ── Edit state ───────────────────────────────────────────────────────────
   // Declared before the early returns so every render calls hooks in the same order.
   const [editOpen, setEditOpen] = useState(false);
@@ -236,7 +235,7 @@ export default function UserDetailPage() {
 
   // Resolved copy-trade wallet balance:
   // 1. Portfolio balance from the dedicated endpoint (most accurate)
-  // 2. Explicit field on user object (set via admin edit + localStorage override)
+  // 2. Fallback to the explicit field on the user object
   const resolvedCopyTradeBalance = (() => {
     if (typeof copyTradePortfolio?.balance === "number") return copyTradePortfolio.balance;
     const fromUser = user?.copyTradeBalance ?? user?.copyTradeWalletBalance;
