@@ -62,17 +62,22 @@ export default function AddFundsModal({ isOpen, onClose, trade, onSuccess }: Add
     return true;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validate()) return;
-    const amount = parseFloat(form.amount);
-    if (trade?.id) {
-      addToActiveTrade(trade.id, amount);
-    }
-    setForm(initialState);
-    onSuccess?.(`${formatUSD(amount)} added to your copy trade.`);
-    onClose();
-  };
+  const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  if (!validate()) return;
+  const amount = parseFloat(form.amount);
+  if (!trade?.id) return;
+
+  const result = await addToActiveTrade(trade.id, amount);
+  if (!result.success) {
+    setForm((p) => ({ ...p, error: result.message }));
+    return;
+  }
+
+  setForm(initialState);
+  onSuccess?.(result.message);
+  onClose();
+};
 
   const handleClose = () => {
     setForm(initialState);

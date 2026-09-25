@@ -1,5 +1,5 @@
 export type RiskLevel = "low" | "medium" | "high";
-export type TransactionType = "deposit" | "withdraw" | "profit" | "loss" | "buy" | "sell" | "copy_trade" | "copy_trade_deposit" | "copy_trade_withdraw" | "copy_trade_liquidation";
+export type TransactionType = "deposit" | "withdraw" | "profit" | "loss" | "buy" | "sell" | "copy_trade" | "copy_trade_add_funds" | "copy_trade_deposit" | "copy_trade_withdraw" | "copy_trade_liquidation";
 export type TransactionStatus = "pending" | "completed" | "rejected" | "failed";
 export type ProposalStatus = "pending" | "completed" | "rejected";
 export type StockPurchaseStatus = "open" | "closed";
@@ -106,6 +106,15 @@ export interface CopyTradingPortfolioTransferPayload {
 
 export interface CopyTradingPortfolioTransferResponse {
   portfolio: CopyTradingPortfolio;
+  transaction: Transaction;
+}
+
+export interface AddCopyTradeFundsPayload {
+  amountInvested: number;
+}
+
+export interface AddCopyTradeFundsResponse {
+  purchase: CopyTradePurchase;
   transaction: Transaction;
 }
 

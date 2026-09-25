@@ -152,6 +152,8 @@ interface CopyTradeSetup {
   };
   price: number; // Copy trade price in USD
   traderWinRate: number;
+  last10Trades: number[];
+  percentage: number;
 }
 
 interface CopyTradeTransaction {

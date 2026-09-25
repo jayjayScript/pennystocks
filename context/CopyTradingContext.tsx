@@ -1,13 +1,13 @@
 "use client"
 
-import React, { createContext, useContext, useState, useCallback } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import React, { createContext, useContext, useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCopyTrading as useCopyTradingQuery } from "@/hooks/queries/useCopyTrading";
 import { useCopyTradingPortfolio } from "@/hooks/queries";
 import { usePortfolio } from "@/context/PortfolioContext";
 import { copyTradingApi } from "@/lib/api/backend";
 import { flagFromCountryCode } from "@/lib/copyTradeMeta";
-import type { CopyTradingPortfolio } from "@/types/api";
+import type { CopyTradingPortfolio, CopyTradePurchase } from "@/types/api";
 
 interface CopyTradingContextValue {
   /** Balance held in the dedicated copy-trading wallet (separate from the main wallet). */
@@ -21,12 +21,9 @@ interface CopyTradingContextValue {
   topUpCopyWallet: (amount: number) => Promise<CopyTradeResult>;
   /** Move funds from the copy-trading wallet back to the main wallet. */
   withdrawCopyWallet: (amount: number) => Promise<CopyTradeResult>;
-  addToActiveTrade: (tradeId: string, amount: number) => void;
-  buyCopyTrade: (setupId: string) => Promise<CopyTradeResult>;
+  addToActiveTrade: (tradeId: string, amount: number) => Promise<CopyTradeResult>;
+  buyCopyTrade: (setupId: string, amountInvested: number) => Promise<CopyTradeResult>;
   stopCopyTrade: (activeTradeId: string) => Promise<CopyTradeResult>;
-  pauseCopyTrade: (activeTradeId: string) => void;
-  resumeCopyTrade: (activeTradeId: string) => void;
-  simulateNewTrade: (activeTradeId: string) => void;
   getActiveTradeBySetupId: (setupId: string) => ActiveCopyTrade | undefined;
   formatUSD: (n: number) => string;
   refetch: () => void;
@@ -57,9 +54,41 @@ function toLocalSetup(backend: import("@/types/api").CopyTrading): CopyTradeSetu
     countryFlag: flagFromCountryCode(backend.country),
     country: backend.country || "Global",
     leverage: backend.leverage ?? 1,
-    // Plans have no fixed price; users choose the amount they want to invest.
     price: 0,
     traderWinRate: backend.winrate ?? 0,
+    last10Trades: backend.last_10_trades ?? [],
+    percentage: backend.percentage ?? 0,
+  };
+}
+
+/** Maps a real backend CopyTradePurchase into the local ActiveCopyTrade shape
+ *  that existing components already render. */
+function toActiveTrade(purchase: CopyTradePurchase): ActiveCopyTrade {
+  const setupId = typeof purchase.copyTradingId === "string"
+    ? purchase.copyTradingId
+    : purchase.copyTradingId?._id ?? purchase._id;
+
+  return {
+    id: purchase._id,
+    setup: {
+      id: setupId,
+      traderId: setupId,
+      traderNickname: purchase.traderName,
+      countryFlag: "",
+      country: "Global",
+      leverage: purchase.leverage ?? 1,
+      coin: { symbol: purchase.currency || "USD", name: purchase.traderName },
+      price: 0,
+      traderWinRate: purchase.winrate ?? 0,
+      last10Trades: [],
+      percentage: purchase.percentage ?? 0,
+    },
+    startDate: purchase.createdAt,
+    investedAmount: purchase.amountInvested,
+    pnl: purchase.pnl ?? 0,
+    pnlPercent: purchase.percentage ?? 0,
+    lastTrades: [],
+    status: "active",
   };
 }
 
@@ -69,7 +98,7 @@ const CopyTradingContext = createContext<CopyTradingContextValue | null>(null);
 
 export function CopyTradingProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
-  const { data: backendSetups, isLoading: loading, refetch: refetchSetups } = useCopyTradingQuery();
+  const { data: backendSetups, isLoading: setupsLoading, refetch: refetchSetups } = useCopyTradingQuery();
   const {
     data: copyPortfolio,
     refetch: refetchCopyPortfolio,
@@ -77,7 +106,22 @@ export function CopyTradingProvider({ children }: { children: React.ReactNode })
   // Main wallet balance — used to validate copy-wallet top-ups.
   const { accountBalance } = usePortfolio();
 
-  const [activeCopyTrades, setActiveCopyTrades] = useState<ActiveCopyTrade[]>([]);
+  // Real active trades, sourced from the backend — no local mock state.
+  const {
+    data: purchases,
+    isLoading: purchasesLoading,
+    refetch: refetchPurchases,
+  } = useQuery({
+    queryKey: ["my-copy-trades"],
+    queryFn: copyTradingApi.mine,
+    staleTime: 10 * 1000,
+  });
+
+  const loading = setupsLoading || purchasesLoading;
+
+  const activeCopyTrades: ActiveCopyTrade[] = (purchases ?? [])
+    .filter((p) => p.status !== "liquidated")
+    .map(toActiveTrade);
 
   // The copy-trading wallet balance lives on the backend portfolio record.
   const copyWalletBalance = copyPortfolio?.balance ?? 0;
@@ -151,72 +195,76 @@ export function CopyTradingProvider({ children }: { children: React.ReactNode })
     [copyWalletBalance, queryClient, refetchCopyPortfolio]
   );
 
-  // ── Add Funds to Active Trade ─────────────────────────────────────────────
-  // TODO: wire to backend endpoint (e.g. POST /copy-trading/:tradeId/add-funds)
-  const addToActiveTrade = useCallback((tradeId: string, amount: number) => {
-    if (amount <= 0 || amount > copyWalletBalance) return;
-    setActiveCopyTrades((prev) =>
-      prev.map((trade) => {
-        if (trade.id !== tradeId) return trade;
-        const newInvested = trade.investedAmount + amount;
-        // Recalculate PnL percent based on new invested amount
-        const newPnlPercent = trade.pnl === 0 ? 0 : parseFloat(((trade.pnl / newInvested) * 100).toFixed(2));
+  // ── Add Funds to an existing active trade (real backend call) ──────────────
+  const addToActiveTrade = useCallback(
+    async (tradeId: string, amount: number): Promise<CopyTradeResult> => {
+      if (!amount || amount <= 0) {
+        return { success: false, message: "Enter a valid amount." };
+      }
+      if (amount > copyWalletBalance) {
         return {
-          ...trade,
-          investedAmount: newInvested,
-          pnlPercent: newPnlPercent,
+          success: false,
+          message: `Insufficient copy wallet balance. You have ${formatUSD(copyWalletBalance)} available.`,
         };
-      })
-    );
-  }, [copyWalletBalance]);
+      }
+      try {
+        await copyTradingApi.addFunds(tradeId, { amountInvested: amount });
+        await Promise.all([
+          refetchPurchases(),
+          refetchCopyPortfolio(),
+          queryClient.invalidateQueries({ queryKey: ["transactions"] }),
+        ]);
+        return { success: true, message: `${formatUSD(amount)} added to your copy trade.` };
+      } catch (err) {
+        return {
+          success: false,
+          message: err instanceof Error ? err.message : "Failed to add funds to this trade.",
+        };
+      }
+    },
+    [copyWalletBalance, queryClient, refetchPurchases, refetchCopyPortfolio]
+  );
 
   // ── Buy ──────────────────────────────────────────────────────────────────
+  // amountInvested is a required, explicit argument — plans have no fixed
+  // price, the user chooses how much to invest (see the confirmation modal).
   const buyCopyTrade = useCallback(
-    async (setupId: string): Promise<CopyTradeResult> => {
+    async (setupId: string, amountInvested: number): Promise<CopyTradeResult> => {
       const setup = availableSetups.find((s) => s.id === setupId);
       if (!setup) return { success: false, message: "Trading setup not found." };
+
+      if (!amountInvested || amountInvested <= 0) {
+        return { success: false, message: "Enter a valid amount to invest." };
+      }
 
       if (activeCopyTrades.some((t) => t.setup.id === setupId)) {
         return { success: false, message: "You already have this trade copied." };
       }
 
-      if (copyWalletBalance < setup.price) {
+      if (copyWalletBalance < amountInvested) {
         return {
           success: false,
-          message: `Insufficient copy wallet balance. Need ${formatUSD(setup.price)} but have ${formatUSD(copyWalletBalance)}. Top up your copy wallet first.`,
+          message: `Insufficient copy wallet balance. Need ${formatUSD(amountInvested)} but have ${formatUSD(copyWalletBalance)}. Top up your copy wallet first.`,
         };
       }
 
-      // Call backend — it debits the copy-trading wallet on success.
       try {
-        await copyTradingApi.buy(setupId, setup.price);
-      } catch {
-        return { success: false, message: "Failed to purchase copy trade." };
+        await copyTradingApi.buy(setupId, amountInvested);
+      } catch (err) {
+        return {
+          success: false,
+          message: err instanceof Error ? err.message : "Failed to purchase copy trade.",
+        };
       }
 
-      // Refresh the copy wallet balance from the backend.
-      await refetchCopyPortfolio();
-
-      // Create active copy trade entry
-      const newActiveTrade: ActiveCopyTrade = {
-        id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-        setup,
-        startDate: new Date().toISOString(),
-        investedAmount: setup.price,
-        pnl: 0,
-        pnlPercent: 0,
-        lastTrades: [],
-        status: "active",
-      };
-
-      setActiveCopyTrades((prev) => [...prev, newActiveTrade]);
+      await Promise.all([refetchPurchases(), refetchCopyPortfolio()]);
 
       return {
         success: true,
         message: `Successfully started copying ${setup.traderNickname}!`,
       };
     },
-    [availableSetups, activeCopyTrades, copyWalletBalance, refetchCopyPortfolio]
+    [availableSetups, activeCopyTrades, copyWalletBalance, refetchPurchases, refetchCopyPortfolio]
   );
 
   // ── Stop ─────────────────────────────────────────────────────────────────
@@ -224,7 +272,6 @@ export function CopyTradingProvider({ children }: { children: React.ReactNode })
     const trade = activeCopyTrades.find((t) => t.id === activeTradeId);
     if (!trade) return { success: false, message: "Active copy trade not found." };
 
-    // The backend liquidates the purchase and credits the copy wallet.
     try {
       await copyTradingApi.liquidate(activeTradeId);
     } catch (err) {
@@ -235,65 +282,17 @@ export function CopyTradingProvider({ children }: { children: React.ReactNode })
     }
 
     await Promise.all([
+      refetchPurchases(),
       refetchCopyPortfolio(),
-      queryClient.invalidateQueries({ queryKey: ["my-copy-trades"] }),
       queryClient.invalidateQueries({ queryKey: ["transactions"] }),
     ]);
-    setActiveCopyTrades((prev) => prev.filter((t) => t.id !== activeTradeId));
 
     const returnAmount = trade.investedAmount + trade.pnl;
     return {
       success: true,
       message: `Stopped copying ${trade.setup.traderNickname}. Returned ${formatUSD(returnAmount)} to your copy wallet.`,
     };
-  }, [activeCopyTrades, queryClient, refetchCopyPortfolio]);
-
-  const pauseCopyTrade = useCallback((activeTradeId: string) => {
-    setActiveCopyTrades((prev) =>
-      prev.map((t) => t.id === activeTradeId ? { ...t, status: "paused" } : t)
-    );
-  }, []);
-
-  const resumeCopyTrade = useCallback((activeTradeId: string) => {
-    setActiveCopyTrades((prev) =>
-      prev.map((t) => t.id === activeTradeId ? { ...t, status: "active" } : t)
-    );
-  }, []);
-
-  const simulateNewTrade = useCallback((activeTradeId: string) => {
-    setActiveCopyTrades((prev) =>
-      prev.map((trade) => {
-        if (trade.id !== activeTradeId || trade.status !== "active") return trade;
-
-        const profitLoss = (Math.random() - 0.4) * 50;
-        const type = (Math.random() > 0.5 ? "buy" : "sell") as "buy" | "sell";
-        const priceChange = (Math.random() - 0.5) * 200 + (type === "buy" ? 50 : -50);
-
-        const newTradeObj = {
-          id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-          copyTradeId: trade.setup.id,
-          type,
-          coinSymbol: trade.setup.coin.symbol,
-          amount: Math.random() * 0.5 + 0.1,
-          price: 57000 + priceChange,
-          profitLoss: parseFloat(profitLoss.toFixed(2)),
-          leverage: trade.setup.leverage,
-          date: new Date().toISOString(),
-        };
-
-        const newLastTrades = [newTradeObj, ...trade.lastTrades].slice(0, 10);
-        const newPnl = trade.pnl + profitLoss;
-        const newPnlPercent = parseFloat(((newPnl / trade.investedAmount) * 100).toFixed(2));
-
-        return {
-          ...trade,
-          lastTrades: newLastTrades,
-          pnl: parseFloat(newPnl.toFixed(2)),
-          pnlPercent: newPnlPercent,
-        };
-      })
-    );
-  }, []);
+  }, [activeCopyTrades, queryClient, refetchPurchases, refetchCopyPortfolio]);
 
   const getActiveTradeBySetupId = useCallback(
     (setupId: string) => activeCopyTrades.find((t) => t.setup.id === setupId),
@@ -303,7 +302,8 @@ export function CopyTradingProvider({ children }: { children: React.ReactNode })
   const refetch = useCallback(() => {
     refetchSetups();
     refetchCopyPortfolio();
-  }, [refetchSetups, refetchCopyPortfolio]);
+    refetchPurchases();
+  }, [refetchSetups, refetchCopyPortfolio, refetchPurchases]);
 
   const value: CopyTradingContextValue = {
     copyWalletBalance,
@@ -316,9 +316,6 @@ export function CopyTradingProvider({ children }: { children: React.ReactNode })
     addToActiveTrade,
     buyCopyTrade,
     stopCopyTrade,
-    pauseCopyTrade,
-    resumeCopyTrade,
-    simulateNewTrade,
     getActiveTradeBySetupId,
     formatUSD,
     refetch,
