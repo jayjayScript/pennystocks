@@ -117,7 +117,7 @@ function TradePill({ value }: { value: number }) {
   const up = value >= 0;
   return (
     <span
-      className="text-[11px] font-bold px-2 py-1 rounded-md text-center"
+      className="text-[8px] font-bold px-2 py-1 rounded-md text-center"
       style={{
         background: up ? "rgba(0,212,161,0.10)" : "rgba(244,67,54,0.10)",
         color: up ? "#00d4a1" : "#F44336",
