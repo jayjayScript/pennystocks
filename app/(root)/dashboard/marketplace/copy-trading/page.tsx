@@ -107,7 +107,7 @@ function CoinPill({ symbol, live }: { symbol: string; live?: boolean }) {
       style={{ background: "#0d1624", border: "1px solid #252f45" }}
     >
       <span className="w-2 h-2 rounded-full shrink-0" style={{ background: dotColor }} />
-      {symbol}/USDT
+      INDEX FUNDS
     </span>
   );
 }
