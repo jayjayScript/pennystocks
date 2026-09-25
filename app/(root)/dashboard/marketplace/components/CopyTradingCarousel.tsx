@@ -222,7 +222,7 @@ export default function CopyTradingCarousel() {
                           style={{ background: "var(--penny-bg-base)", border: "1px solid var(--penny-border-default)" }}
                         >
                           <span className="w-2 h-2 rounded-full shrink-0" style={{ background: "var(--penny-warning)" }} />
-                          {trader.currency || "USD"}/USDT
+                          INDEX FUNDS
                         </span>
                         <span className="text-sm font-bold text-penny-accent">
                           {(trader.winrate ?? 0).toFixed(0)}% win rate
