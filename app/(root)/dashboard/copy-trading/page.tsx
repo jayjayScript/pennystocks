@@ -91,7 +91,7 @@ function ActiveCopyTradeCard({
               className="flex items-center gap-2 text-xs mt-0.5"
               style={{ color: "#6b7785" }}
             >
-              <span>{trade.currency || "USD"}</span>
+              <span>INDEX FUNDS</span>
               <span>•</span>
               <span>{trade.leverage ?? 1}x</span>
               <span>•</span>
