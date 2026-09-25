@@ -1,4 +1,6 @@
 import type {
+  AddCopyTradeFundsPayload,
+  AddCopyTradeFundsResponse,
   AdminCopyTradePurchaseQuery,
   AdminStockPurchaseQuery,
   AdminUserStockProposalQuery,
@@ -149,6 +151,11 @@ export const copyTradingApi = {
       { method: "POST", body: JSON.stringify({ amountInvested }) },
     ), // accessable to user only
   mine: () => api<CopyTradePurchase[]>("/copy-trading/me/purchases"),
+  addFunds: (purchaseId: string, data: AddCopyTradeFundsPayload) =>
+    api<AddCopyTradeFundsResponse>(
+      `/copy-trading/purchases/${purchaseId}/add-funds`,
+      { method: "POST", body: JSON.stringify(data) },
+    ),
   portfolio: () => api<CopyTradingPortfolio>("/copy-trading/portfolio/me"),
   depositToPortfolio: (data: CopyTradingPortfolioTransferPayload) =>
     api<CopyTradingPortfolioTransferResponse>(
