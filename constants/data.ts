@@ -143,41 +143,41 @@ export const copyTraders: CopyTrader[] = [
   },
 ];
 
-export const copyTradeSetups: CopyTradeSetup[] = [
-  {
-    id: "setup-001",
-    traderId: "george-nathan",
-    traderNickname: "George",
-    countryFlag: "🇺🇸",
-    country: "USA",
-    leverage: 10,
-    coin: { symbol: "BTC", name: "Bitcoin", icon: "logos:bitcoin", bgColor: "rgba(247, 147, 26, 0.1)" },
-    price: 250,
-    traderWinRate: 78,
-  },
-  {
-    id: "setup-002",
-    traderId: "sara-malik",
-    traderNickname: "SarahM",
-    countryFlag: "🇬🇧",
-    country: "UK",
-    leverage: 5,
-    coin: { symbol: "ETH", name: "Ethereum", icon: "logos:ethereum", bgColor: "rgba(98, 126, 234, 0.1)" },
-    price: 180,
-    traderWinRate: 72,
-  },
-  {
-    id: "setup-003",
-    traderId: "alex-troy",
-    traderNickname: "CryptoKing",
-    countryFlag: "🇯🇵",
-    country: "Japan",
-    leverage: 3,
-    coin: { symbol: "SOL", name: "Solana", icon: "logos:solana", bgColor: "rgba(20, 241, 149, 0.1)" },
-    price: 120,
-    traderWinRate: 85,
-  },
-];
+// export const copyTradeSetups: CopyTradeSetup[] = [
+//   {
+//     id: "setup-001",
+//     traderId: "george-nathan",
+//     traderNickname: "George",
+//     countryFlag: "🇺🇸",
+//     country: "USA",
+//     leverage: 10,
+//     coin: { symbol: "BTC", name: "Bitcoin", icon: "logos:bitcoin", bgColor: "rgba(247, 147, 26, 0.1)" },
+//     price: 250,
+//     traderWinRate: 78,
+//   },
+//   {
+//     id: "setup-002",
+//     traderId: "sara-malik",
+//     traderNickname: "SarahM",
+//     countryFlag: "🇬🇧",
+//     country: "UK",
+//     leverage: 5,
+//     coin: { symbol: "ETH", name: "Ethereum", icon: "logos:ethereum", bgColor: "rgba(98, 126, 234, 0.1)" },
+//     price: 180,
+//     traderWinRate: 72,
+//   },
+//   {
+//     id: "setup-003",
+//     traderId: "alex-troy",
+//     traderNickname: "CryptoKing",
+//     countryFlag: "🇯🇵",
+//     country: "Japan",
+//     leverage: 3,
+//     coin: { symbol: "SOL", name: "Solana", icon: "logos:solana", bgColor: "rgba(20, 241, 149, 0.1)" },
+//     price: 120,
+//     traderWinRate: 85,
+//   },
+// ];
 
 export const sampleLastTrades: CopyTradeTransaction[] = [];
 
