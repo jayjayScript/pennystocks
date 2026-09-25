@@ -161,10 +161,9 @@ export default function CopyTradingDetailPage() {
           typeof p.copyTradingId === "string"
             ? p.copyTradingId
             : (p.copyTradingId?._id ?? p._id);
-        const pnlPercent =
-          p.amountInvested > 0 ? (p.pnl ?? 0) / p.amountInvested * 100 : 0;
+        const pnl = p.pnl ?? 0;
         const invested = p.amountInvested ?? 0;
-        const pnl = (invested * pnlPercent) / 100;
+        const pnlPercent = invested > 0 ? (pnl / invested) * 100 : 0;
 
         return {
           id: p._id,
@@ -489,7 +488,7 @@ export default function CopyTradingDetailPage() {
                         </p>
                         <p
                           className="text-2xl font-black tracking-tight"
-                          style={{ color: "#00d4a1" }}
+                          style={{ color: trade.pnl >= 0 ? "#00d4a1" : "#F44336" }}
                         >
                           {trade.pnl >= 0 ? "+" : ""}
                           {formatCopyUSD(trade.pnl)}

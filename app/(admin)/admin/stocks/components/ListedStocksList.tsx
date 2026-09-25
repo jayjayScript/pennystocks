@@ -65,6 +65,34 @@ export default function ListedStocksList() {
     setEditingStock(stock);
   };
 
+  const handleLastPriceChange = (val: string) => {
+    const newPrice = parseFloat(val);
+    const prevPrice = editingStock?.lastPrice;
+
+    if (!isNaN(newPrice) && prevPrice !== undefined && prevPrice > 0) {
+      const diff = newPrice - prevPrice;
+      const roc = ((newPrice - prevPrice) / prevPrice) * 100;
+      setEditForm((f) => ({
+        ...f,
+        lastPrice: val,
+        change24h: diff.toFixed(2),
+        rateOfChange: roc.toFixed(2),
+      }));
+    } else if (!isNaN(newPrice) && (prevPrice === undefined || prevPrice === 0)) {
+      setEditForm((f) => ({
+        ...f,
+        lastPrice: val,
+        change24h: "0.00",
+        rateOfChange: "0.00",
+      }));
+    } else {
+      setEditForm((f) => ({
+        ...f,
+        lastPrice: val,
+      }));
+    }
+  };
+
   const handleSaveEdit = async () => {
     if (!editingStock) return;
     setEditError("");
@@ -398,7 +426,7 @@ export default function ListedStocksList() {
                     type="number"
                     step="0.01"
                     value={editForm.lastPrice}
-                    onChange={(e) => setEditForm((f) => ({ ...f, lastPrice: e.target.value }))}
+                    onChange={(e) => handleLastPriceChange(e.target.value)}
                     className="w-full rounded-xl px-4 py-2.5 text-sm"
                     style={{ background: "#0d1624", border: "1px solid #252f45", color: "white" }}
                   />
@@ -422,29 +450,37 @@ export default function ListedStocksList() {
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <label className="text-[10px] font-semibold sm:text-xs" style={{ color: "#6b7785" }}>
-                    24h Change ($)
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-semibold sm:text-xs" style={{ color: "#6b7785" }}>
+                      24h Change ($)
+                    </label>
+                    <span className="text-[10px] font-medium" style={{ color: "#00d4a1" }}>auto-derived</span>
+                  </div>
                   <input
                     type="number"
                     step="0.01"
+                    readOnly
+                    tabIndex={-1}
                     value={editForm.change24h}
-                    onChange={(e) => setEditForm((f) => ({ ...f, change24h: e.target.value }))}
-                    className="w-full rounded-xl px-4 py-2.5 text-sm"
-                    style={{ background: "#0d1624", border: "1px solid #252f45", color: "white" }}
+                    className="w-full rounded-xl px-4 py-2.5 text-sm cursor-not-allowed opacity-80"
+                    style={{ background: "#0a101d", border: "1px solid #1d2639", color: "#00d4a1" }}
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-semibold sm:text-xs" style={{ color: "#6b7785" }}>
-                    Rate of Change (%)
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-semibold sm:text-xs" style={{ color: "#6b7785" }}>
+                      Rate of Change (%)
+                    </label>
+                    <span className="text-[10px] font-medium" style={{ color: "#00d4a1" }}>auto-derived</span>
+                  </div>
                   <input
                     type="number"
                     step="0.01"
+                    readOnly
+                    tabIndex={-1}
                     value={editForm.rateOfChange}
-                    onChange={(e) => setEditForm((f) => ({ ...f, rateOfChange: e.target.value }))}
-                    className="w-full rounded-xl px-4 py-2.5 text-sm"
-                    style={{ background: "#0d1624", border: "1px solid #252f45", color: "white" }}
+                    className="w-full rounded-xl px-4 py-2.5 text-sm cursor-not-allowed opacity-80"
+                    style={{ background: "#0a101d", border: "1px solid #1d2639", color: "#00d4a1" }}
                   />
                 </div>
               </div>
