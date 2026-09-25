@@ -3,10 +3,9 @@
 import { Icon } from "@iconify/react";
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import ChangePasswordModal from "@/components/modals/ChangePasswordModal";
-import DepositModal from "@/components/modals/DepositModal";
 import { useUserProfile } from "@/hooks/queries";
 import { authApi } from "@/lib/api/backend";
+import { useAuth } from "@/context/AuthContext";
 
 const formatUSD = (n: number) =>
   new Intl.NumberFormat("en-US", {
@@ -18,31 +17,25 @@ const formatUSD = (n: number) =>
 export default function ProfileScreen() {
   const { data: profile, isLoading } = useUserProfile();
   const queryClient = useQueryClient();
+  const { logout } = useAuth();
 
   const [editMode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [walletAddress, setWalletAddress] = useState("");
   const [saveMsg, setSaveMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
-  const [openModal, setOpenModal] = useState<"change-pw" | "deposit" | null>(null);
 
   // Seed the editable fields from the real profile once it loads / updates.
   useEffect(() => {
     if (!profile) return;
     setFirstName(profile.firstName ?? "");
     setLastName(profile.lastName ?? "");
-    setPhone(profile.phone ?? "");
-    setWalletAddress(profile.walletAddress ?? "");
   }, [profile]);
 
   const resetFieldsFromProfile = () => {
     if (!profile) return;
     setFirstName(profile.firstName ?? "");
     setLastName(profile.lastName ?? "");
-    setPhone(profile.phone ?? "");
-    setWalletAddress(profile.walletAddress ?? "");
   };
 
   const handleSave = async () => {
@@ -52,8 +45,6 @@ export default function ProfileScreen() {
       await authApi.updateProfile({
         firstName: firstName.trim(),
         lastName: lastName.trim(),
-        phone: phone.trim(),
-        walletAddress: walletAddress.trim(),
       });
       await queryClient.invalidateQueries({ queryKey: ["user-profile"] });
       setSaveMsg({ kind: "ok", text: "Profile updated." });
@@ -78,11 +69,9 @@ export default function ProfileScreen() {
   const initials = ((firstName[0] ?? lastName[0] ?? email[0]) ?? "U").toUpperCase();
 
   const fields = [
-    { label: "First Name",     value: firstName,     set: setFirstName,     icon: "mdi:account-outline",   readOnly: false },
-    { label: "Last Name",      value: lastName,      set: setLastName,      icon: "mdi:account-outline",   readOnly: false },
-    { label: "Email",          value: email,         set: () => {},         icon: "mdi:email-outline",     readOnly: true  },
-    { label: "Phone",          value: phone,         set: setPhone,         icon: "mdi:phone-outline",     readOnly: false },
-    { label: "Wallet Address", value: walletAddress, set: setWalletAddress, icon: "mdi:wallet-outline",    readOnly: false },
+    { label: "First Name", value: firstName, set: setFirstName, icon: "mdi:account-outline", readOnly: false },
+    { label: "Last Name",  value: lastName,  set: setLastName,  icon: "mdi:account-outline", readOnly: false },
+    { label: "Email",      value: email,     set: () => {},     icon: "mdi:email-outline",   readOnly: true  },
   ];
 
   if (isLoading) {
@@ -92,7 +81,7 @@ export default function ProfileScreen() {
           <div className="h-8 w-40 rounded-lg bg-white/10" />
           <div className="h-40 rounded-2xl bg-white/5" />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {Array.from({ length: 5 }).map((_, i) => (
+            {Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="h-20 rounded-xl bg-white/5" />
             ))}
           </div>
@@ -212,38 +201,11 @@ export default function ProfileScreen() {
         ))}
       </div>
 
-      {/* Linked Wallet */}
-      <div>
-        <h2 className="text-sm font-bold text-white mb-3">Linked Wallet</h2>
-        <div className="rounded-2xl p-5 relative overflow-hidden" style={{ background: "linear-gradient(135deg, #1d2e44 0%, #0f1c2e 100%)", border: "1px solid #252f45" }}>
-          <div className="absolute bottom-0 right-0 w-32 h-32 opacity-10 rounded-full translate-x-8 translate-y-8" style={{ background: "#00d4a1" }} />
-          <div className="flex items-center justify-between mb-6 relative z-10">
-            <span className="text-xs font-bold" style={{ color: "#9aa3b0" }}>CRYPTO WALLET</span>
-            <Icon icon="mdi:contactless-payment" width={24} style={{ color: "#00d4a1" }} />
-          </div>
-          <p className="text-base font-mono font-semibold text-white tracking-wider mb-4 relative z-10 break-all">
-            {walletAddress || "No wallet address set"}
-          </p>
-          <div className="flex items-center justify-between relative z-10">
-            <div>
-              <p className="text-[10px]" style={{ color: "#9aa3b0" }}>Account Name</p>
-              <p className="text-sm font-bold text-white">{displayName}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-[10px]" style={{ color: "#9aa3b0" }}>Status</p>
-              <p className="text-sm font-bold" style={{ color: isActive ? "#4CAF50" : "#F44336" }}>{isActive ? "Active" : "Suspended"}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Action Rows */}
       <div className="rounded-2xl overflow-hidden" style={{ border: "1px solid #1d2639" }}>
         {[
-          { label: "Change Password",      icon: "mdi:lock-outline",          danger: false, action: () => setOpenModal("change-pw") },
-          { label: "Notifications",        icon: "mdi:bell-outline",          danger: false, action: () => setOpenModal("deposit") },
-          { label: "Privacy Policy",       icon: "mdi:file-document-outline", danger: false, action: () => window.open("/privacy", "_blank") },
-          { label: "Log Out",              icon: "mdi:logout",                danger: true,  action: () => { /* disconnected: no-op */ } },
+          { label: "Privacy Policy", icon: "mdi:file-document-outline", danger: false, action: () => window.open("/privacy", "_blank") },
+          { label: "Log Out", icon: "mdi:logout", danger: true, action: async () => { await logout(); window.location.href = "/sign-in"; } },
         ].map((row, i, arr) => (
           <button
             key={row.label}
@@ -259,9 +221,6 @@ export default function ProfileScreen() {
           </button>
         ))}
       </div>
-
-      {openModal === "change-pw"   && <ChangePasswordModal isOpen onClose={() => setOpenModal(null)} />}
-      {openModal === "deposit"     && <DepositModal isOpen onClose={() => setOpenModal(null)} />}
     </div>
   );
 }

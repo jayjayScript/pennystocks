@@ -1,9 +1,8 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { adminApi, stocksApi, copyTradingApi, transactionsApi, authApi, stockProposalsApi } from "@/lib/api/backend";
+import { adminApi, stocksApi, copyTradingApi, transactionsApi, stockProposalsApi } from "@/lib/api/backend";
 import type { TransactionStatus } from "@/types/api";
-import { removeCopyTradeMeta, saveCopyTradeMeta, type CopyTradeMeta } from "@/lib/copyTradeMeta";
 
 // ── User mutations ────────────────────────────────────────────────────────────
 
@@ -216,11 +215,8 @@ export function useRejectStock() {
 export function useUpdateCopyTrade() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data, meta }: { id: string; data: Parameters<typeof copyTradingApi.update>[1]; meta?: CopyTradeMeta }) => {
-      // Persist the extra (non-backend) fields so the UI can render them.
-      if (meta) saveCopyTradeMeta(id, meta);
-      return copyTradingApi.update(id, data);
-    },
+    mutationFn: ({ id, data }: { id: string; data: Parameters<typeof copyTradingApi.update>[1] }) =>
+      copyTradingApi.update(id, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["copy-trading"] });
     },
@@ -230,12 +226,8 @@ export function useUpdateCopyTrade() {
 export function useCreateCopyTrade() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ data, meta }: { data: Parameters<typeof copyTradingApi.create>[0]; meta?: CopyTradeMeta }) => {
-      const created = await copyTradingApi.create(data);
-      // The backend returns the new trader with its _id — stash the extra fields against it.
-      if (meta && created?._id) saveCopyTradeMeta(created._id, meta);
-      return created;
-    },
+    mutationFn: (data: Parameters<typeof copyTradingApi.create>[0]) =>
+      copyTradingApi.create(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["copy-trading"] });
     },
@@ -245,11 +237,7 @@ export function useCreateCopyTrade() {
 export function useDeleteCopyTrade() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => {
-      const res = await copyTradingApi.remove(id);
-      removeCopyTradeMeta(id);
-      return res;
-    },
+    mutationFn: (id: string) => copyTradingApi.remove(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["copy-trading"] });
     },

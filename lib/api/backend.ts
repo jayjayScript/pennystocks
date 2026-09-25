@@ -125,8 +125,19 @@ export const stocksApi = {
       body: JSON.stringify({ quantity }),
     }),
 };
+/**
+ * Some backend list endpoints return the bare array, others wrap it in a
+ * paginated envelope (`{ data: [...] }`). Unwrap both so callers always get an
+ * array and never mistake a wrapper object for an empty list.
+ */
+function unwrapList<T>(res: unknown): T[] {
+  if (Array.isArray(res)) return res as T[];
+  const data = (res as { data?: unknown } | null)?.data;
+  return Array.isArray(data) ? (data as T[]) : [];
+}
+
 export const copyTradingApi = {
-  list: () => api<CopyTrading[]>("/copy-trading"), //accessable to both user and admin
+  list: async () => unwrapList<CopyTrading>(await api<unknown>("/copy-trading")), //accessable to both user and admin
   get: (id: string) => api<CopyTrading>(`/copy-trading/${id}`), //accessable to both user and admin
   create: (data: CreateCopyTradingPayload) =>
     api<CopyTrading>("/copy-trading", {

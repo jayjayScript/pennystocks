@@ -41,6 +41,20 @@ export default function TopNav() {
     </Link>
   );
 
+  const profileButton = (
+    <Link
+      href="/dashboard/profile"
+      className="bg-[#D9D9D9] hover:bg-white transition-all w-7 h-7 rounded-full flex items-center justify-center cursor-pointer shrink-0"
+      title="Profile"
+    >
+      <Icon
+        icon="iconamoon:profile-fill"
+        width={20}
+        className="text-black/40 hover:text-black transition-colors"
+      />
+    </Link>
+  );
+
   // Helper to determine active page configurations
   const getNavConfig = () => {
     switch (true) {
@@ -51,13 +65,7 @@ export default function TopNav() {
           rightSlot: (
             <div className="flex items-center gap-2">
               {notificationBell}
-              <div className="bg-[#D9D9D9] w-7 h-7 rounded-full flex items-center justify-center">
-                <Icon
-                  icon="iconamoon:profile-fill"
-                  width={20}
-                  className="text-black/30"
-                />
-              </div>
+              {profileButton}
             </div>
           ),
         };
@@ -68,17 +76,7 @@ export default function TopNav() {
           rightSlot: (
             <div className="flex items-center gap-2">
               {notificationBell}
-              <Button
-                variant="surface"
-                size="sm"
-                className="w-9 h-9 !p-0 rounded-full border-0 bg-penny-surface-2"
-              >
-                <Icon
-                  icon="mdi:filter-outline"
-                  width={18}
-                  className="text-penny-text-muted"
-                />
-              </Button>
+              {profileButton}
             </div>
           ),
         };
@@ -92,6 +90,7 @@ export default function TopNav() {
               <Badge variant="accent" icon="mdi:trending-up" size="md">
                 Portfolio Up
               </Badge>
+              {profileButton}
             </div>
           ),
         };
@@ -102,9 +101,7 @@ export default function TopNav() {
           rightSlot: (
             <div className="flex items-center gap-2">
               {notificationBell}
-              <Button variant="surface" size="sm" icon="mdi:filter-outline">
-                Filter
-              </Button>
+              {profileButton}
             </div>
           ),
         };
@@ -112,7 +109,12 @@ export default function TopNav() {
         return {
           subtitle: "Have questions?",
           title: "FAQ",
-          rightSlot: notificationBell,
+          rightSlot: (
+            <div className="flex items-center gap-2">
+              {notificationBell}
+              {profileButton}
+            </div>
+          ),
         };
       case pathname.startsWith("/dashboard/profile"):
         return {
@@ -121,9 +123,7 @@ export default function TopNav() {
           rightSlot: (
             <div className="flex items-center gap-2">
               {notificationBell}
-              <Button variant="surface" size="md" icon="mdi:pencil-outline">
-                Edit
-              </Button>
+              {profileButton}
             </div>
           ),
         };
@@ -131,7 +131,12 @@ export default function TopNav() {
         return {
           subtitle: "PennyStocks",
           title: "Dashboard",
-          rightSlot: notificationBell,
+          rightSlot: (
+            <div className="flex items-center gap-2">
+              {notificationBell}
+              {profileButton}
+            </div>
+          ),
         };
     }
   };

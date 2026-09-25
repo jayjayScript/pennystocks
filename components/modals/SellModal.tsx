@@ -65,12 +65,26 @@ export default function SellModal({ asset, isOpen, onClose, onSuccess }: SellMod
 
   const maxShares = asset.availableShares ?? 0;
   const numShares = parseFloat(quantityInput) || 0;
-  const estimatedProceeds = numShares * currentPrice;
-  const isInvalid = numShares <= 0 || numShares > maxShares;
+  // Compare with 4-decimal tolerance and float epsilon so rounded display values don't block selling
+  const isExceeding =
+    numShares > maxShares &&
+    parseFloat(numShares.toFixed(4)) > parseFloat(maxShares.toFixed(4)) &&
+    numShares - maxShares > 1e-6;
+  const isInvalid = numShares <= 0 || isExceeding;
+  const effectiveShares = isExceeding ? numShares : Math.min(numShares, maxShares);
+  const estimatedProceeds = effectiveShares * currentPrice;
 
   const handleApplyPct = (pct: number) => {
+    if (pct === 100) {
+      setQuantityInput(maxShares > 0 ? maxShares.toString() : "");
+      return;
+    }
     const qty = (maxShares * pct) / 100;
-    setQuantityInput(qty > 0 ? (Number.isInteger(qty) ? qty.toString() : qty.toFixed(4)) : "");
+    if (qty <= 0) {
+      setQuantityInput("");
+      return;
+    }
+    setQuantityInput(parseFloat(qty.toFixed(6)).toString());
   };
 
   const handleConfirm = async () => {
@@ -83,7 +97,9 @@ export default function SellModal({ asset, isOpen, onClose, onSuccess }: SellMod
 
     try {
       setIsSubmitting(true);
-      const qty = parseFloat(numShares.toFixed(6));
+      const isMaxSale =
+        Math.abs(numShares - maxShares) <= 1e-4 || numShares >= maxShares;
+      const qty = isMaxSale ? maxShares : parseFloat(numShares.toFixed(6));
       const res = await stocksApi.sell(asset.purchaseId, qty);
 
       qc.invalidateQueries({ queryKey: ["my-stock-purchases"] });
@@ -231,7 +247,7 @@ export default function SellModal({ asset, isOpen, onClose, onSuccess }: SellMod
                     SHARES
                   </span>
                 </div>
-                {numShares > maxShares && (
+                {isExceeding && (
                   <p className="text-xs mt-1 font-medium" style={{ color: "#F44336" }}>
                     Cannot sell more than your {maxShares} available shares.
                   </p>
@@ -268,7 +284,7 @@ export default function SellModal({ asset, isOpen, onClose, onSuccess }: SellMod
                 </div>
                 <div className="flex justify-between" style={{ color: "#9aa3b0" }}>
                   <span>Shares</span>
-                  <span className="font-semibold text-white">{numShares || 0}</span>
+                  <span className="font-semibold text-white">{effectiveShares || 0}</span>
                 </div>
                 <div className="pt-2 border-t border-[#1d2639] flex justify-between text-sm">
                   <span className="font-bold text-white">Estimated Proceeds</span>

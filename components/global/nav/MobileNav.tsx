@@ -8,13 +8,16 @@ import GeneralCard from "../GeneralCard";
 
 const MobileNav = () => {
   const pathname = usePathname();
+  const mobileLinks = navLinks.filter(
+    (link) => link.page.toLowerCase() !== "profile" && link.href !== "/dashboard/profile"
+  );
 
   return (
     <nav className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-32px)] max-w-sm md:hidden">
       <GeneralCard
         content={
           <div className="flex items-center justify-between">
-            {navLinks.map((link) => {
+            {mobileLinks.map((link) => {
               const isActive =
                 pathname === link.href ||
                 (link.href !== "/dashboard/overview" &&

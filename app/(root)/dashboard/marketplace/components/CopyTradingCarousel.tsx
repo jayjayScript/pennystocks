@@ -6,6 +6,7 @@ import { Icon } from "@iconify/react";
 import useEmblaCarousel from "embla-carousel-react";
 import type { EmblaCarouselType } from "embla-carousel";
 import { useCopyTrading } from "@/hooks/queries";
+import { flagFromCountryCode } from "@/lib/copyTradeMeta";
 import type { CopyTrading } from "@/types/api";
 
 function formatInitials(name?: string): string {
@@ -18,36 +19,6 @@ function formatInitials(name?: string): string {
       .substring(0, 2)
       .toUpperCase() || "??"
   );
-}
-
-// Country flags cycled for display — the backend trader record has no country field.
-const COUNTRY_FLAGS = ["🇺🇸", "🇬🇧", "🇯🇵", "🇩🇪", "🇸🇬", "🇦🇪", "🇨🇦", "🇦🇺"];
-
-/** Deterministic pseudo-random in [0, 1) seeded by a string — keeps mock stats stable across renders. */
-function seededUnit(seed: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < seed.length; i++) {
-    h ^= seed.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return ((h >>> 0) % 100000) / 100000;
-}
-
-function flagFor(seed: string): string {
-  return COUNTRY_FLAGS[Math.floor(seededUnit(seed) * COUNTRY_FLAGS.length) % COUNTRY_FLAGS.length];
-}
-
-/** Stable list of the last N trade profit percentages (as shown in the reference design). */
-function mockTradeHistory(seed: string, count = 6): number[] {
-  return Array.from({ length: count }, (_, i) => {
-    const u = seededUnit(`${seed}-${i}`);
-    return u > 0.85 ? -+(u * 4).toFixed(1) : +(1 + u * 35).toFixed(1);
-  });
-}
-
-function winRateFor(seed: string): number {
-  const u = seededUnit(`win-${seed}`);
-  return Math.round(65 + u * 34);
 }
 
 // ─── Shared trading-card atoms (mirrors the reference design) ────────────────
@@ -64,7 +35,7 @@ function VerifiedBadge() {
   );
 }
 
-function TraderAvatar({ seed, label }: { seed: string; label: string }) {
+function TraderAvatar({ country, label }: { country?: string; label: string }) {
   return (
     <div className="relative shrink-0">
       <div
@@ -77,7 +48,7 @@ function TraderAvatar({ seed, label }: { seed: string; label: string }) {
         className="absolute -bottom-1.5 -right-1.5 w-6 h-6 rounded-lg flex items-center justify-center text-[13px]"
         style={{ background: "var(--penny-bg-base)", border: "1px solid var(--penny-border-strong)" }}
       >
-        {flagFor(seed)}
+        {flagFromCountryCode(country)}
       </span>
     </div>
   );
@@ -103,12 +74,10 @@ function TradePill({ value }: { value: number }) {
 export default function CopyTradingCarousel() {
   const { data: rawSetups, isLoading } = useCopyTrading();
 
-  const traders: CopyTrading[] = useMemo(() => {
-    const arr = Array.isArray(rawSetups)
-      ? rawSetups
-      : ((rawSetups as unknown as { data?: CopyTrading[] })?.data ?? []);
-    return arr.filter((s) => s.isActive !== false);
-  }, [rawSetups]);
+  const traders: CopyTrading[] = useMemo(
+    () => (rawSetups ?? []).filter((s) => s.isActive !== false),
+    [rawSetups],
+  );
 
   const [emblaRef, emblaApi] = useEmblaCarousel({ align: "start", containScroll: "trimSnaps", dragFree: false });
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -227,7 +196,7 @@ export default function CopyTradingCarousel() {
                       {/* Header: avatar + name + verified */}
                       <div className="flex items-center gap-3.5 relative z-10">
                         <TraderAvatar
-                          seed={trader.traderName}
+                          country={trader.country}
                           label={formatInitials(trader.traderName)}
                         />
                         <div className="min-w-0">
@@ -240,7 +209,7 @@ export default function CopyTradingCarousel() {
                           <p className="text-xs mt-0.5 text-penny-text-muted">
                             Leverage{" "}
                             <span className="text-white font-semibold">
-                              {Math.max(1, Math.round((trader.percentage ?? 0) * 5))}x
+                              {trader.leverage ?? 1}x
                             </span>
                           </p>
                         </div>
@@ -256,7 +225,7 @@ export default function CopyTradingCarousel() {
                           {trader.currency || "USD"}/USDT
                         </span>
                         <span className="text-sm font-bold text-penny-accent">
-                          {winRateFor(trader.traderName)}% win rate
+                          {(trader.winrate ?? 0).toFixed(0)}% win rate
                         </span>
                       </div>
 
@@ -266,9 +235,11 @@ export default function CopyTradingCarousel() {
                           Last 6 Trades
                         </p>
                         <div className="grid grid-cols-6 gap-1.5">
-                          {mockTradeHistory(trader.traderName, 6).map((v, i) => (
-                            <TradePill key={i} value={v} />
-                          ))}
+                          {(trader.last_10_trades ?? [])
+                            .slice(0, 6)
+                            .map((v, i) => (
+                              <TradePill key={i} value={v} />
+                            ))}
                         </div>
                       </div>
 

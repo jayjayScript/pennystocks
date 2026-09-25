@@ -136,6 +136,50 @@ export default function UserDetailPage() {
   const adminMut = useToggleUserAdmin();
   const qc = useQueryClient();
 
+  // ── Edit PnL state ─────────────────────────────────────────────────────────
+  const [editingPnlTrade, setEditingPnlTrade] = useState<CopyTradePurchase | null>(null);
+  const [pnlInput, setPnlInput] = useState("");
+  const [pnlError, setPnlError] = useState("");
+  const [isSavingPnl, setIsSavingPnl] = useState(false);
+
+  const openPnlEdit = (trade: CopyTradePurchase) => {
+    setEditingPnlTrade(trade);
+    setPnlInput(trade.pnl !== undefined && trade.pnl !== null ? String(trade.pnl) : "0");
+    setPnlError("");
+  };
+
+  const closePnlEdit = () => {
+    if (!isSavingPnl) {
+      setEditingPnlTrade(null);
+      setPnlInput("");
+      setPnlError("");
+    }
+  };
+
+  const handleSavePnl = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingPnlTrade) return;
+    const num = parseFloat(pnlInput);
+    if (isNaN(num)) {
+      setPnlError("Please enter a valid number for PnL");
+      return;
+    }
+    setIsSavingPnl(true);
+    setPnlError("");
+    try {
+      await adminApi.updateCopyTradePurchase(editingPnlTrade._id, { pnl: num });
+      qc.invalidateQueries({ queryKey: ["admin", "user-copy-trade-purchases", userId] });
+      qc.invalidateQueries({ queryKey: ["admin", "copy-trade-purchases"] });
+      qc.invalidateQueries({ queryKey: ["admin", "users"] });
+      qc.invalidateQueries({ queryKey: ["admin", "users", userId, "copy-trades"] });
+      setEditingPnlTrade(null);
+    } catch (err) {
+      setPnlError(err instanceof Error ? err.message : "Failed to update PnL.");
+    } finally {
+      setIsSavingPnl(false);
+    }
+  };
+
   const openEdit = () => {
     setEditForm({
       firstName: user?.firstName ?? "",
@@ -425,6 +469,112 @@ export default function UserDetailPage() {
         </>
       )}
 
+      {/* Edit PnL Modal */}
+      {editingPnlTrade && (
+        <>
+          <div className="fixed inset-0 z-[60] bg-black/80" onClick={closePnlEdit} />
+          <div
+            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[60] w-[95%] sm:w-[420px] rounded-2xl p-5 sm:p-6"
+            style={{ background: "#151d2d", border: "1px solid #252f45" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-base sm:text-lg font-bold text-white">Edit Live Profit (PnL)</h2>
+                <p className="text-xs" style={{ color: "#6b7785" }}>
+                  {editingPnlTrade.traderName} · Invested: {formatUSD(editingPnlTrade.amountInvested)}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closePnlEdit}
+                disabled={isSavingPnl}
+                className="p-2 rounded-lg transition-colors cursor-pointer"
+                style={{ background: "#0d1624" }}
+              >
+                <Icon icon="mdi:close" width={18} style={{ color: "#9aa3b0" }} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSavePnl} className="space-y-4">
+              <div className="p-3 rounded-xl flex items-center justify-between" style={{ background: "#0d1624", border: "1px solid #252f45" }}>
+                <span className="text-xs" style={{ color: "#6b7785" }}>Current PnL:</span>
+                <span className="text-sm font-bold" style={{ color: (editingPnlTrade.pnl ?? 0) >= 0 ? "#00d4a1" : "#F44336" }}>
+                  {(editingPnlTrade.pnl ?? 0) >= 0 ? "+" : ""}{formatUSD(editingPnlTrade.pnl ?? 0)}
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] sm:text-xs font-semibold" style={{ color: "#6b7785" }}>
+                  New PnL ($) <span className="font-normal">(positive or negative)</span>
+                </label>
+                <input
+                  type="number"
+                  step="any"
+                  required
+                  value={pnlInput}
+                  onChange={(e) => {
+                    setPnlInput(e.target.value);
+                    setPnlError("");
+                  }}
+                  placeholder="e.g. 150.00 or -25.50"
+                  className="w-full px-4 py-2.5 rounded-xl text-sm"
+                  style={{ background: "#0d1624", border: `1px solid ${pnlError ? "#F44336" : "#252f45"}`, color: "white" }}
+                  autoFocus
+                />
+              </div>
+
+              {pnlInput && !isNaN(parseFloat(pnlInput)) && editingPnlTrade.amountInvested > 0 && (
+                <div className="text-xs flex justify-between px-1" style={{ color: "#9aa3b0" }}>
+                  <span>Return Rate:</span>
+                  <span className="font-semibold" style={{ color: parseFloat(pnlInput) >= 0 ? "#00d4a1" : "#F44336" }}>
+                    {parseFloat(pnlInput) >= 0 ? "+" : ""}
+                    {((parseFloat(pnlInput) / editingPnlTrade.amountInvested) * 100).toFixed(2)}%
+                  </span>
+                </div>
+              )}
+
+              {pnlError && (
+                <div
+                  className="flex items-start gap-2 p-3 rounded-xl text-xs"
+                  style={{ background: "rgba(244,67,54,0.1)", border: "1px solid rgba(244,67,54,0.3)", color: "#F44336" }}
+                >
+                  <Icon icon="mdi:alert-circle" width={16} className="shrink-0 mt-0.5" />
+                  <span>{pnlError}</span>
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={closePnlEdit}
+                  disabled={isSavingPnl}
+                  className="flex-1 py-2.5 rounded-xl font-semibold text-sm transition-colors cursor-pointer"
+                  style={{ background: "#0d1624", color: "#9aa3b0", border: "1px solid #252f45" }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingPnl}
+                  className="flex-1 py-2.5 rounded-xl font-bold text-sm transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                  style={{ background: "#00d4a1", color: "#0d1624" }}
+                >
+                  {isSavingPnl ? (
+                    <>
+                      <Icon icon="mdi:loading" width={16} className="animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Save PnL"
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </>
+      )}
+
       <div className="p-3 sm:p-4 md:p-6 space-y-4 sm:space-y-6 max-w-7xl">
         {/* Back Button */}
         <button
@@ -691,6 +841,8 @@ export default function UserDetailPage() {
             <div className="space-y-2 max-h-64 overflow-y-auto">
               {copyTradesData.map((trade) => {
                 const isActive = trade.status !== "liquidated";
+                const pnl = trade.pnl ?? 0;
+                const isProfitable = pnl >= 0;
                 return (
                   <div key={trade._id} className="flex items-center justify-between p-2 sm:p-3 rounded-lg" style={{ background: "#0d1624" }}>
                     <div className="flex items-center gap-2 sm:gap-3 min-w-0">
@@ -704,17 +856,40 @@ export default function UserDetailPage() {
                         </p>
                       </div>
                     </div>
-                    <div className="text-right shrink-0 ml-2">
-                      <p className="text-xs sm:text-sm font-bold text-white">{formatUSD(trade.amountInvested)}</p>
-                      <span
-                        className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
-                        style={{
-                          background: isActive ? "rgba(76,175,80,0.12)" : "rgba(107,119,133,0.12)",
-                          color: isActive ? "#4CAF50" : "#6b7785",
-                        }}
+                    <div className="flex items-center gap-2 sm:gap-3 shrink-0 ml-2">
+                      <div className="text-right">
+                        <p className="text-xs sm:text-sm font-bold text-white">{formatUSD(trade.amountInvested)}</p>
+                        <div className="flex items-center justify-end gap-1.5 mt-0.5">
+                          <span
+                            className="text-[10px] font-bold px-1.5 py-0.5 rounded"
+                            style={{
+                              background: isProfitable ? "rgba(0,212,161,0.1)" : "rgba(244,67,54,0.1)",
+                              color: isProfitable ? "#00d4a1" : "#F44336",
+                            }}
+                          >
+                            PnL: {isProfitable ? "+" : ""}{formatUSD(pnl)}
+                          </span>
+                          <span
+                            className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                            style={{
+                              background: isActive ? "rgba(76,175,80,0.12)" : "rgba(107,119,133,0.12)",
+                              color: isActive ? "#4CAF50" : "#6b7785",
+                            }}
+                          >
+                            {trade.status ?? "active"}
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => openPnlEdit(trade)}
+                        title="Edit PnL"
+                        className="p-1.5 sm:p-2 rounded-lg text-xs font-semibold transition-colors cursor-pointer flex items-center gap-1"
+                        style={{ background: "rgba(0,212,161,0.1)", color: "#00d4a1" }}
                       >
-                        {trade.status ?? "active"}
-                      </span>
+                        <Icon icon="mdi:pencil" width={14} />
+                        <span className="hidden sm:inline">Edit PnL</span>
+                      </button>
                     </div>
                   </div>
                 );

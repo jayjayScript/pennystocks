@@ -2,7 +2,6 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { useParams, useRouter } from "next/navigation";
 import { Icon } from "@iconify/react";
 import { Badge } from "@/components/ui/Badge";
@@ -160,22 +159,6 @@ export default function PortfolioStockDetail() {
           <p className="text-xl font-bold text-penny-accent">{asset.value}</p>
         </Card>
       </div>
-
-      {/* Chart preview */}
-      <Card padding="none" variant="surface" className="h-64 md:h-80 flex items-center justify-center relative overflow-hidden flex-col group border-0">
-        <Image
-          src="/images/chart-preview.png"
-          alt={`${asset.symbol} Performance Chart`}
-          fill
-          style={{ objectFit: "cover", opacity: 0.9 }}
-          priority
-          className="transition-opacity duration-300 group-hover:opacity-100"
-        />
-        <div className="absolute top-4 right-4 bg-penny-bg-base/80 backdrop-blur-md px-3 py-1.5 rounded-lg border border-penny-border-default flex items-center gap-2 z-10">
-          <span className="w-2 h-2 rounded-full bg-penny-accent animate-pulse" />
-          <span className="text-white text-xs font-medium">{asset.pct} 24h</span>
-        </div>
-      </Card>
 
       {/* Description & Trade */}
       <div className="grid md:grid-cols-3 gap-6">

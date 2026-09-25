@@ -16,6 +16,7 @@ import WithdrawCopyWalletModal from "@/components/modals/WithdrawCopyWalletModal
 import { useCopyTrading as useCopyTradingQuery, useUserProfile } from "@/hooks/queries";
 import { useCopyTrading } from "@/context/CopyTradingContext";
 import { copyTradingApi } from "@/lib/api/backend";
+import { flagFromCountryCode } from "@/lib/copyTradeMeta";
 import type { CopyTrading, CopyTradePurchase } from "@/types/api";
 
 function formatUSD(val: number): string {
@@ -34,14 +35,14 @@ interface ActiveCopyTrade {
     coin: { symbol: string };
     leverage: number;
   };
+  country?: string;
+  winrate: number;
   investedAmount: number;
   pnl: number;
   pnlPercent: number;
-  status: "active" | "paused";
 }
 
-// Country flags cycled for display — the backend trader record has no country field.
-const COUNTRY_FLAGS = ["🇺🇸", "🇬🇧", "🇯🇵", "🇩🇪", "🇸🇬", "🇦🇪", "🇨🇦", "🇦🇺"];
+// Country flag resolved from the backend `country` field (falls back to the globe).
 
 function formatInitials(name?: string): string {
   if (!name) return "??";
@@ -55,33 +56,8 @@ function formatInitials(name?: string): string {
   );
 }
 
-/** Deterministic pseudo-random in [0, 1) seeded by a string — keeps mock stats stable across renders. */
-function seededUnit(seed: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < seed.length; i++) {
-    h ^= seed.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return ((h >>> 0) % 100000) / 100000;
-}
-
-function flagFor(seed: string): string {
-  return COUNTRY_FLAGS[Math.floor(seededUnit(seed) * COUNTRY_FLAGS.length) % COUNTRY_FLAGS.length];
-}
-
-/** Build a stable list of the last N trade profit percentages (as shown in the reference design). */
-function mockTradeHistory(seed: string, count = 10): number[] {
-  return Array.from({ length: count }, (_, i) => {
-    const u = seededUnit(`${seed}-${i}`);
-    // Mostly winning trades with a few small losers, like the reference cards.
-    return u > 0.85 ? -+(u * 4).toFixed(1) : +(1 + u * 35).toFixed(1);
-  });
-}
-
-/** Win rate derived from the mock trade history — always reads as a confident %. */
-function winRateFor(seed: string): number {
-  const u = seededUnit(`win-${seed}`);
-  return Math.round(65 + u * 34);
+function flagFor(country?: string): string {
+  return flagFromCountryCode(country);
 }
 
 // ─── Shared trading-card atoms (mirrors the reference design) ───────────────────
@@ -98,7 +74,13 @@ function VerifiedBadge() {
   );
 }
 
-function TraderAvatar({ seed, label }: { seed: string; label: string }) {
+function TraderAvatar({
+  country,
+  label,
+}: {
+  country?: string;
+  label: string;
+}) {
   return (
     <div className="relative shrink-0">
       <div
@@ -111,7 +93,7 @@ function TraderAvatar({ seed, label }: { seed: string; label: string }) {
         className="absolute -bottom-1.5 -right-1.5 w-6 h-6 rounded-lg flex items-center justify-center text-[13px]"
         style={{ background: "#0d1624", border: "1px solid #2d3a52" }}
       >
-        {flagFor(seed)}
+        {flagFor(country)}
       </span>
     </div>
   );
@@ -135,7 +117,7 @@ function TradePill({ value }: { value: number }) {
   const up = value >= 0;
   return (
     <span
-      className="text-[11px] font-bold px-2 py-1 rounded-md text-center"
+      className="text-[8px] font-bold px-2 py-1 rounded-md text-center"
       style={{
         background: up ? "rgba(0,212,161,0.10)" : "rgba(244,67,54,0.10)",
         color: up ? "#00d4a1" : "#F44336",
@@ -159,21 +141,17 @@ export default function CopyTradingDetailPage() {
     queryFn: () => copyTradingApi.mine(),
   });
 
-  const [pausedTradeIds, setPausedTradeIds] = useState<string[]>([]);
+  // const [pausedTradeIds, setPausedTradeIds] = useState<string[]>([]);
 
-  const activeSetups: CopyTrading[] = useMemo(() => {
-    const arr = Array.isArray(rawSetups)
-      ? rawSetups
-      : ((rawSetups as unknown as { data?: CopyTrading[] })?.data ?? []);
-    return arr.filter((s) => s.isActive !== false);
-  }, [rawSetups]);
+  const activeSetups: CopyTrading[] = useMemo(
+    () => (rawSetups ?? []).filter((s) => s.isActive !== false),
+    [rawSetups],
+  );
 
-  const myPurchases: CopyTradePurchase[] = useMemo(() => {
-    return Array.isArray(rawPurchases)
-      ? rawPurchases
-      : ((rawPurchases as unknown as { data?: CopyTradePurchase[] })?.data ??
-          []);
-  }, [rawPurchases]);
+  const myPurchases: CopyTradePurchase[] = useMemo(
+    () => rawPurchases ?? [],
+    [rawPurchases],
+  );
 
   const activeCopyTrades: ActiveCopyTrade[] = useMemo(() => {
     return myPurchases
@@ -183,10 +161,9 @@ export default function CopyTradingDetailPage() {
           typeof p.copyTradingId === "string"
             ? p.copyTradingId
             : (p.copyTradingId?._id ?? p._id);
-        const pnlPercent = p.rateOfChange ?? 0;
+        const pnl = p.pnl ?? 0;
         const invested = p.amountInvested ?? 0;
-        const pnl = (invested * pnlPercent) / 100;
-        const isPaused = pausedTradeIds.includes(p._id);
+        const pnlPercent = invested > 0 ? (pnl / invested) * 100 : 0;
 
         return {
           id: p._id,
@@ -194,23 +171,27 @@ export default function CopyTradingDetailPage() {
           setup: {
             traderNickname: p.traderName || "Trader",
             coin: { symbol: p.currency || "USD" },
-            leverage: 1,
+            leverage: p.leverage || 1,
           },
           investedAmount: invested,
           pnl,
           pnlPercent,
-          status: isPaused ? ("paused" as const) : ("active" as const),
+          country: activeSetups.find((s) => s._id === setupId)?.country,
+          winrate: p.winrate ?? 0,
         };
       });
-  }, [myPurchases, pausedTradeIds]);
+  }, [myPurchases, activeSetups]);
 
   const isLoading = isSetupsLoading || isPurchasesLoading;
 
   const buyCopyTrade = useCallback(
-    async (setupId: string) => {
+    async (setupId: string, amountInvested: number) => {
       const setup = activeSetups.find((s) => s._id === setupId);
       if (!setup) return { success: false, message: "Trader not found" };
-      if (copyWalletBalance < setup.copyTradePrice) {
+      if (!amountInvested || amountInvested <= 0) {
+        return { success: false, message: "Enter a valid amount to invest." };
+      }
+      if (copyWalletBalance < amountInvested) {
         return {
           success: false,
           message:
@@ -218,7 +199,7 @@ export default function CopyTradingDetailPage() {
         };
       }
       try {
-        await copyTradingApi.buy(setup._id, setup.copyTradePrice);
+        await copyTradingApi.buy(setup._id, amountInvested);
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: ["my-copy-trades"] }),
           queryClient.invalidateQueries({ queryKey: ["user-profile"] }),
@@ -263,13 +244,7 @@ export default function CopyTradingDetailPage() {
     [queryClient],
   );
 
-  const pauseCopyTrade = (id: string) => {
-    setPausedTradeIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
-  };
-
-  const resumeCopyTrade = (id: string) => {
-    setPausedTradeIds((prev) => prev.filter((item) => item !== id));
-  };
+  // Pause/Resume feature removed — trades are either active or liquidated.
 
   const getActiveTradeBySetupId = (setupId: string) => {
     return activeCopyTrades.find((t) => t.setupId === setupId);
@@ -286,6 +261,7 @@ export default function CopyTradingDetailPage() {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTraderId, setSelectedTraderId] = useState<string | null>(null);
+  const [investAmount, setInvestAmount] = useState("100");
   const [showTopUp, setShowTopUp] = useState(false);
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [addFundsTrade, setAddFundsTrade] = useState<ActiveCopyTrade | null>(
@@ -303,7 +279,10 @@ export default function CopyTradingDetailPage() {
 
   const handleConfirmCopy = async () => {
     if (!selectedTrader) return;
-    const result = await buyCopyTrade(selectedTrader._id);
+    const result = await buyCopyTrade(
+      selectedTrader._id,
+      parseFloat(investAmount) || 0,
+    );
     showNotification(result.success ? "success" : "error", result.message);
     setIsModalOpen(false);
     setSelectedTraderId(null);
@@ -419,18 +398,18 @@ export default function CopyTradingDetailPage() {
         </header>
 
         <div className="flex-1 flex flex-col items-center justify-center mb-4 px-2">
-          <div className="text-center space-y-3 mb-8">
+          {/* <div className="text-center space-y-3 mb-8">
             <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tighter">
               Copy Trading
             </h1>
             <p className="text-penny-text-muted text-sm max-w-sm mx-auto leading-relaxed">
               Follow proven traders, Copy their moves, Earn with strategy.
             </p>
-          </div>
+          </div> */}
 
           {/* Your Active Copy Trades */}
           {activeCopyTrades.length > 0 && (
-            <div className="w-full max-w-6xl mb-10 px-4">
+            <div className="w-full max-w-3xl mb-10 px-4">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-black text-white tracking-tight">
                   Your Active Copy Trades ({activeCopyTrades.length})
@@ -441,7 +420,7 @@ export default function CopyTradingDetailPage() {
                   return (
                     <div
                       key={trade.id}
-                      className="rounded-2xl relative overflow-hidden flex flex-col"
+                      className="rounded-2xl relative overflow-hidden p-3.5 flex flex-col"
                       style={{
                         background: "#0f1624",
                         border: "1px solid rgba(0,212,161,0.45)",
@@ -449,10 +428,10 @@ export default function CopyTradingDetailPage() {
                       }}
                     >
                       {/* Header: avatar + name + LIVE pill */}
-                      <div className="p-5 flex items-start justify-between gap-3">
-                        <div className="flex items-center gap-3.5 min-w-0">
+                      <div className="p-3 flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
                           <TraderAvatar
-                            seed={trade.setup.traderNickname}
+                            country={trade.country}
                             label={trade.setup.traderNickname
                               .substring(0, 2)
                               .toUpperCase()}
@@ -464,55 +443,43 @@ export default function CopyTradingDetailPage() {
                               </p>
                               <VerifiedBadge />
                             </div>
-                            <p className="text-xs mt-0.5" style={{ color: "#9aa3b0" }}>
+                            <p className="text-[9px] mt-0.5" style={{ color: "#9aa3b0" }}>
                               Leverage{" "}
                               <span className="text-white font-semibold">
-                                {trade.setup.leverage}x
-                              </span>
-                            </p>
-                          </div>
-                        </div>
+                                {    trade.setup.leverage}x
+                                      </span>
+                                    </p>
+                                  </div>
+                                </div>
 
-                        {trade.status === "paused" ? (
+                        <span
+                          className="inline-flex items-center gap-1 text-[9px] font-black tracking-widest px-2.5 py-1 rounded-full shrink-0"
+                          style={{
+                            background: "rgba(0,212,161,0.12)",
+                            color: "#00d4a1",
+                          }}
+                        >
                           <span
-                            className="inline-flex items-center gap-1.5 text-[10px] font-black tracking-widest px-3 py-1.5 rounded-full shrink-0"
-                            style={{
-                              background: "rgba(245,197,24,0.12)",
-                              color: "#F5C518",
-                            }}
-                          >
-                            PAUSED
-                          </span>
-                        ) : (
-                          <span
-                            className="inline-flex items-center gap-1.5 text-[10px] font-black tracking-widest px-3 py-1.5 rounded-full shrink-0"
-                            style={{
-                              background: "rgba(0,212,161,0.12)",
-                              color: "#00d4a1",
-                            }}
-                          >
-                            <span
-                              className="w-1.5 h-1.5 rounded-full animate-pulse"
-                              style={{ background: "#00d4a1" }}
-                            />
-                            LIVE
-                          </span>
-                        )}
+                            className="w-1 h-1 rounded-full animate-pulse"
+                            style={{ background: "#00d4a1" }}
+                          />
+                          LIVE
+                        </span>
                       </div>
 
                       {/* Coin pill + win rate */}
-                      <div className="px-5 flex items-center justify-between gap-3">
+                      <div className="px-3 flex items-center justify-between gap-2">
                         <CoinPill symbol={trade.setup.coin.symbol} live />
                         <span
                           className="text-sm font-bold"
                           style={{ color: "#00d4a1" }}
                         >
-                          {winRateFor(trade.setup.traderNickname)}% win rate
+                          {trade.winrate ?? 0}% win rate
                         </span>
                       </div>
 
                       {/* Live profit hero */}
-                      <div className="px-5 pt-1 mt-auto">
+                      <div className="px-3 pt-0.5 mt-auto">
                         <p
                           className="text-[10px] font-bold uppercase tracking-widest mb-1"
                           style={{ color: "#6b7785" }}
@@ -521,18 +488,18 @@ export default function CopyTradingDetailPage() {
                         </p>
                         <p
                           className="text-2xl font-black tracking-tight"
-                          style={{ color: "#00d4a1" }}
+                          style={{ color: trade.pnl >= 0 ? "#00d4a1" : "#F44336" }}
                         >
                           {trade.pnl >= 0 ? "+" : ""}
                           {formatCopyUSD(trade.pnl)}
                         </p>
-                        <p className="text-[11px] mt-0.5" style={{ color: "#6b7785" }}>
+                        <p className="text-[10px] mt-0.5" style={{ color: "#6b7785" }}>
                           of {formatCopyUSD(trade.investedAmount)} invested
                         </p>
                       </div>
 
                       {/* Actions */}
-                      <div className="p-5 pt-4 grid grid-cols-3 gap-2">
+                      <div className="p-3 pt-2 grid grid-cols-2 gap-2">
                         <button
                           onClick={() => setAddFundsTrade(trade)}
                           className="h-11 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 whitespace-nowrap transition-all cursor-pointer hover:brightness-110 active:scale-[0.97]"
@@ -545,42 +512,8 @@ export default function CopyTradingDetailPage() {
                           Add Funds
                         </button>
 
-                        {trade.status === "active" ? (
-                          <button
-                            onClick={() => pauseCopyTrade(trade.id)}
-                            className="h-11 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 whitespace-nowrap transition-all cursor-pointer hover:brightness-125 active:scale-[0.97]"
-                            style={{
-                              background: "#151d2d",
-                              color: "#e8eaed",
-                              border: "1px solid #252f45",
-                            }}
-                          >
-                            <Icon icon="mdi:pause" width={16} />
-                            Pause
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => resumeCopyTrade(trade.id)}
-                            className="h-11 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 whitespace-nowrap transition-all cursor-pointer hover:brightness-125 active:scale-[0.97]"
-                            style={{
-                              background: "rgba(76,175,80,0.12)",
-                              color: "#4CAF50",
-                              border: "1px solid rgba(76,175,80,0.25)",
-                            }}
-                          >
-                            <Icon icon="mdi:play" width={16} />
-                            Resume
-                          </button>
-                        )}
-
                         <button
-                          onClick={async () => {
-                            const result = await stopCopyTrade(trade.id);
-                            showNotification(
-                              result.success ? "success" : "error",
-                              result.message,
-                            );
-                          }}
+                          onClick={() => stopCopyTrade(trade.id)}
                           className="h-11 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 whitespace-nowrap transition-all cursor-pointer hover:brightness-110 active:scale-[0.97]"
                           style={{
                             background: "#F44336",
@@ -588,7 +521,7 @@ export default function CopyTradingDetailPage() {
                           }}
                         >
                           <Icon icon="mdi:logout-variant" width={16} />
-                          Liquidate
+                          Stop
                         </button>
                       </div>
                     </div>
@@ -641,7 +574,7 @@ export default function CopyTradingDetailPage() {
               )}
 
               {/* Carousel */}
-              <div className="w-full max-w-7xl relative group h-full">
+              <div className="w-full max-w-3xl relative group h-full">
                 {activeSetups.length > 1 && (
                   <>
                     <button
@@ -676,11 +609,11 @@ export default function CopyTradingDetailPage() {
                                 : "opacity-60"
                             }`}
                           >
-                            <div className="p-6 flex flex-col gap-5 h-full">
+                            <div className="flex flex-col gap-5 h-full">
                               {/* Header: avatar + name + verified */}
                               <div className="flex items-center gap-3.5">
                                 <TraderAvatar
-                                  seed={trader.traderName}
+                                  country={trader.country}
                                   label={formatInitials(trader.traderName)}
                                 />
                                 <div className="min-w-0">
@@ -696,13 +629,7 @@ export default function CopyTradingDetailPage() {
                                   >
                                     Leverage{" "}
                                     <span className="text-white font-semibold">
-                                      {Math.max(
-                                        1,
-                                        Math.round(
-                                          (trader.percentage ?? 0) * 5,
-                                        ),
-                                      )}
-                                      x
+                                      {trader.leverage ?? 1}x
                                     </span>
                                   </p>
                                 </div>
@@ -715,7 +642,7 @@ export default function CopyTradingDetailPage() {
                                   className="text-sm font-bold"
                                   style={{ color: "#00d4a1" }}
                                 >
-                                  {winRateFor(trader.traderName)}% win rate
+                                  {(trader.winrate ?? 0).toFixed(0)}% win rate
                                 </span>
                               </div>
 
@@ -731,11 +658,11 @@ export default function CopyTradingDetailPage() {
                                   Last 10 Trades
                                 </p>
                                 <div className="grid grid-cols-6 gap-1.5">
-                                  {mockTradeHistory(trader.traderName, 10).map(
-                                    (v, i) => (
+                                  {(trader.last_10_trades ?? [])
+                                    .slice(0, 10)
+                                    .map((v, i) => (
                                       <TradePill key={i} value={v} />
-                                    ),
-                                  )}
+                                    ))}
                                 </div>
                               </div>
 
@@ -896,31 +823,17 @@ export default function CopyTradingDetailPage() {
                 </div>
                 {[
                   {
-                    label: "Copy Trade Price:",
-                    value: formatCopyUSD(selectedTrader.copyTradePrice),
-                    isBold: true,
+                    label: "Amount to Invest:",
+                    value: formatCopyUSD(parseFloat(investAmount) || 0),
                   },
                   {
-                    label: "Risk Level:",
-                    value:
-                      (selectedTrader.riskLevel || "low")
-                        .charAt(0)
-                        .toUpperCase() +
-                      (selectedTrader.riskLevel || "low").slice(1),
-                    colorClass:
-                      selectedTrader.riskLevel === "high"
-                        ? "text-penny-error"
-                        : selectedTrader.riskLevel === "medium"
-                          ? "text-penny-warning"
-                          : "text-penny-accent",
+                    label: "Win Rate:",
+                    value: `${(selectedTrader.winrate ?? 0).toFixed(0)}%`,
+                    colorClass: "text-penny-accent",
                   },
                   {
-                    label: "Current Profit:",
-                    value: `${(selectedTrader.rateOfChange ?? 0) >= 0 ? "+" : ""}${(selectedTrader.rateOfChange ?? 0).toFixed(2)}%`,
-                    colorClass:
-                      (selectedTrader.rateOfChange ?? 0) >= 0
-                        ? "text-penny-accent"
-                        : "text-penny-error",
+                    label: "Leverage:",
+                    value: `${selectedTrader.leverage ?? 1}x`,
                   },
                   {
                     label: "Duration:",
@@ -938,6 +851,25 @@ export default function CopyTradingDetailPage() {
                     </span>
                   </div>
                 ))}
+              </div>
+
+              <div className="space-y-2 relative z-10">
+                <label
+                  className="text-penny-text-muted font-medium text-[13px]"
+                  htmlFor="invest-amount"
+                >
+                  Amount to invest (from copy wallet)
+                </label>
+                <input
+                  id="invest-amount"
+                  type="number"
+                  min="1"
+                  step="0.01"
+                  value={investAmount}
+                  onChange={(e) => setInvestAmount(e.target.value)}
+                  className="w-full px-4 py-3 rounded-2xl bg-[#0d1624] border border-white/10 text-white font-bold text-lg"
+                  placeholder="100"
+                />
               </div>
 
               <div className="space-y-3 relative z-10">
