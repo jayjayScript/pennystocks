@@ -40,24 +40,8 @@ interface ActiveCopyTrade {
   status: "active" | "paused";
 }
 
-const riskColors: Record<string, { bg: string; text: string; border: string }> =
-  {
-    low: {
-      bg: "rgba(0,212,161,0.12)",
-      text: "#00d4a1",
-      border: "rgba(0,212,161,0.3)",
-    },
-    medium: {
-      bg: "rgba(245,197,24,0.12)",
-      text: "#F5C518",
-      border: "rgba(245,197,24,0.3)",
-    },
-    high: {
-      bg: "rgba(244,67,54,0.12)",
-      text: "#F44336",
-      border: "rgba(244,67,54,0.3)",
-    },
-  };
+// Country flags cycled for display — the backend trader record has no country field.
+const COUNTRY_FLAGS = ["🇺🇸", "🇬🇧", "🇯🇵", "🇩🇪", "🇸🇬", "🇦🇪", "🇨🇦", "🇦🇺"];
 
 function formatInitials(name?: string): string {
   if (!name) return "??";
@@ -68,6 +52,99 @@ function formatInitials(name?: string): string {
       .join("")
       .substring(0, 2)
       .toUpperCase() || "??"
+  );
+}
+
+/** Deterministic pseudo-random in [0, 1) seeded by a string — keeps mock stats stable across renders. */
+function seededUnit(seed: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i++) {
+    h ^= seed.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return ((h >>> 0) % 100000) / 100000;
+}
+
+function flagFor(seed: string): string {
+  return COUNTRY_FLAGS[Math.floor(seededUnit(seed) * COUNTRY_FLAGS.length) % COUNTRY_FLAGS.length];
+}
+
+/** Build a stable list of the last N trade profit percentages (as shown in the reference design). */
+function mockTradeHistory(seed: string, count = 10): number[] {
+  return Array.from({ length: count }, (_, i) => {
+    const u = seededUnit(`${seed}-${i}`);
+    // Mostly winning trades with a few small losers, like the reference cards.
+    return u > 0.85 ? -+(u * 4).toFixed(1) : +(1 + u * 35).toFixed(1);
+  });
+}
+
+/** Win rate derived from the mock trade history — always reads as a confident %. */
+function winRateFor(seed: string): number {
+  const u = seededUnit(`win-${seed}`);
+  return Math.round(65 + u * 34);
+}
+
+// ─── Shared trading-card atoms (mirrors the reference design) ───────────────────
+
+function VerifiedBadge() {
+  return (
+    <span
+      className="inline-flex items-center justify-center rounded-full shrink-0"
+      style={{ width: 15, height: 15, background: "#F5C518" }}
+      title="Verified trader"
+    >
+      <Icon icon="mdi:check-bold" width={10} style={{ color: "#0d1624" }} />
+    </span>
+  );
+}
+
+function TraderAvatar({ seed, label }: { seed: string; label: string }) {
+  return (
+    <div className="relative shrink-0">
+      <div
+        className="w-12 h-12 rounded-xl flex items-center justify-center text-base font-extrabold text-white shadow-inner"
+        style={{ background: "#1d2639", border: "1px solid #2d3a52" }}
+      >
+        {label}
+      </div>
+      <span
+        className="absolute -bottom-1.5 -right-1.5 w-6 h-6 rounded-lg flex items-center justify-center text-[13px]"
+        style={{ background: "#0d1624", border: "1px solid #2d3a52" }}
+      >
+        {flagFor(seed)}
+      </span>
+    </div>
+  );
+}
+
+function CoinPill({ symbol, live }: { symbol: string; live?: boolean }) {
+  const dotColor = live ? "#F5C518" : "#00d4a1";
+  return (
+    <span
+      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold text-white"
+      style={{ background: "#0d1624", border: "1px solid #252f45" }}
+    >
+      <span className="w-2 h-2 rounded-full shrink-0" style={{ background: dotColor }} />
+      {symbol}/USDT
+    </span>
+  );
+}
+
+/** A green/red rounded mini-pill showing a single trade's % result. */
+function TradePill({ value }: { value: number }) {
+  const up = value >= 0;
+  return (
+    <span
+      className="text-[11px] font-bold px-2 py-1 rounded-md text-center"
+      style={{
+        background: up ? "rgba(0,212,161,0.10)" : "rgba(244,67,54,0.10)",
+        color: up ? "#00d4a1" : "#F44336",
+        border: `1px solid ${up ? "rgba(0,212,161,0.35)" : "rgba(244,67,54,0.35)"}`,
+      }}
+    >
+      {up ? "+" : ""}
+      {value.toFixed(1)}%
+    </span>
   );
 }
 
@@ -353,52 +430,52 @@ export default function CopyTradingDetailPage() {
 
           {/* Your Active Copy Trades */}
           {activeCopyTrades.length > 0 && (
-            <div className="w-full max-w-5xl mb-10 px-4">
+            <div className="w-full max-w-6xl mb-10 px-4">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-black text-white tracking-tight">
                   Your Active Copy Trades ({activeCopyTrades.length})
                 </h2>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {activeCopyTrades.map((trade) => {
                   return (
                     <div
                       key={trade.id}
-                      className="rounded-2xl p-5 relative overflow-hidden"
+                      className="rounded-2xl relative overflow-hidden flex flex-col"
                       style={{
-                        background: "#151d2d",
-                        border: "1px solid #252f45",
+                        background: "#0f1624",
+                        border: "1px solid rgba(0,212,161,0.45)",
+                        boxShadow: "0 0 0 1px rgba(0,212,161,0.08)",
                       }}
                     >
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          <div
-                            className="w-11 h-11 rounded-full flex items-center justify-center text-sm font-bold text-white"
-                            style={{
-                              background: "rgba(0,212,161,0.1)",
-                              border: "1px solid rgba(0,212,161,0.3)",
-                            }}
-                          >
-                            {trade.setup.traderNickname
+                      {/* Header: avatar + name + LIVE pill */}
+                      <div className="p-5 flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3.5 min-w-0">
+                          <TraderAvatar
+                            seed={trade.setup.traderNickname}
+                            label={trade.setup.traderNickname
                               .substring(0, 2)
                               .toUpperCase()}
-                          </div>
-                          <div>
-                            <p className="text-white font-bold leading-tight">
-                              {trade.setup.traderNickname}
-                            </p>
-                            <p
-                              className="text-[10px] uppercase tracking-widest font-bold"
-                              style={{ color: "#6b7785" }}
-                            >
-                              {trade.setup.coin.symbol} • {trade.setup.leverage}
-                              x
+                          />
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-white font-bold text-lg leading-tight truncate">
+                                {trade.setup.traderNickname}
+                              </p>
+                              <VerifiedBadge />
+                            </div>
+                            <p className="text-xs mt-0.5" style={{ color: "#9aa3b0" }}>
+                              Leverage{" "}
+                              <span className="text-white font-semibold">
+                                {trade.setup.leverage}x
+                              </span>
                             </p>
                           </div>
                         </div>
-                        {trade.status === "paused" && (
+
+                        {trade.status === "paused" ? (
                           <span
-                            className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                            className="inline-flex items-center gap-1.5 text-[10px] font-black tracking-widest px-3 py-1.5 rounded-full shrink-0"
                             style={{
                               background: "rgba(245,197,24,0.12)",
                               color: "#F5C518",
@@ -406,101 +483,113 @@ export default function CopyTradingDetailPage() {
                           >
                             PAUSED
                           </span>
+                        ) : (
+                          <span
+                            className="inline-flex items-center gap-1.5 text-[10px] font-black tracking-widest px-3 py-1.5 rounded-full shrink-0"
+                            style={{
+                              background: "rgba(0,212,161,0.12)",
+                              color: "#00d4a1",
+                            }}
+                          >
+                            <span
+                              className="w-1.5 h-1.5 rounded-full animate-pulse"
+                              style={{ background: "#00d4a1" }}
+                            />
+                            LIVE
+                          </span>
                         )}
                       </div>
 
-                      <div className="space-y-1.5 mb-4">
-                        <div className="flex justify-between text-xs">
-                          <span style={{ color: "#6b7785" }}>Invested</span>
-                          <span className="text-white font-semibold">
-                            {formatCopyUSD(trade.investedAmount)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between text-xs">
-                          <span style={{ color: "#6b7785" }}>Current PnL</span>
-                          <span
-                            className="font-semibold"
-                            style={{
-                              color: trade.pnl >= 0 ? "#00D4A1" : "#F44336",
-                            }}
-                          >
-                            {trade.pnl >= 0 ? "+" : ""}
-                            {formatCopyUSD(trade.pnl)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between text-xs">
-                          <span style={{ color: "#6b7785" }}>PnL %</span>
-                          <span
-                            className="font-semibold"
-                            style={{
-                              color:
-                                trade.pnlPercent >= 0 ? "#00D4A1" : "#F44336",
-                            }}
-                          >
-                            {trade.pnlPercent >= 0 ? "+" : ""}
-                            {trade.pnlPercent.toFixed(2)}%
-                          </span>
-                        </div>
+                      {/* Coin pill + win rate */}
+                      <div className="px-5 flex items-center justify-between gap-3">
+                        <CoinPill symbol={trade.setup.coin.symbol} live />
+                        <span
+                          className="text-sm font-bold"
+                          style={{ color: "#00d4a1" }}
+                        >
+                          {winRateFor(trade.setup.traderNickname)}% win rate
+                        </span>
                       </div>
 
-                      <div className="space-y-2">
+                      {/* Live profit hero */}
+                      <div className="px-5 pt-1 mt-auto">
+                        <p
+                          className="text-[10px] font-bold uppercase tracking-widest mb-1"
+                          style={{ color: "#6b7785" }}
+                        >
+                          Live Profit
+                        </p>
+                        <p
+                          className="text-2xl font-black tracking-tight"
+                          style={{ color: "#00d4a1" }}
+                        >
+                          {trade.pnl >= 0 ? "+" : ""}
+                          {formatCopyUSD(trade.pnl)}
+                        </p>
+                        <p className="text-[11px] mt-0.5" style={{ color: "#6b7785" }}>
+                          of {formatCopyUSD(trade.investedAmount)} invested
+                        </p>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="p-5 pt-4 grid grid-cols-3 gap-2">
                         <button
                           onClick={() => setAddFundsTrade(trade)}
-                          className="w-full h-10 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer hover:brightness-125 active:scale-[0.98]"
+                          className="h-11 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 whitespace-nowrap transition-all cursor-pointer hover:brightness-110 active:scale-[0.97]"
                           style={{
-                            background: "rgba(0,212,161,0.12)",
-                            color: "#00d4a1",
-                            border: "1px solid rgba(0,212,161,0.25)",
+                            background: "#00d4a1",
+                            color: "#0d1624",
                           }}
                         >
                           <Icon icon="mdi:plus-circle" width={16} />
                           Add Funds
                         </button>
 
-                        <div className="flex items-stretch gap-2">
-                          {trade.status === "active" ? (
-                            <button
-                              onClick={() => pauseCopyTrade(trade.id)}
-                              className="flex-1 h-10 rounded-xl text-xs font-bold transition-all cursor-pointer hover:bg-white/5 active:scale-[0.97]"
-                              style={{
-                                background: "#0d1624",
-                                color: "#9aa3b0",
-                                border: "1px solid #252f45",
-                              }}
-                            >
-                              Pause
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => resumeCopyTrade(trade.id)}
-                              className="flex-1 h-10 rounded-xl text-xs font-bold transition-all cursor-pointer hover:brightness-125 active:scale-[0.97]"
-                              style={{
-                                background: "rgba(76,175,80,0.12)",
-                                color: "#4CAF50",
-                                border: "1px solid rgba(76,175,80,0.25)",
-                              }}
-                            >
-                              Resume
-                            </button>
-                          )}
+                        {trade.status === "active" ? (
                           <button
-                            onClick={async () => {
-                              const result = await stopCopyTrade(trade.id);
-                              showNotification(
-                                result.success ? "success" : "error",
-                                result.message,
-                              );
-                            }}
-                            className="flex-1 h-10 rounded-xl text-xs font-bold transition-all cursor-pointer hover:brightness-125 active:scale-[0.97]"
+                            onClick={() => pauseCopyTrade(trade.id)}
+                            className="h-11 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 whitespace-nowrap transition-all cursor-pointer hover:brightness-125 active:scale-[0.97]"
                             style={{
-                              background: "rgba(244,67,54,0.12)",
-                              color: "#F44336",
-                              border: "1px solid rgba(244,67,54,0.25)",
+                              background: "#151d2d",
+                              color: "#e8eaed",
+                              border: "1px solid #252f45",
                             }}
                           >
-                            Stop
+                            <Icon icon="mdi:pause" width={16} />
+                            Pause
                           </button>
-                        </div>
+                        ) : (
+                          <button
+                            onClick={() => resumeCopyTrade(trade.id)}
+                            className="h-11 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 whitespace-nowrap transition-all cursor-pointer hover:brightness-125 active:scale-[0.97]"
+                            style={{
+                              background: "rgba(76,175,80,0.12)",
+                              color: "#4CAF50",
+                              border: "1px solid rgba(76,175,80,0.25)",
+                            }}
+                          >
+                            <Icon icon="mdi:play" width={16} />
+                            Resume
+                          </button>
+                        )}
+
+                        <button
+                          onClick={async () => {
+                            const result = await stopCopyTrade(trade.id);
+                            showNotification(
+                              result.success ? "success" : "error",
+                              result.message,
+                            );
+                          }}
+                          className="h-11 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 whitespace-nowrap transition-all cursor-pointer hover:brightness-110 active:scale-[0.97]"
+                          style={{
+                            background: "#F44336",
+                            color: "#ffffff",
+                          }}
+                        >
+                          <Icon icon="mdi:logout-variant" width={16} />
+                          Liquidate
+                        </button>
                       </div>
                     </div>
                   );
@@ -578,7 +667,7 @@ export default function CopyTradingDetailPage() {
                       return (
                         <div
                           key={trader._id}
-                          className="flex-[0_0_100%] min-w-0 sm:flex-[0_0_50%] lg:flex-[0_0_33.33%] px-4"
+                          className="flex-[0_0_100%] min-w-0 sm:flex-[0_0_80%] lg:flex-[0_0_52%] px-4"
                         >
                           <Card
                             className={`p-0 border-penny-border-default/50 bg-[#0B101B]/90 backdrop-blur-sm relative overflow-hidden shadow-2xl transition-all duration-500 scale-[0.98] ${
@@ -587,86 +676,89 @@ export default function CopyTradingDetailPage() {
                                 : "opacity-60"
                             }`}
                           >
-                            <div className="p-6 space-y-6">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                  <div className="w-12 h-12 rounded-full bg-penny-surface-3 border border-penny-border-default flex items-center justify-center text-lg font-extrabold text-white shadow-inner">
-                                    {formatInitials(trader.traderName)}
-                                  </div>
-                                  <div className="space-y-0.5">
-                                    <p className="text-white font-bold text-lg">
+                            <div className="p-6 flex flex-col gap-5 h-full">
+                              {/* Header: avatar + name + verified */}
+                              <div className="flex items-center gap-3.5">
+                                <TraderAvatar
+                                  seed={trader.traderName}
+                                  label={formatInitials(trader.traderName)}
+                                />
+                                <div className="min-w-0">
+                                  <div className="flex items-center gap-1.5">
+                                    <p className="text-white font-bold text-lg leading-tight truncate">
                                       {trader.traderName}
                                     </p>
-                                    <p className="text-penny-text-disabled text-[10px] uppercase font-bold tracking-widest">
-                                      Risk Level
-                                    </p>
+                                    <VerifiedBadge />
                                   </div>
+                                  <p
+                                    className="text-xs mt-0.5"
+                                    style={{ color: "#9aa3b0" }}
+                                  >
+                                    Leverage{" "}
+                                    <span className="text-white font-semibold">
+                                      {Math.max(
+                                        1,
+                                        Math.round(
+                                          (trader.percentage ?? 0) * 5,
+                                        ),
+                                      )}
+                                      x
+                                    </span>
+                                  </p>
                                 </div>
                               </div>
 
-                              <div className="flex items-center gap-2">
-                                {["low", "medium", "high"].map((lvl) => {
-                                  const c = riskColors[lvl];
-                                  const active = trader.riskLevel === lvl;
-                                  return (
-                                    <div
-                                      key={lvl}
-                                      className="text-[10px] font-bold px-3 py-1 rounded-full border transition-all"
-                                      style={{
-                                        background: active
-                                          ? c.bg
-                                          : "rgba(255,255,255,0.03)",
-                                        borderColor: active
-                                          ? c.border
-                                          : "rgba(255,255,255,0.1)",
-                                        color: active ? c.text : "#6b7785",
-                                      }}
-                                    >
-                                      {lvl.charAt(0).toUpperCase() +
-                                        lvl.slice(1)}
-                                    </div>
-                                  );
-                                })}
-                              </div>
-
-                              <div className="space-y-3">
-                                <div
-                                  className="text-4xl sm:text-6xl font-black tracking-tighter"
-                                  style={{
-                                    color:
-                                      (trader.rateOfChange ?? 0) >= 0
-                                        ? "#00D4A1"
-                                        : "#F44336",
-                                  }}
+                              {/* Coin pill + win rate */}
+                              <div className="flex items-center justify-between gap-3">
+                                <CoinPill symbol={trader.currency || "USD"} />
+                                <span
+                                  className="text-sm font-bold"
+                                  style={{ color: "#00d4a1" }}
                                 >
-                                  {(trader.rateOfChange ?? 0) >= 0 ? "+" : ""}
-                                  {(trader.rateOfChange ?? 0).toFixed(2)}%
-                                </div>
-                                <div className="inline-block px-4 py-1.5 rounded-full bg-penny-surface-2 border border-penny-border-subtle text-penny-text-secondary text-xs font-bold transition-colors">
-                                  {trader.duration || "N/A"}
+                                  {winRateFor(trader.traderName)}% win rate
+                                </span>
+                              </div>
+
+                              {/* Last 10 trades */}
+                              <div
+                                className="pt-4 border-t"
+                                style={{ borderColor: "#1d2639" }}
+                              >
+                                <p
+                                  className="text-[10px] font-bold uppercase tracking-widest mb-2.5"
+                                  style={{ color: "#6b7785" }}
+                                >
+                                  Last 10 Trades
+                                </p>
+                                <div className="grid grid-cols-6 gap-1.5">
+                                  {mockTradeHistory(trader.traderName, 10).map(
+                                    (v, i) => (
+                                      <TradePill key={i} value={v} />
+                                    ),
+                                  )}
                                 </div>
                               </div>
 
-                              <div className="grid grid-cols-2 gap-4 pb-6 border-b border-penny-border-subtle/30">
-                                <div className="space-y-1">
-                                  <p className="text-penny-text-disabled text-[10px] font-medium leading-none">
-                                    Average daily profit:
+                              {/* Trade percent + copy */}
+                              <div
+                                className="pt-4 border-t flex items-end justify-between gap-4 mt-auto"
+                                style={{ borderColor: "#1d2639" }}
+                              >
+                                <div>
+                                  <p
+                                    className="text-[10px] font-bold uppercase tracking-widest mb-1"
+                                    style={{ color: "#6b7785" }}
+                                  >
+                                    Trade Percent
                                   </p>
-                                  <p className="text-white font-bold text-sm">
-                                    {formatUSD(trader.averageDailyProfit ?? 0)}
+                                  <p className="text-2xl font-black text-white tracking-tight">
+                                    {Math.max(
+                                      1,
+                                      Math.round(trader.percentage ?? 0),
+                                    )}
+                                    %
                                   </p>
                                 </div>
-                                <div className="space-y-1">
-                                  <p className="text-penny-text-disabled text-[10px] font-medium leading-none">
-                                    Copies
-                                  </p>
-                                  <p className="text-white font-bold text-sm">
-                                    {(trader.purchases ?? 0).toLocaleString()}
-                                  </p>
-                                </div>
-                              </div>
-
-                              <div className="space-y-3">
                                 <Button
                                   onClick={() => {
                                     if (getActiveTradeBySetupId(trader._id)) {
@@ -678,16 +770,12 @@ export default function CopyTradingDetailPage() {
                                     }
                                     openModal(trader._id);
                                   }}
-                                  className="w-full h-14 rounded-2xl bg-white text-black font-black text-lg hover:bg-gray-100 transition-all active:scale-[0.98] shadow-lg shadow-black/20"
+                                  className="h-12 px-7 rounded-2xl bg-white text-black font-black text-sm hover:bg-gray-100 transition-all active:scale-[0.98] shadow-lg shadow-black/20"
                                 >
                                   {getActiveTradeBySetupId(trader._id)
                                     ? "Already Copied"
                                     : "Copy Trade"}
                                 </Button>
-                                <p className="text-center text-penny-text-disabled text-[11px] font-medium opacity-60">
-                                  Total assets:{" "}
-                                  {(trader.totalAssets ?? 0).toLocaleString()}
-                                </p>
                               </div>
                             </div>
                           </Card>

@@ -4,7 +4,8 @@ import React, { useState } from "react";
 
 import { Icon } from "@iconify/react";
 
-import { useStocks, useDeleteStock } from "@/hooks/queries";
+import { useStocks, useDeleteStock, useUpdateStock } from "@/hooks/queries";
+import type { Stock } from "@/types/api";
 
 const formatUSD = (n: number) =>
   new Intl.NumberFormat("en-US", {
@@ -12,13 +13,91 @@ const formatUSD = (n: number) =>
     currency: "USD",
   }).format(n);
 
+type EditForm = {
+  name: string;
+  acronym: string;
+  lastPrice: string;
+  change24h: string;
+  rateOfChange: string;
+  category: string;
+  exchange: string;
+  initialListingPrice: string;
+};
+
 export default function ListedStocksList() {
   const { data: stocksData, isLoading } = useStocks(1, 50);
 
   const deleteMut = useDeleteStock();
+  const updateMut = useUpdateStock();
 
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+
+  // Edit modal state
+  const [editingStock, setEditingStock] = useState<Stock | null>(null);
+  const [editForm, setEditForm] = useState<EditForm>({
+    name: "",
+    acronym: "",
+    lastPrice: "",
+    change24h: "",
+    rateOfChange: "",
+    category: "",
+    exchange: "",
+    initialListingPrice: "",
+  });
+  const [editError, setEditError] = useState("");
+
+  const openEdit = (stock: Stock) => {
+    setEditForm({
+      name: stock.name ?? "",
+      acronym: stock.acronym ?? "",
+      lastPrice: String(stock.lastPrice ?? ""),
+      change24h: String(stock.change24h ?? ""),
+      rateOfChange: String(stock.rateOfChange ?? ""),
+      category: stock.category ?? "",
+      exchange: stock.exchange ?? "",
+      initialListingPrice:
+        stock.initialListingPrice !== undefined
+          ? String(stock.initialListingPrice)
+          : "",
+    });
+    setEditError("");
+    setEditingStock(stock);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingStock) return;
+    setEditError("");
+
+    // Only send fields with a usable value; PATCH accepts a partial payload.
+    const data: Parameters<typeof updateMut.mutateAsync>[0]["data"] = {};
+    if (editForm.name.trim()) data.name = editForm.name.trim();
+    if (editForm.acronym.trim()) data.acronym = editForm.acronym.trim();
+    if (editForm.lastPrice.trim() !== "")
+      data.lastPrice = Number(editForm.lastPrice);
+    if (editForm.change24h.trim() !== "")
+      data.change24h = Number(editForm.change24h);
+    if (editForm.rateOfChange.trim() !== "")
+      data.rateOfChange = Number(editForm.rateOfChange);
+    if (editForm.category.trim()) data.category = editForm.category.trim();
+    if (editForm.exchange.trim()) data.exchange = editForm.exchange.trim();
+    if (editForm.initialListingPrice.trim() !== "")
+      data.initialListingPrice = Number(editForm.initialListingPrice);
+
+    if (Object.keys(data).length === 0) {
+      setEditError("Nothing to update.");
+      return;
+    }
+
+    try {
+      await updateMut.mutateAsync({ id: editingStock._id, data });
+      setEditingStock(null);
+    } catch (err) {
+      setEditError(
+        err instanceof Error ? err.message : "Failed to update stock.",
+      );
+    }
+  };
 
   const stocks = stocksData?.data ?? [];
 
@@ -222,6 +301,17 @@ export default function ListedStocksList() {
                     {/* Actions */}
                     <div className="flex w-full min-w-0 items-center gap-2 pt-1 md:w-auto md:justify-end md:pt-0">
                       <button
+                        onClick={() => openEdit(stock)}
+                        className="w-full rounded-lg px-3 py-2 text-xs font-semibold transition-colors cursor-pointer md:w-auto"
+                        style={{
+                          background: "rgba(0,212,161,0.1)",
+                          color: "#00d4a1",
+                          border: "1px solid rgba(0,212,161,0.2)",
+                        }}
+                      >
+                        Edit
+                      </button>
+                      <button
                         onClick={() => setDeleteConfirm(stock._id)}
                         className="w-full rounded-lg px-3 py-2 text-xs font-semibold transition-colors cursor-pointer md:w-auto"
                         style={{
@@ -240,6 +330,190 @@ export default function ListedStocksList() {
           </>
         )}
       </div>
+
+      {/* Edit Stock Modal */}
+      {editingStock && (
+        <>
+          <div
+            className="fixed inset-0 z-[60] bg-black/80"
+            onClick={() => (updateMut.isPending ? null : setEditingStock(null))}
+          />
+
+          <div
+            className="fixed left-1/2 top-1/2 z-[60] max-h-[90vh] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl p-5 sm:p-6"
+            style={{
+              background: "#151d2d",
+              border: "1px solid #252f45",
+            }}
+          >
+            <div className="mb-5 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-white">Edit Stock</h3>
+              <button
+                onClick={() => setEditingStock(null)}
+                className="rounded-lg p-2"
+                style={{ background: "#0d1624" }}
+              >
+                <Icon icon="mdi:close" width={18} style={{ color: "#9aa3b0" }} />
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                void handleSaveEdit();
+              }}
+              className="space-y-4"
+            >
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-semibold sm:text-xs" style={{ color: "#6b7785" }}>
+                    Name
+                  </label>
+                  <input
+                    value={editForm.name}
+                    onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))}
+                    className="w-full rounded-xl px-4 py-2.5 text-sm"
+                    style={{ background: "#0d1624", border: "1px solid #252f45", color: "white" }}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-semibold sm:text-xs" style={{ color: "#6b7785" }}>
+                    Ticker
+                  </label>
+                  <input
+                    value={editForm.acronym}
+                    onChange={(e) => setEditForm((f) => ({ ...f, acronym: e.target.value }))}
+                    className="w-full rounded-xl px-4 py-2.5 text-sm"
+                    style={{ background: "#0d1624", border: "1px solid #252f45", color: "white" }}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-semibold sm:text-xs" style={{ color: "#6b7785" }}>
+                    Last Price ($)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editForm.lastPrice}
+                    onChange={(e) => setEditForm((f) => ({ ...f, lastPrice: e.target.value }))}
+                    className="w-full rounded-xl px-4 py-2.5 text-sm"
+                    style={{ background: "#0d1624", border: "1px solid #252f45", color: "white" }}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-semibold sm:text-xs" style={{ color: "#6b7785" }}>
+                    Initial Listing Price ($)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editForm.initialListingPrice}
+                    onChange={(e) =>
+                      setEditForm((f) => ({ ...f, initialListingPrice: e.target.value }))
+                    }
+                    className="w-full rounded-xl px-4 py-2.5 text-sm"
+                    style={{ background: "#0d1624", border: "1px solid #252f45", color: "white" }}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-semibold sm:text-xs" style={{ color: "#6b7785" }}>
+                    24h Change ($)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editForm.change24h}
+                    onChange={(e) => setEditForm((f) => ({ ...f, change24h: e.target.value }))}
+                    className="w-full rounded-xl px-4 py-2.5 text-sm"
+                    style={{ background: "#0d1624", border: "1px solid #252f45", color: "white" }}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-semibold sm:text-xs" style={{ color: "#6b7785" }}>
+                    Rate of Change (%)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editForm.rateOfChange}
+                    onChange={(e) => setEditForm((f) => ({ ...f, rateOfChange: e.target.value }))}
+                    className="w-full rounded-xl px-4 py-2.5 text-sm"
+                    style={{ background: "#0d1624", border: "1px solid #252f45", color: "white" }}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-semibold sm:text-xs" style={{ color: "#6b7785" }}>
+                    Category
+                  </label>
+                  <input
+                    value={editForm.category}
+                    onChange={(e) => setEditForm((f) => ({ ...f, category: e.target.value }))}
+                    className="w-full rounded-xl px-4 py-2.5 text-sm"
+                    style={{ background: "#0d1624", border: "1px solid #252f45", color: "white" }}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-semibold sm:text-xs" style={{ color: "#6b7785" }}>
+                    Exchange
+                  </label>
+                  <input
+                    value={editForm.exchange}
+                    onChange={(e) => setEditForm((f) => ({ ...f, exchange: e.target.value }))}
+                    className="w-full rounded-xl px-4 py-2.5 text-sm"
+                    style={{ background: "#0d1624", border: "1px solid #252f45", color: "white" }}
+                  />
+                </div>
+              </div>
+
+              {editError && (
+                <div
+                  className="flex items-start gap-2 rounded-xl p-3 text-xs"
+                  style={{
+                    background: "rgba(244,67,54,0.1)",
+                    border: "1px solid rgba(244,67,54,0.3)",
+                    color: "#F44336",
+                  }}
+                >
+                  <Icon icon="mdi:alert-circle" width={16} className="mt-0.5 shrink-0" />
+                  <span>{editError}</span>
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingStock(null)}
+                  className="flex-1 rounded-xl py-3 font-bold"
+                  style={{
+                    background: "#0d1624",
+                    color: "#9aa3b0",
+                    border: "1px solid #252f45",
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={updateMut.isPending}
+                  className="flex-1 rounded-xl py-3 font-bold"
+                  style={{ background: "#00d4a1", color: "#0d1624" }}
+                >
+                  {updateMut.isPending ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </>
+      )}
 
       {/* Delete Confirm */}
       {deleteConfirm && (
