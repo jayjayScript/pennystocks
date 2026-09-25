@@ -45,6 +45,7 @@ export interface Stock {
   initialListingPrice?: number;
   category?: string;
   exchange?: string;
+  description?: string;
   change24h: number;
   rateOfChange: number;
   currency: string;
@@ -52,27 +53,28 @@ export interface Stock {
   updatedAt: string;
 }
 
-export type CreateStockPayload = Pick<Stock, "name" | "acronym" | "lastPrice" | "change24h" | "rateOfChange" | "initialListingPrice" | "category" | "exchange"> & { currency?: string };
+export type CreateStockPayload = Pick<Stock, "name" | "acronym" | "lastPrice" | "change24h" | "rateOfChange" | "initialListingPrice" | "category" | "exchange" | "description"> & { currency?: string };
 export type UpdateStockPayload = Partial<CreateStockPayload>;
 
 export interface CopyTrading {
   _id: string;
   traderName: string;
   riskLevel: RiskLevel;
-  rateOfChange: number;
+  leverage: number;
+  winrate: number;
+  country?: string;
+  last_10_trades: number[];
   duration: string;
-  averageDailyProfit: number;
   purchases: number;
   totalAssets: number;
   percentage: number;
-  copyTradePrice: number;
   currency: string;
   isActive?: boolean;
   createdAt: string;
   updatedAt: string;
 }
 
-export type CreateCopyTradingPayload = Omit<CopyTrading, "_id" | "currency" | "createdAt" | "updatedAt" | "isActive">;
+export type CreateCopyTradingPayload = Omit<CopyTrading, "_id" | "currency" | "createdAt" | "updatedAt" | "isActive" | "last_10_trades"> & { last_10_trades?: number[] };
 export type UpdateCopyTradingPayload = Partial<CreateCopyTradingPayload>;
 
 export interface CopyTradingPortfolio {
@@ -130,8 +132,9 @@ export interface CopyTradePurchase {
   traderName: string;
   riskLevel: RiskLevel;
   duration: string;
-  rateOfChange: number;
-  averageDailyProfit: number;
+  leverage: number;
+  winrate: number;
+  pnl: number;
   purchases: number;
   totalAssets: number;
   percentage: number;
@@ -152,6 +155,7 @@ export interface StockProposal {
   ticker: string;
   category: string;
   exchange: string;
+  description?: string;
   initialListingPrice: number;
   change24h: number;
   rateOfChange: number;
@@ -165,7 +169,7 @@ export interface StockProposal {
   updatedAt: string;
 }
 
-export type CreateStockProposalPayload = Pick<StockProposal, "companyName" | "ticker" | "category" | "exchange" | "initialListingPrice"> & Partial<Pick<StockProposal, "change24h" | "rateOfChange" | "currency">>;
+export type CreateStockProposalPayload = Pick<StockProposal, "companyName" | "ticker" | "category" | "exchange" | "initialListingPrice"> & Partial<Pick<StockProposal, "change24h" | "rateOfChange" | "currency" | "description">>;
 export type ApproveStockProposalPayload = Partial<CreateStockProposalPayload> & { lastPrice?: number };
 
 export interface Transaction {
@@ -224,6 +228,11 @@ export interface AdminStockPurchaseQuery {
   userId?: string;
   status?: StockPurchaseStatus;
 }
+
+export type UpdateCopyTradePurchasePayload = Partial<Pick<CopyTradePurchase,
+  "traderName" | "riskLevel" | "duration" | "leverage" | "winrate" | "pnl" |
+  "purchases" | "totalAssets" | "percentage" | "amountInvested" | "currency" |
+  "expiredAt" | "status" | "liquidatedAt" | "liquidationAmount" | "liquidationFee">>;
 
 export interface AdminCopyTradePurchaseQuery {
   page?: number;

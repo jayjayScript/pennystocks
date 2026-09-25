@@ -25,6 +25,7 @@ import type {
   Transaction,
   TransactionStatus,
   UpdateCopyTradingPayload,
+  UpdateCopyTradePurchasePayload,
   UpdateCopyTradingPortfolioPayload,
   UpdateStockPayload,
 } from "@/types/api";
@@ -263,6 +264,16 @@ export const adminApi = {
     ),
   copyTradingPortfolio: (userId: string) =>
     api<CopyTradingPortfolio>(`/admin/copy-trading-portfolios/${userId}`),
+  updateCopyTrading: (id: string, data: UpdateCopyTradingPayload) =>
+    api<CopyTrading>(`/admin/copy-trading/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  updateCopyTradePurchase: (id: string, data: UpdateCopyTradePurchasePayload) =>
+    api<CopyTradePurchase>(`/admin/copy-trade-purchases/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
   updateCopyTradingPortfolio: (
     id: string,
     data: UpdateCopyTradingPortfolioPayload,
