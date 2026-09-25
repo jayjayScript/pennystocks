@@ -6,6 +6,7 @@ import { useCopyTrading as useCopyTradingQuery } from "@/hooks/queries/useCopyTr
 import { useCopyTradingPortfolio } from "@/hooks/queries";
 import { usePortfolio } from "@/context/PortfolioContext";
 import { copyTradingApi } from "@/lib/api/backend";
+import { flagFromCountryCode } from "@/lib/copyTradeMeta";
 import type { CopyTradingPortfolio } from "@/types/api";
 
 interface CopyTradingContextValue {
@@ -22,7 +23,7 @@ interface CopyTradingContextValue {
   withdrawCopyWallet: (amount: number) => Promise<CopyTradeResult>;
   addToActiveTrade: (tradeId: string, amount: number) => void;
   buyCopyTrade: (setupId: string) => Promise<CopyTradeResult>;
-  stopCopyTrade: (activeTradeId: string) => CopyTradeResult;
+  stopCopyTrade: (activeTradeId: string) => Promise<CopyTradeResult>;
   pauseCopyTrade: (activeTradeId: string) => void;
   resumeCopyTrade: (activeTradeId: string) => void;
   simulateNewTrade: (activeTradeId: string) => void;
@@ -50,15 +51,15 @@ function toLocalSetup(backend: import("@/types/api").CopyTrading): CopyTradeSetu
   };
   return {
     id: backend._id,
-    coin: { symbol: backend.traderName, name: backend.traderName, bgColor: bgColors[backend.riskLevel] ?? "rgba(0,212,161,0.1)" },
+    coin: { symbol: backend.currency || "USD", name: backend.traderName, bgColor: bgColors[backend.riskLevel] ?? "rgba(0,212,161,0.1)" },
     traderNickname: backend.traderName,
     traderId: backend._id,
-    countryFlag: "🌐",
-    country: "Global",
-    leverage: 1,
+    countryFlag: flagFromCountryCode(backend.country),
+    country: backend.country || "Global",
+    leverage: backend.leverage ?? 1,
     // Plans have no fixed price; users choose the amount they want to invest.
     price: 0,
-    traderWinRate: backend.rateOfChange,
+    traderWinRate: backend.winrate ?? 0,
   };
 }
 
@@ -219,20 +220,33 @@ export function CopyTradingProvider({ children }: { children: React.ReactNode })
   );
 
   // ── Stop ─────────────────────────────────────────────────────────────────
-  const stopCopyTrade = useCallback((activeTradeId: string): CopyTradeResult => {
+  const stopCopyTrade = useCallback(async (activeTradeId: string): Promise<CopyTradeResult> => {
     const trade = activeCopyTrades.find((t) => t.id === activeTradeId);
     if (!trade) return { success: false, message: "Active copy trade not found." };
 
-    const returnAmount = trade.investedAmount + trade.pnl;
-    // Liquidation credits the copy wallet on the backend.
-    void refetchCopyPortfolio();
+    // The backend liquidates the purchase and credits the copy wallet.
+    try {
+      await copyTradingApi.liquidate(activeTradeId);
+    } catch (err) {
+      return {
+        success: false,
+        message: err instanceof Error ? err.message : "Failed to liquidate copy trade.",
+      };
+    }
+
+    await Promise.all([
+      refetchCopyPortfolio(),
+      queryClient.invalidateQueries({ queryKey: ["my-copy-trades"] }),
+      queryClient.invalidateQueries({ queryKey: ["transactions"] }),
+    ]);
     setActiveCopyTrades((prev) => prev.filter((t) => t.id !== activeTradeId));
 
+    const returnAmount = trade.investedAmount + trade.pnl;
     return {
       success: true,
       message: `Stopped copying ${trade.setup.traderNickname}. Returned ${formatUSD(returnAmount)} to your copy wallet.`,
     };
-  }, [activeCopyTrades, refetchCopyPortfolio]);
+  }, [activeCopyTrades, queryClient, refetchCopyPortfolio]);
 
   const pauseCopyTrade = useCallback((activeTradeId: string) => {
     setActiveCopyTrades((prev) =>

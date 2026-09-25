@@ -21,6 +21,7 @@ export default function CreateStockModal({ isOpen, onClose }: CreateStockModalPr
   const [initialListingPrice, setInitialListingPrice] = useState("");
   const [category, setCategory] = useState("Tech");
   const [exchange, setExchange] = useState("NASDAQ");
+  const [description, setDescription] = useState("");
   const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -34,6 +35,7 @@ export default function CreateStockModal({ isOpen, onClose }: CreateStockModalPr
       setInitialListingPrice("");
       setCategory("Tech");
       setExchange("NASDAQ");
+      setDescription("");
       setStatus("idle");
       setErrorMessage("");
     }
@@ -87,6 +89,7 @@ export default function CreateStockModal({ isOpen, onClose }: CreateStockModalPr
         category,
         exchange,
         currency: "USD",
+        ...(description.trim() ? { description: description.trim() } : {}),
       });
 
       setStatus("success");
@@ -266,6 +269,20 @@ export default function CreateStockModal({ isOpen, onClose }: CreateStockModalPr
                   </option>
                 ))}
               </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold mb-1.5" style={{ color: "#9aa3b0" }}>
+                Description
+              </label>
+              <textarea
+                rows={3}
+                placeholder="Briefly describe this company..."
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl text-sm resize-none"
+                style={{ background: "#0d1624", border: "1px solid #252f45", color: "white", outline: "none" }}
+              />
             </div>
 
             <div className="flex gap-3 pt-2">

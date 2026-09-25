@@ -7,7 +7,6 @@ import { Icon } from "@iconify/react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import StockPriceChart from "./StockPriceChart";
 import BuyModal from "@/components/modals/BuyModal";
 import { useStocks } from "@/hooks/queries";
 
@@ -34,17 +33,18 @@ export default function MarketplaceStockDetail() {
 
   const stock = apiStock
     ? {
-        _id: apiStock._id,
-        symbol: apiStock.acronym,
-        name: apiStock.name,
-        price: `$${apiStock.lastPrice.toFixed(2)}`,
-        change: `${apiStock.change24h >= 0 ? "+" : ""}${apiStock.change24h.toFixed(2)}`,
-        pct: `${apiStock.rateOfChange >= 0 ? "+" : ""}${apiStock.rateOfChange.toFixed(2)}%`,
-        up: apiStock.rateOfChange >= 0,
-        bgColor: ACCENT_PALETTE[Math.abs(apiStock.acronym.charCodeAt(0)) % ACCENT_PALETTE.length],
-        category: apiStock.category,
-        exchange: apiStock.exchange,
-      }
+      _id: apiStock._id,
+      symbol: apiStock.acronym,
+      name: apiStock.name,
+      price: `$${apiStock.lastPrice.toFixed(2)}`,
+      change: `${apiStock.change24h >= 0 ? "+" : ""}${apiStock.change24h.toFixed(2)}`,
+      pct: `${apiStock.rateOfChange >= 0 ? "+" : ""}${apiStock.rateOfChange.toFixed(2)}%`,
+      up: apiStock.rateOfChange >= 0,
+      bgColor: ACCENT_PALETTE[Math.abs(apiStock.acronym.charCodeAt(0)) % ACCENT_PALETTE.length],
+      category: apiStock.category,
+      exchange: apiStock.exchange,
+      description: apiStock.description,
+    }
     : null;
 
   if (isLoading) {
@@ -106,61 +106,6 @@ export default function MarketplaceStockDetail() {
         </div>
       </Card>
 
-      {/* Price Chart & Market Stats */}
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* Interactive Chart */}
-        <Card padding="none" variant="default" className="lg:col-span-2 flex flex-col">
-          <div className="flex items-center justify-between px-5 pt-5 pb-3">
-            <div>
-              <h2 className="text-white font-semibold text-base">Price Chart</h2>
-              <p className="text-penny-text-muted text-xs mt-0.5">Today · Simulated intraday data</p>
-            </div>
-            <Badge variant={stock.up ? "success" : "danger"} size="sm">{stock.pct}</Badge>
-          </div>
-          <div className="h-64 w-full px-1 pb-4">
-            <StockPriceChart symbol={stock.symbol} up={stock.up} basePrice={basePrice} />
-          </div>
-        </Card>
-
-        {/* Admin Image Gallery */}
-        <Card variant="default">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-white">Media &amp; Updates</h2>
-            <span className="text-xs text-penny-text-disabled bg-penny-surface-2 border border-penny-border-subtle px-2.5 py-1 rounded-full">Admin uploads</span>
-          </div>
-
-          {adminImages.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {adminImages.map((img, i) => (
-                <div key={i} className="relative group rounded-xl overflow-hidden border border-penny-border-subtle aspect-video bg-penny-surface-2">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={img.src} alt={img.caption} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-12 border-2 border-dashed border-penny-border-subtle rounded-2xl gap-3">
-              <div className="w-14 h-14 rounded-2xl bg-penny-surface-2 flex items-center justify-center">
-                <Icon icon="mdi:image-plus-outline" width={28} className="text-penny-text-muted" />
-              </div>
-              <p className="text-penny-text-muted text-sm font-medium">No images uploaded yet</p>
-              <p className="text-penny-text-disabled text-xs text-center max-w-xs">
-                Admins can upload charts, announcements and media for this asset from the admin panel.
-              </p>
-            </div>
-          )}
-        </Card>
-
-        {/* Market Stats */}
-        <Card variant="default" className="flex flex-col gap-4">
-          <h3 className="text-white font-semibold text-lg border-b border-penny-border-default pb-2">Market Stats</h3>
-          <div className="flex justify-between items-center"><span className="text-penny-text-muted text-sm">Market Cap</span><span className="text-white font-medium text-sm">$1.2T</span></div>
-          <div className="flex justify-between items-center"><span className="text-penny-text-muted text-sm">Volume (24h)</span><span className="text-white font-medium text-sm">$34.5B</span></div>
-          <div className="flex justify-between items-center"><span className="text-penny-text-muted text-sm">Circulating Supply</span><span className="text-white font-medium text-sm">19.5M {stock.symbol}</span></div>
-          <div className="flex justify-between items-center"><span className="text-penny-text-muted text-sm">All Time High</span><span className="text-white font-medium text-sm">$73,750.00</span></div>
-        </Card>
-      </div>
-
       {/* About & Trade */}
       <div className="grid md:grid-cols-3 gap-6">
         <Card variant="default" className="md:col-span-2">
@@ -168,7 +113,7 @@ export default function MarketplaceStockDetail() {
           <p className="text-penny-text-muted leading-relaxed text-sm">
             {stock.category ? `${stock.category} · ` : ""}{stock.exchange ? `Listed on ${stock.exchange}` : "Listed stock"}
             <br /><br />
-            <strong className="text-white">Project Overview:</strong> This asset has shown significant resilience over the past few quarters, maintaining strong support levels despite broader market volatility. Integration with multiple decentralized finance protocols continues to drive fundamental value.
+            {stock.description || `No additional information has been provided for ${stock.name} yet.`}
           </p>
         </Card>
 

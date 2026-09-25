@@ -25,6 +25,7 @@ import type {
   Transaction,
   TransactionStatus,
   UpdateCopyTradingPayload,
+  UpdateCopyTradePurchasePayload,
   UpdateCopyTradingPortfolioPayload,
   UpdateStockPayload,
 } from "@/types/api";
@@ -122,8 +123,19 @@ export const stocksApi = {
       body: JSON.stringify({ quantity }),
     }),
 };
+/**
+ * Some backend list endpoints return the bare array, others wrap it in a
+ * paginated envelope (`{ data: [...] }`). Unwrap both so callers always get an
+ * array and never mistake a wrapper object for an empty list.
+ */
+function unwrapList<T>(res: unknown): T[] {
+  if (Array.isArray(res)) return res as T[];
+  const data = (res as { data?: unknown } | null)?.data;
+  return Array.isArray(data) ? (data as T[]) : [];
+}
+
 export const copyTradingApi = {
-  list: () => api<CopyTrading[]>("/copy-trading"), //accessable to both user and admin
+  list: async () => unwrapList<CopyTrading>(await api<unknown>("/copy-trading")), //accessable to both user and admin
   get: (id: string) => api<CopyTrading>(`/copy-trading/${id}`), //accessable to both user and admin
   create: (data: CreateCopyTradingPayload) =>
     api<CopyTrading>("/copy-trading", {
@@ -147,7 +159,8 @@ export const copyTradingApi = {
       `/copy-trading/${id}/buy`,
       { method: "POST", body: JSON.stringify({ amountInvested }) },
     ), // accessable to user only
-  mine: () => api<CopyTradePurchase[]>("/copy-trading/me/purchases"),
+  mine: async () =>
+    unwrapList<CopyTradePurchase>(await api<unknown>("/copy-trading/me/purchases")),
   portfolio: () => api<CopyTradingPortfolio>("/copy-trading/portfolio/me"),
   depositToPortfolio: (data: CopyTradingPortfolioTransferPayload) =>
     api<CopyTradingPortfolioTransferResponse>(
@@ -263,6 +276,16 @@ export const adminApi = {
     ),
   copyTradingPortfolio: (userId: string) =>
     api<CopyTradingPortfolio>(`/admin/copy-trading-portfolios/${userId}`),
+  updateCopyTrading: (id: string, data: UpdateCopyTradingPayload) =>
+    api<CopyTrading>(`/admin/copy-trading/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+  updateCopyTradePurchase: (id: string, data: UpdateCopyTradePurchasePayload) =>
+    api<CopyTradePurchase>(`/admin/copy-trade-purchases/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
   updateCopyTradingPortfolio: (
     id: string,
     data: UpdateCopyTradingPortfolioPayload,

@@ -22,6 +22,7 @@ export interface ApprovalData {
   change24h?: number;
   rateOfChange?: number;
   currency?: string;
+  description?: string;
 }
 
 const inputStyles = {
@@ -47,6 +48,7 @@ export default function ProposalDetailModal({
     category: "",
     change24h: 0,
     rateOfChange: 0,
+    description: "",
   });
   const [submitting, setSubmitting] = useState<"approve" | "reject" | null>(null);
   const [showRejectConfirm, setShowRejectConfirm] = useState(false);
@@ -62,6 +64,7 @@ export default function ProposalDetailModal({
         category: proposal.category ?? "",
         change24h: proposal.change24h ?? 0,
         rateOfChange: proposal.rateOfChange ?? 0,
+        description: proposal.description ?? "",
       });
       setShowRejectConfirm(false);
     }
@@ -84,6 +87,9 @@ export default function ProposalDetailModal({
         initialListingPrice: price,
         ...(form.change24h ? { change24h: form.change24h } : {}),
         ...(form.rateOfChange ? { rateOfChange: form.rateOfChange } : {}),
+        ...(form.description?.trim()
+          ? { description: form.description.trim() }
+          : {}),
       };
       await onApprove(proposal._id, payload);
       onClose();

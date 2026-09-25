@@ -8,12 +8,9 @@ import {
   useCreateCopyTrade,
   useUpdateCopyTrade,
   useDeleteCopyTrade,
+  useToggleCopyTradeActive,
 } from "@/hooks/queries/useAdminActions";
 import type { CopyTrading, CreateCopyTradingPayload, RiskLevel } from "@/types/api";
-import { getCopyTradeMeta } from "@/lib/copyTradeMeta";
-
-const formatUSD = (n: number) =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(n);
 
 const RISK_STYLES: Record<RiskLevel, { bg: string; color: string }> = {
   low: { bg: "rgba(0,212,161,0.1)", color: "#00d4a1" },
@@ -21,13 +18,12 @@ const RISK_STYLES: Record<RiskLevel, { bg: string; color: string }> = {
   high: { bg: "rgba(244,67,54,0.1)", color: "#F44336" },
 };
 
-// The "Deploy New Trader" form collects a few fields the backend model can't
-// store yet (country code, coin symbol, leverage, per-trade history). They live
-// in local form state and are persisted via lib/copyTradeMeta.
+// The "Deploy New Trader" form maps directly onto the backend CopyTrading model
+// (traderName, riskLevel, leverage, winrate, country, last_10_trades, duration,
+// percentage). The coin symbol is stored as the plan `currency`.
 interface TraderFormState {
   traderName: string;
   countryCode: string;
-  coinSymbol: string;
   leverage: number;
   percentage: number;
   trades: number[];
@@ -36,6 +32,7 @@ interface TraderFormState {
 const TRADE_COUNT = 10;
 
 /** Derive a risk level from leverage — higher leverage reads as higher risk. */
+
 function riskFromLeverage(leverage: number): RiskLevel {
   if (leverage >= 20) return "high";
   if (leverage >= 10) return "medium";
@@ -45,43 +42,46 @@ function riskFromLeverage(leverage: number): RiskLevel {
 const emptyForm = (): TraderFormState => ({
   traderName: "",
   countryCode: "US",
-  coinSymbol: "BTC",
   leverage: 10,
   percentage: 5,
   trades: Array.from({ length: TRADE_COUNT }, () => 10),
 });
 
 /** Build the payload the backend accepts from the richer local form state. */
-function toBackendPayload(form: TraderFormState): CreateCopyTradingPayload {
+function toBackendPayload(
+  form: TraderFormState,
+  duration: string,
+): CreateCopyTradingPayload {
   const winRate = form.trades.length
     ? (form.trades.filter((t) => t > 0).length / form.trades.length) * 100
     : 0;
   return {
-    traderName: form.traderName,
+    traderName: form.traderName.trim(),
     riskLevel: riskFromLeverage(form.leverage),
-    rateOfChange: Number(winRate.toFixed(2)),
-    duration: "30 days",
-    averageDailyProfit: 0,
+    leverage: form.leverage,
+    winrate: Number(winRate.toFixed(2)),
+    country: form.countryCode.trim().toUpperCase(),
+    last_10_trades: form.trades,
+    duration: duration.trim() || "30 days",
     purchases: 0,
     totalAssets: 0,
     percentage: form.percentage,
-    copyTradePrice: 0,
   };
 }
 
 export default function CopyTradingAdminPage() {
   const { data: setupsData, isLoading, error } = useCopyTrading();
-  const setups: CopyTrading[] = Array.isArray(setupsData)
-    ? setupsData
-    : ((setupsData as unknown as { data?: CopyTrading[] })?.data ?? []);
+  const setups: CopyTrading[] = setupsData ?? [];
 
   const createMut = useCreateCopyTrade();
   const updateMut = useUpdateCopyTrade();
   const deleteMut = useDeleteCopyTrade();
+  const toggleMut = useToggleCopyTradeActive();
 
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState<TraderFormState>(emptyForm());
+  const [durationValue, setDurationValue] = useState("30 days");
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [actionError, setActionError] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
@@ -95,17 +95,17 @@ export default function CopyTradingAdminPage() {
 
   const openEdit = (setup: CopyTrading) => {
     setEditingId(setup._id);
-    // Prefill the backend-stored fields, then overlay the extra UI-only fields.
-    const meta = getCopyTradeMeta(setup._id);
+    setDurationValue(setup.duration || "30 days");
+    // Prefill from the backend-stored fields (country, currency, leverage,
+    // last_10_trades) with sensible defaults when absent.
     setFormData({
       traderName: setup.traderName,
-      countryCode: meta?.countryCode ?? "US",
-      coinSymbol: meta?.coinSymbol ?? "BTC",
-      leverage: meta?.leverage ?? 10,
+      countryCode: setup.country ?? "US",
+      leverage: setup.leverage ?? 10,
       percentage: setup.percentage,
       trades:
-        meta?.trades && meta.trades.length
-          ? meta.trades.slice(0, TRADE_COUNT)
+        setup.last_10_trades && setup.last_10_trades.length
+          ? setup.last_10_trades.slice(0, TRADE_COUNT)
           : Array.from({ length: TRADE_COUNT }, () => 10),
     });
     setFormErrors({});
@@ -124,18 +124,12 @@ export default function CopyTradingAdminPage() {
     e.preventDefault();
     if (!validateForm()) return;
     setActionError("");
-    const payload = toBackendPayload(formData);
-    const meta = {
-      countryCode: formData.countryCode.trim().toUpperCase(),
-      coinSymbol: formData.coinSymbol.trim().toUpperCase(),
-      leverage: formData.leverage,
-      trades: formData.trades,
-    };
+    const payload = toBackendPayload(formData, durationValue);
     try {
       if (editingId) {
-        await updateMut.mutateAsync({ id: editingId, data: payload, meta });
+        await updateMut.mutateAsync({ id: editingId, data: payload });
       } else {
-        await createMut.mutateAsync({ data: payload, meta });
+        await createMut.mutateAsync(payload);
       }
       setShowModal(false);
     } catch (err) {
@@ -157,15 +151,8 @@ export default function CopyTradingAdminPage() {
   const toggleActive = async (setup: CopyTrading) => {
     setActionError("");
     try {
-      // The backend PATCH /copy-trading/:id endpoint does NOT accept `isActive`.
-      // Instead, we update a non-isActive field as a no-op workaround while
-      // toggling the local cache optimistically, OR the backend may expose a
-      // separate activate/deactivate endpoint in the future.
-      // For now, surface a clear error so the developer knows.
-      setActionError(
-        `The backend does not support toggling active status via the PATCH endpoint (isActive is not an accepted field). ` +
-        `Ask the backend developer to add a dedicated PATCH /copy-trading/${setup._id}/toggle-active endpoint.`
-      );
+      // Dedicated backend endpoint: PATCH /copy-trading/:id/toggle-active
+      await toggleMut.mutateAsync({ id: setup._id, isActive: !(setup.isActive !== false) });
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Failed to update setup.");
     }
@@ -317,11 +304,11 @@ export default function CopyTradingAdminPage() {
                   <div className="grid grid-cols-2 xs:grid-cols-4 gap-px mx-4 sm:mx-5 rounded-xl overflow-hidden" style={{ background: "#1d2639" }}>
                     <div className="p-3" style={{ background: "#0d1624" }}>
                       <p className="text-[10px]" style={{ color: "#6b7785" }}>Win Rate</p>
-                      <p className="text-sm font-bold mt-0.5" style={{ color: "#00d4a1" }}>{setup.rateOfChange.toFixed(2)}%</p>
+                      <p className="text-sm font-bold mt-0.5" style={{ color: "#00d4a1" }}>{(setup.winrate ?? 0).toFixed(2)}%</p>
                     </div>
                     <div className="p-3" style={{ background: "#0d1624" }}>
-                      <p className="text-[10px]" style={{ color: "#6b7785" }}>Daily Profit</p>
-                      <p className="text-sm font-bold text-white mt-0.5">{formatUSD(setup.averageDailyProfit)}</p>
+                      <p className="text-[10px]" style={{ color: "#6b7785" }}>Leverage</p>
+                      <p className="text-sm font-bold text-white mt-0.5">{setup.leverage ?? 1}x</p>
                     </div>
                     <div className="p-3" style={{ background: "#0d1624" }}>
                       <p className="text-[10px]" style={{ color: "#6b7785" }}>Fee</p>
@@ -337,7 +324,7 @@ export default function CopyTradingAdminPage() {
                   <div className="p-4 sm:p-5 flex items-stretch gap-2">
                     <button
                       onClick={() => toggleActive(setup)}
-                      disabled={updateMut.isPending}
+                      disabled={toggleMut.isPending}
                       className="flex-1 h-9 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
                       style={{ background: "#0d1624", color: isActive ? "#9aa3b0" : "#00d4a1", border: "1px solid #252f45" }}
                     >
@@ -415,28 +402,26 @@ export default function CopyTradingAdminPage() {
                   {formErrors.traderName && <p className="text-xs mt-1" style={{ color: "#F44336" }}>{formErrors.traderName}</p>}
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-xs font-semibold mb-2 block" style={{ color: "#9aa3b0" }}>Country Code</label>
-                    <input
-                      value={formData.countryCode}
-                      maxLength={2}
-                      onChange={(e) => setFormData(f => ({ ...f, countryCode: e.target.value.toUpperCase() }))}
-                      placeholder="US"
-                      className="w-full px-4 py-2.5 rounded-xl text-sm uppercase placeholder:text-[#4a5568]"
-                      style={{ background: "#151d2d", border: "1px solid #252f45", color: "white" }}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold mb-2 block" style={{ color: "#9aa3b0" }}>Coin Symbol</label>
-                    <input
-                      value={formData.coinSymbol}
-                      onChange={(e) => setFormData(f => ({ ...f, coinSymbol: e.target.value.toUpperCase() }))}
-                      placeholder="BTC"
-                      className="w-full px-4 py-2.5 rounded-xl text-sm uppercase placeholder:text-[#4a5568]"
-                      style={{ background: "#151d2d", border: "1px solid #252f45", color: "white" }}
-                    />
-                  </div>
+                <div>
+                  <label className="text-xs font-semibold mb-2 block" style={{ color: "#9aa3b0" }}>Country Code</label>
+                  <input
+                    value={formData.countryCode}
+                    maxLength={2}
+                    onChange={(e) => setFormData(f => ({ ...f, countryCode: e.target.value.toUpperCase() }))}
+                    placeholder="US"
+                    className="w-full px-4 py-2.5 rounded-xl text-sm uppercase placeholder:text-[#4a5568]"
+                    style={{ background: "#151d2d", border: "1px solid #252f45", color: "white" }}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold mb-2 block" style={{ color: "#9aa3b0" }}>Duration</label>
+                  <input
+                    value={durationValue}
+                    onChange={(e) => setDurationValue(e.target.value)}
+                    placeholder="30 days"
+                    className="w-full px-4 py-2.5 rounded-xl text-sm placeholder:text-[#4a5568]"
+                    style={{ background: "#151d2d", border: "1px solid #252f45", color: "white" }}
+                  />
                 </div>
               </div>
 

@@ -21,6 +21,7 @@ export default function ProposeStockModal({ isOpen, onClose }: ProposeStockModal
   const [exchange, setExchange] = useState("NASDAQ");
   const [category, setCategory] = useState("Tech");
   const [initialPrice, setInitialPrice] = useState("");
+  const [description, setDescription] = useState("");
   const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -33,6 +34,7 @@ export default function ProposeStockModal({ isOpen, onClose }: ProposeStockModal
       setExchange("NASDAQ");
       setCategory("Tech");
       setInitialPrice("");
+      setDescription("");
       setStatus("idle");
       setErrorMessage("");
     }
@@ -176,6 +178,17 @@ export default function ProposeStockModal({ isOpen, onClose }: ProposeStockModal
                     required
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-penny-text-muted mb-1.5">Description</label>
+                <textarea
+                  rows={3}
+                  placeholder="Briefly describe this company..."
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl text-sm resize-none bg-[#0d1624] border border-[#252f45] text-white focus:outline-none focus:border-[#00d4a1]"
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
