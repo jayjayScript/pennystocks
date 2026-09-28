@@ -7,6 +7,7 @@ import DesktopSideNav from "@/components/global/nav/DesktopSideNav";
 import MobileNav from "@/components/global/nav/MobileNav";
 import TopNav from "@/components/global/nav/TopNav";
 import PendingDepositBanner from "@/components/global/PendingDepositBanner";
+import SmartsuppChat from "@/components/global/SmartsuppChat";
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -39,6 +40,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
       {/* Mobile bottom nav — fixed, visible only on mobile */}
       <MobileNav />
+
+      {/* Smartsupp live chat — user side only */}
+      <SmartsuppChat />
     </div>
   );
 }
